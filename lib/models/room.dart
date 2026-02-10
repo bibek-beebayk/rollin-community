@@ -11,6 +11,8 @@ class Room {
   final User? staff;
   final bool isActive;
   final int? queue; // ID of the support queue/room this chat belongs to
+  final String? queueName;
+  final bool canSwitchStation;
 
   Room({
     required this.id,
@@ -22,11 +24,13 @@ class Room {
     this.staff,
     this.isActive = false,
     this.queue,
+    this.queueName,
+    this.canSwitchStation = false,
   });
 
   factory Room.fromJson(Map<String, dynamic> json) {
     // DEBUG: Print raw JSON to find the correct "online" field
-    print('ROOM JSON: $json');
+    // print('ROOM JSON: $json');
 
     return Room(
       id: json['id'] ?? 0,
@@ -38,6 +42,8 @@ class Room {
       staff: json['staff'] != null ? User.fromJson(json['staff']) : null,
       isActive: json['is_active'] ?? false,
       queue: json['queue'],
+      queueName: json['queue_name'],
+      canSwitchStation: json['can_switch_station'] ?? false,
     );
   }
 
@@ -51,6 +57,8 @@ class Room {
       'is_private': isPrivate,
       'staff': staff?.toJson(),
       'is_active': isActive,
+      'queue_name': queueName,
+      'can_switch_station': canSwitchStation,
     };
   }
 }

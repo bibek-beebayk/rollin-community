@@ -11,6 +11,7 @@ import '../api/api_client.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 
 class ChatScreen extends StatefulWidget {
   final Room room;
@@ -28,6 +29,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isUploading = false;
   Room? _selectedChat;
+  List<PlatformFile> _selectedFiles = [];
 
   @override
   void initState() {
@@ -43,32 +45,28 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Future<void> _pickFile() async {
-    if (_selectedChat == null) return;
+  Future<void> _pickFiles() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf', 'mp4', 'mov'],
+      );
 
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      allowMultiple: false,
-    );
-
-    if (result != null && result.files.single.path != null) {
-      final filePath = result.files.single.path!;
-
-      if (mounted) setState(() => _isUploading = true);
-      try {
-        await context
-            .read<ChatProvider>()
-            .uploadFile(filePath, _selectedChat!.id);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to upload file: $e')),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isUploading = false);
+      if (result != null) {
+        setState(() {
+          _selectedFiles.addAll(result.files);
+        });
       }
+    } catch (e) {
+      print('Error picking files: $e');
     }
+  }
+
+  void _removeFile(int index) {
+    setState(() {
+      _selectedFiles.removeAt(index);
+    });
   }
 
   Future<void> _initQueue() async {
@@ -77,23 +75,30 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (mounted) setState(() => _isLoading = true);
 
-    if (!authProvider.isStaff) {
-      if (mounted) {
-        setState(() {
-          _selectedChat = widget.room;
-        });
-      }
-      await _openChatThread(widget.room);
-      return;
-    }
-
+    // Fetch active chats for EVERYONE to get latest room data (including canSwitchStation)
     try {
       await chatProvider.fetchActiveChats(authProvider.apiClient);
     } catch (e) {
       print('Error fetching active chats: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
+
+    if (!authProvider.isStaff) {
+      // Find the room that matches widget.room (or default to it)
+      // We need the one from provider because it has the latest flags
+      final activeRoom = chatProvider.activeChats.firstWhere(
+        (r) => r.id == widget.room.id,
+        orElse: () => widget.room,
+      );
+
+      if (mounted) {
+        setState(() {
+          _selectedChat = activeRoom;
+        });
+      }
+      await _openChatThread(activeRoom);
+    }
+
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _openChatThread(Room chatRoom) async {
@@ -169,12 +174,54 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    final chatProvider = context.read<ChatProvider>();
 
-    context.read<ChatProvider>().sendMessage(text);
-    _messageController.clear();
+    if ((text.isEmpty && _selectedFiles.isEmpty) || !chatProvider.isConnected) {
+      return;
+    }
+
+    if (_selectedChat == null) return;
+
+    // Upload files first
+    if (_selectedFiles.isNotEmpty) {
+      try {
+        if (mounted) setState(() => _isUploading = true);
+
+        // Upload sequentially to ensure order and error handling
+        for (var file in _selectedFiles) {
+          if (file.path != null) {
+            await chatProvider.uploadFile(file.path!, _selectedChat!.id);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _selectedFiles.clear();
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to upload file: $e')),
+          );
+          setState(() => _isUploading = false);
+          return; // Stop if upload fails
+        }
+      } finally {
+        if (mounted) setState(() => _isUploading = false);
+      }
+    }
+
+    // Send text if exists
+    if (text.isNotEmpty) {
+      chatProvider.sendMessage(text);
+      _messageController.clear();
+    }
+
+    // Keep focus
+    _focusNode.requestFocus();
     Future.delayed(const Duration(milliseconds: 150), _scrollToBottom);
   }
 
@@ -310,7 +357,14 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_selectedChat?.name ?? 'Chat'),
+            Text(
+              context.read<AuthProvider>().isStaff
+                  ? (_selectedChat?.name ?? 'Chat')
+                  : ((_selectedChat?.queueName != null &&
+                          !_selectedChat!.queueName!.startsWith('chat__'))
+                      ? _selectedChat!.queueName!
+                      : 'Support Station'),
+            ),
             Text(
               chatProvider.isConnected ? 'Connected' : 'Connecting...',
               style: TextStyle(
@@ -323,6 +377,13 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
+          if (!context.read<AuthProvider>().isStaff &&
+              (_selectedChat?.canSwitchStation ?? false))
+            IconButton(
+              icon: const Icon(Icons.swap_horiz, color: Colors.white),
+              tooltip: 'Switch Station',
+              onPressed: () => _confirmSwitchStation(context),
+            ),
           IconButton(
             icon: const Icon(Icons.check_circle_outline, color: Colors.green),
             tooltip: 'Close Ticket',
@@ -346,6 +407,22 @@ class _ChatScreenState extends State<ChatScreen> {
                     // index 0 (bottom) should be Newest (last in list)
                     final reversedIndex = messages.length - 1 - index;
                     final message = messages[reversedIndex];
+
+                    // Check for System Message
+                    // Assuming system messages have type 'system' or 'notification'
+                    // OR if content implies it (fallback)
+                    final isSystemMessage = message.type == 'system' ||
+                        message.type == 'notification' ||
+                        message.sender.id == 0 || // Assuming 0 is system
+                        message.content.startsWith('System:') ||
+                        message.content
+                            .toLowerCase()
+                            .contains('switched station');
+
+                    if (isSystemMessage) {
+                      return _SystemMessage(message: message);
+                    }
+
                     final isMe = message.sender.id == currentUser?.id;
 
                     // Grouping Logic
@@ -431,7 +508,7 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Close Ticket?'),
         content: const Text(
-            'This will resolve the support request and remove it from your active list.'),
+            'Are you sure you want to close this support ticket? This specific chat room will be archived.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -455,11 +532,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ticket closed successfully')),
           );
-          if (mounted) {
-            setState(() {
-              _selectedChat = null;
-            });
-          }
+          // Refresh queue/list
           await _initQueue();
         }
       } catch (e) {
@@ -472,44 +545,164 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Widget _buildInputArea() {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.attach_file, color: Colors.white70),
-              onPressed: _pickFile,
-            ),
-            Expanded(
-              child: CustomInput(
-                hintText: 'Type a message...',
-                controller: _messageController,
-                focusNode: _focusNode,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              width: 48,
-              height: 48,
-              decoration: const BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                onPressed: _sendMessage,
-              ),
-            ),
-          ],
-        ),
+  Future<void> _confirmSwitchStation(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Switch Station?'),
+        content: const Text(
+            'Are you sure you want to switch to a different support station? You will be moved to the next available queue.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+            child: const Text('Switch Station'),
+          ),
+        ],
       ),
+    );
+
+    if (confirm == true && mounted) {
+      if (mounted) setState(() => _isLoading = true);
+      try {
+        final api = context.read<AuthProvider>().apiClient;
+        await api.post('/api/rooms/switch-station/');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Switched station successfully')),
+          );
+          // Re-init queue to fetch new room and join it
+          await _initQueue();
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to switch station: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildFilePreviews() {
+    if (_selectedFiles.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: AppTheme.surface,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _selectedFiles.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final file = _selectedFiles[index];
+          final isImage =
+              ['jpg', 'jpeg', 'png'].contains(file.extension?.toLowerCase());
+
+          return Stack(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: AppTheme.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                child: isImage && file.path != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(file.path!),
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.insert_drive_file,
+                            color: Colors.white70, size: 24),
+                      ),
+              ),
+              Positioned(
+                top: -6,
+                right: -6,
+                child: GestureDetector(
+                  onTap: () => _removeFile(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child:
+                        const Icon(Icons.close, size: 12, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildFilePreviews(),
+        SafeArea(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              border:
+                  Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.attach_file, color: Colors.white70),
+                  onPressed: _pickFiles,
+                ),
+                Expanded(
+                  child: CustomInput(
+                    hintText: 'Type a message...',
+                    controller: _messageController,
+                    focusNode: _focusNode,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: _isUploading
+                        ? const Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send, color: Colors.white, size: 20),
+                    onPressed: _isUploading ? null : _sendMessage,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -675,5 +868,39 @@ class _MessageBubble extends StatelessWidget {
     } else {
       print('Could not launch $url');
     }
+  }
+}
+
+class _SystemMessage extends StatelessWidget {
+  final Message message;
+
+  const _SystemMessage({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final cleanContent = message.content
+        .replaceAll(RegExp(r'^System:\s*', caseSensitive: false), '');
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white
+              .withOpacity(0.1), // var(--color-bg-secondary) approximation
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          cleanContent,
+          style: TextStyle(
+            color: Colors.white
+                .withOpacity(0.6), // var(--color-text-muted) approximation
+            fontSize: 12, // ~0.75rem
+            fontWeight: FontWeight.w400,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
   }
 }
