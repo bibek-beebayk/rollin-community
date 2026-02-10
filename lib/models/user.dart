@@ -45,4 +45,5 @@ class User {
   }
 
   bool get isStaff => userType == 'staff';
+  bool get isAgent => userType == 'agent';
 }

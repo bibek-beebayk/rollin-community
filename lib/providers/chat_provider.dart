@@ -53,6 +53,34 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<void> fetchMessages(int roomId) async {
+    try {
+      final response =
+          await ApiClient().get('/api/rooms/$roomId/messages/?limit=50');
+      // API might return list directly or {data: []}
+      final List<dynamic> data =
+          (response is Map && response.containsKey('results'))
+              ? response['results']
+              : (response is Map && response.containsKey('data'))
+                  ? response['data']
+                  : (response is List ? response : []);
+
+      final history = <Message>[];
+      for (var item in data) {
+        try {
+          history.add(Message.fromJson(item));
+        } catch (e) {
+          // Skip invalid messages
+        }
+      }
+      print(
+          'DEBUG: Parsed ${history.length} valid messages from ${data.length} items');
+      setHistory(history);
+    } catch (e) {
+      print('ChatProvider: Error fetching history: $e');
+    }
+  }
+
   void connect(int roomId, String accessToken) {
     if (_currentRoomId == roomId && _isConnected) return;
 
@@ -136,6 +164,20 @@ class ChatProvider with ChangeNotifier {
       }
     } catch (e) {
       print('Error parsing message: $e');
+    }
+  }
+
+  Future<void> uploadFile(String filePath, int roomId) async {
+    // We don't send via WebSocket for upload, we hit the API
+    // The API will trigger a WS message to all users
+    try {
+      await ApiClient().postMultipart(
+        '/api/rooms/$roomId/attachments/',
+        filePath,
+      );
+    } catch (e) {
+      print('ChatProvider: Error uploading file: $e');
+      rethrow;
     }
   }
 

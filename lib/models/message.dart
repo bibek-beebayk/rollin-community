@@ -19,6 +19,7 @@ class Message {
     this.isRead = false,
     this.isEdited = false,
     this.type,
+    this.attachment,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -40,7 +41,34 @@ class Message {
       isRead: json['is_read'] ?? false,
       isEdited: json['is_edited'] ?? false,
       type: json['type'],
+      attachment: json['attachment'] != null
+          ? (json['attachment'] is String
+              ? MessageAttachment(
+                  file: json['attachment'],
+                  fileType: _inferMimeType(json['attachment']),
+                  filename: json['attachment'].split('/').last,
+                )
+              : MessageAttachment.fromJson(json['attachment']))
+          : null,
     );
+  }
+
+  static String _inferMimeType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.webp')) {
+      return 'image/jpeg';
+    }
+    if (lower.endsWith('.mp4') || lower.endsWith('.mov')) {
+      return 'video/mp4';
+    }
+    if (lower.endsWith('.pdf')) {
+      return 'application/pdf';
+    }
+    return 'application/octet-stream';
   }
 
   static int? _parseInt(dynamic value) {
@@ -54,5 +82,27 @@ class Message {
     if (value == null) return null;
     if (value is String) return DateTime.tryParse(value);
     return null;
+  }
+
+  final MessageAttachment? attachment;
+}
+
+class MessageAttachment {
+  final String file;
+  final String? filename;
+  final String? fileType;
+
+  MessageAttachment({
+    required this.file,
+    this.filename,
+    this.fileType,
+  });
+
+  factory MessageAttachment.fromJson(Map<String, dynamic> json) {
+    return MessageAttachment(
+      file: json['file'] ?? '',
+      filename: json['filename'],
+      fileType: json['file_type'],
+    );
   }
 }

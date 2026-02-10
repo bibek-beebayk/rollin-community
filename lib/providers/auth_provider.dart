@@ -7,6 +7,9 @@ class AuthProvider with ChangeNotifier {
   User? _user;
   bool _isLoading = true;
 
+  bool get isStaff => _user?.isStaff ?? false;
+  bool get isAgent => _user?.isAgent ?? false;
+
   User? get user => _user;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
@@ -17,15 +20,18 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> checkAuth() async {
+    _isLoading = true;
+    notifyListeners();
     try {
-      _isLoading = true;
-      notifyListeners();
-
-      final data = await _apiClient.get('/api/auth/me/');
-      _user = User.fromJson(data);
+      // Check if we have access token (will trigger _loadTokens internally)
+      if (_apiClient.accessToken != null) {
+        final response = await _apiClient.get('/api/auth/me/');
+        _user = User.fromJson(response);
+      }
     } catch (e) {
       print('Auth check failed: $e');
       _user = null;
+      await _apiClient.clearTokens();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -49,8 +55,6 @@ class AuthProvider with ChangeNotifier {
       final data = response['data'] ?? response;
 
       if (data['user'] == null) {
-        // Fallback: sometimes user data might be in root even if data wrapper exists, or specific structure
-        // But based on logs: data: {refresh: ..., access: ..., user: {...}}
         print('AuthProvider Error: "user" key missing in data');
         throw Exception('Invalid response: missing user data');
       }
@@ -60,9 +64,10 @@ class AuthProvider with ChangeNotifier {
       print(
           'AuthProvider: User parsed. Type: ${user.userType}, IsStaff: ${user.isStaff}');
 
-      if (!user.isStaff) {
-        throw Exception('Access denied: Staff only');
-      }
+      // REMOVED: Staff only check
+      // if (!user.isStaff) {
+      //   throw Exception('Access denied: Staff only');
+      // }
 
       print('AuthProvider: Setting tokens...');
       await _apiClient.setTokens(data['access'], data['refresh']);

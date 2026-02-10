@@ -7,9 +7,13 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_input.dart';
+import '../api/api_client.dart';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatScreen extends StatefulWidget {
-  final Room room; // This is the SUPPORT ROOM (Queue)
+  final Room room;
 
   const ChatScreen({super.key, required this.room});
 
@@ -20,8 +24,10 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   bool _isLoading = true;
-  Room? _selectedChat; // The specific Chat Session
+  bool _isUploading = false;
+  Room? _selectedChat;
 
   @override
   void initState() {
@@ -29,13 +35,58 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initQueue());
   }
 
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickFile() async {
+    if (_selectedChat == null) return;
+
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      allowMultiple: false,
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final filePath = result.files.single.path!;
+
+      if (mounted) setState(() => _isUploading = true);
+      try {
+        await context
+            .read<ChatProvider>()
+            .uploadFile(filePath, _selectedChat!.id);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to upload file: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isUploading = false);
+      }
+    }
+  }
+
   Future<void> _initQueue() async {
     final chatProvider = context.read<ChatProvider>();
     final authProvider = context.read<AuthProvider>();
 
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
 
-    // Fetch active chats to populate the queue list
+    if (!authProvider.isStaff) {
+      if (mounted) {
+        setState(() {
+          _selectedChat = widget.room;
+        });
+      }
+      await _openChatThread(widget.room);
+      return;
+    }
+
     try {
       await chatProvider.fetchActiveChats(authProvider.apiClient);
     } catch (e) {
@@ -46,64 +97,74 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _openChatThread(Room chatRoom) async {
-    setState(() {
-      _selectedChat = chatRoom;
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _selectedChat = chatRoom;
+        _isLoading = true;
+      });
+    }
 
     final authProvider = context.read<AuthProvider>();
     final chatProvider = context.read<ChatProvider>();
     final apiClient = authProvider.apiClient;
 
     if (apiClient.accessToken != null) {
-      // 1. Join request (ensure access to this specific chat)
       try {
-        await apiClient.post('/api/rooms/${chatRoom.id}/join/');
-      } catch (e) {
-        // Ignore if already joined
-      }
-
-      // 2. Connect specific Chat ID
-      chatProvider.connect(chatRoom.id, apiClient.accessToken!);
-
-      // 3. Fetch History
-      try {
-        final data = await apiClient.get(
-          '/api/rooms/${chatRoom.id}/messages/',
-        );
-
-        List<dynamic> jsonList = [];
-        if (data is Map<String, dynamic>) {
-          if (data.containsKey('results')) {
-            jsonList = data['results'];
-          } else if (data.containsKey('data')) {
-            jsonList = data['data'];
-          }
-        } else if (data is List) {
-          jsonList = data;
+        try {
+          await apiClient.post('/api/rooms/${chatRoom.id}/join/');
+        } catch (e) {
+          // Ignore if already joined
         }
 
-        final messages = jsonList.map((j) => Message.fromJson(j)).toList();
-        chatProvider.setHistory(messages);
+        chatProvider.connect(chatRoom.id, apiClient.accessToken!);
 
-        // Scroll to bottom after load
-        Future.delayed(const Duration(milliseconds: 300), _scrollToBottom);
+        await chatProvider.fetchMessages(chatRoom.id);
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+          Future.delayed(
+              const Duration(milliseconds: 100), _scrollToBottomInstant);
+        }
       } catch (e) {
-        print('Error fetching history: $e');
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+        print('Error opening chat: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load chat: $e')),
+          );
+          if (mounted) setState(() => _isLoading = false);
+        }
       }
+    }
+  }
+
+  void _scrollToBottomInstant() {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } else {
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (_scrollController.hasClients && mounted) {
+          _scrollToBottomInstant();
+        }
+      });
     }
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (_scrollController.hasClients && mounted) {
+            _scrollToBottomInstant(); // Jump instead of animate for snap effect on load
+            _scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
       }
     });
   }
@@ -114,33 +175,21 @@ class _ChatScreenState extends State<ChatScreen> {
 
     context.read<ChatProvider>().sendMessage(text);
     _messageController.clear();
-    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    // Optional: Disconnect WS when leaving screen?
-    // context.read<ChatProvider>().disconnect();
-    super.dispose();
+    Future.delayed(const Duration(milliseconds: 150), _scrollToBottom);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_selectedChat == null) {
+    final authProvider = context.read<AuthProvider>();
+    if (_selectedChat == null && authProvider.isStaff) {
       return _buildQueueView(context);
     } else {
       return _buildChatThread(context);
     }
   }
 
-  // --- QUEUE VIEW (List of active chats in this support room) ---
   Widget _buildQueueView(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
-
-    // Filter active chats that belong to this Support Room (Queue)
-    // Assuming Room model has 'queue' field matching SupportRoom ID
     final queueChats = chatProvider.activeChats
         .where((chat) => chat.queue == widget.room.id)
         .toList();
@@ -176,12 +225,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: queueChats.length,
                   itemBuilder: (context, index) {
                     final chat = queueChats[index];
-                    // Use client name if available, else generic name
                     final displayName = chat.staff != null
                         ? (chat.name.isNotEmpty
                             ? chat.name
                             : "Chat #${chat.id}")
-                        // Maybe use a 'client' field if Room has it?
                         : chat.name;
 
                     return Card(
@@ -238,7 +285,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // --- THREAD VIEW ---
   Widget _buildChatThread(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final currentUser = context.read<AuthProvider>().user;
@@ -249,14 +295,16 @@ class _ChatScreenState extends State<ChatScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            // Disconnect or just go back?
-            // Better to stay connected if we want to "minimize" but for now let's just go back
-            // chatProvider.disconnect(); // Optional
-            setState(() {
-              _selectedChat = null;
-              // Clear messages to avoid flash when opening another
-              // chatProvider.messages.clear(); // Provider handles this on connect
-            });
+            final authProvider = context.read<AuthProvider>();
+            if (authProvider.isStaff) {
+              if (mounted) {
+                setState(() {
+                  _selectedChat = null;
+                });
+              }
+            } else {
+              Navigator.pop(context);
+            }
           },
         ),
         title: Column(
@@ -282,21 +330,96 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                final isMe = message.sender.id == currentUser?.id;
-                return _MessageBubble(message: message, isMe: isMe);
-              },
-            ),
+          Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    // Reverse the index since we're using reverse: true
+                    // messages is sorted Oldest -> Newest
+                    // index 0 (bottom) should be Newest (last in list)
+                    final reversedIndex = messages.length - 1 - index;
+                    final message = messages[reversedIndex];
+                    final isMe = message.sender.id == currentUser?.id;
+
+                    // Grouping Logic
+                    bool showSender = true;
+                    bool compactBottom = false;
+
+                    // Check Older Message (index + 1 in ListView)
+                    if (reversedIndex > 0) {
+                      final olderMessage = messages[reversedIndex - 1];
+                      // Check if same sender and time diff < 5 mins
+                      final diff = message.timestamp
+                          .difference(olderMessage.timestamp)
+                          .inMinutes;
+
+                      if (olderMessage.sender.id == message.sender.id &&
+                          diff.abs() < 5) {
+                        showSender = false;
+                      }
+                    }
+
+                    // Check Newer Message (index - 1 in ListView)
+                    if (reversedIndex < messages.length - 1) {
+                      final newerMessage = messages[reversedIndex + 1];
+                      final diff = newerMessage.timestamp
+                          .difference(message.timestamp)
+                          .inMinutes;
+                      if (newerMessage.sender.id == message.sender.id &&
+                          diff.abs() < 5) {
+                        compactBottom = true;
+                      }
+                    }
+
+                    return _MessageBubble(
+                      message: message,
+                      isMe: isMe,
+                      showSender: showSender,
+                      compactBottom: compactBottom,
+                    );
+                  },
+                ),
+              ),
+              if (messages.isEmpty && !_isLoading)
+                Center(
+                  child: Text(
+                    'No messages yet',
+                    style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                  ),
+                ),
+              if (_isUploading)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  color: AppTheme.surface,
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(width: 8),
+                      Text('Uploading...',
+                          style:
+                              TextStyle(color: Colors.white.withOpacity(0.7))),
+                    ],
+                  ),
+                ),
+              _buildInputArea(),
+            ],
           ),
-          _buildInputArea(),
+          if (_isLoading)
+            Container(
+              color: AppTheme.background,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
         ],
       ),
     );
@@ -332,12 +455,12 @@ class _ChatScreenState extends State<ChatScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ticket closed successfully')),
           );
-          // Close thread and modify UI
-          setState(() {
-            _selectedChat = null;
-          });
-          // Refresh queue
-          _initQueue();
+          if (mounted) {
+            setState(() {
+              _selectedChat = null;
+            });
+          }
+          await _initQueue();
         }
       } catch (e) {
         if (mounted) {
@@ -350,32 +473,42 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputArea() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: CustomInput(
-              hintText: 'Type a message...',
-              controller: _messageController,
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.attach_file, color: Colors.white70),
+              onPressed: _pickFile,
             ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              shape: BoxShape.circle,
+            Expanded(
+              child: CustomInput(
+                hintText: 'Type a message...',
+                controller: _messageController,
+                focusNode: _focusNode,
+              ),
             ),
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
-              onPressed: _sendMessage,
+            const SizedBox(width: 12),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                onPressed: _sendMessage,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -384,8 +517,15 @@ class _ChatScreenState extends State<ChatScreen> {
 class _MessageBubble extends StatelessWidget {
   final Message message;
   final bool isMe;
+  final bool showSender;
+  final bool compactBottom;
 
-  const _MessageBubble({required this.message, required this.isMe});
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    this.showSender = true,
+    this.compactBottom = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -394,7 +534,7 @@ class _MessageBubble extends StatelessWidget {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: compactBottom ? 2 : 12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
@@ -402,18 +542,17 @@ class _MessageBubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: isMe ? AppTheme.primary : AppTheme.surface,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft:
-                isMe ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight:
-                isMe ? const Radius.circular(4) : const Radius.circular(16),
+            topLeft: Radius.circular(showSender && !isMe ? 16 : 4),
+            topRight: Radius.circular(showSender && isMe ? 16 : 4),
+            bottomLeft: Radius.circular(compactBottom && !isMe ? 4 : 16),
+            bottomRight: Radius.circular(compactBottom && isMe ? 4 : 16),
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isMe)
+            if (!isMe && showSender)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
@@ -425,21 +564,116 @@ class _MessageBubble extends StatelessWidget {
                   ),
                 ),
               ),
-            Text(
-              message.content,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              timeStr,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 10,
+            if (message.content.isNotEmpty)
+              Text(
+                message.content,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
               ),
-            ),
+            _buildAttachment(context),
+            if (!compactBottom) ...[
+              const SizedBox(height: 4),
+              Text(
+                timeStr,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildAttachment(BuildContext context) {
+    if (message.attachment == null) return const SizedBox.shrink();
+
+    final attachment = message.attachment!;
+    final fileType = attachment.fileType ?? 'unknown';
+
+    // Use localhost for android emulator if needed, but here we use the URL from backend
+    // If backend returns relative URL, prepend base URL
+    String fileUrl = attachment.file;
+    if (!fileUrl.startsWith('http')) {
+      fileUrl = '${ApiClient.baseUrl}$fileUrl';
+    }
+
+    if (fileType.startsWith('image/')) {
+      return GestureDetector(
+        onTap: () => _launchUrl(fileUrl),
+        child: Container(
+          margin: const EdgeInsets.only(top: 8, bottom: 4),
+          constraints: const BoxConstraints(
+            maxWidth: 200,
+            maxHeight: 250,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              fileUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image, color: Colors.white54),
+            ),
+          ),
+        ),
+      );
+    } else {
+      return GestureDetector(
+        onTap: () => _launchUrl(fileUrl),
+        child: Container(
+          margin: const EdgeInsets.only(top: 8, bottom: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getFileIcon(fileType),
+                color: Colors.white,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  attachment.filename ?? 'Attachment',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    decoration: TextDecoration.underline,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  IconData _getFileIcon(String fileType) {
+    if (fileType.startsWith('video/')) return Icons.videocam;
+    if (fileType.startsWith('audio/')) return Icons.audiotrack;
+    if (fileType.contains('pdf')) return Icons.picture_as_pdf;
+    return Icons.insert_drive_file;
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      print('Could not launch $url');
+    }
   }
 }

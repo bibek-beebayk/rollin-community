@@ -67,6 +67,58 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> postMultipart(String endpoint, String filePath,
+      {String? fieldName}) async {
+    final url = '$baseUrl$endpoint';
+    _logRequest('POST MULTIPART', url, body: 'File: $filePath');
+
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse(url));
+
+      // Headers
+      final headers = await _getHeaders();
+      // Remove Content-Type to let MultipartRequest set boundary
+      headers.remove('Content-Type');
+      request.headers.addAll(headers);
+
+      // File
+      request.files.add(await http.MultipartFile.fromPath(
+        fieldName ?? 'file',
+        filePath,
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // Token Refresh Logic (Duplicate from post - ideally refactor)
+      if (response.statusCode == 401 && _refreshToken != null) {
+        print('🔒 401 Unauthorized (Multipart). Attempting token refresh...');
+        final success = await _refreshAccessToken();
+        if (success) {
+          print('🔓 Token refreshed. Retrying Multipart request...');
+          final retryRequest = http.MultipartRequest('POST', Uri.parse(url));
+          final newHeaders = await _getHeaders();
+          newHeaders.remove('Content-Type');
+          retryRequest.headers.addAll(newHeaders);
+          retryRequest.files.add(await http.MultipartFile.fromPath(
+            fieldName ?? 'file',
+            filePath,
+          ));
+          final retryStreamed = await retryRequest.send();
+          final retryResponse = await http.Response.fromStream(retryStreamed);
+          _logResponse('POST MULTIPART', url, retryResponse);
+          return _handleResponse(retryResponse);
+        }
+      }
+
+      _logResponse('POST MULTIPART', url, response);
+      return _handleResponse(response);
+    } catch (e) {
+      _logError('POST MULTIPART', url, e);
+      rethrow;
+    }
+  }
+
   Future<dynamic> post(String endpoint, {dynamic body}) async {
     final url = '$baseUrl$endpoint';
     final startBody = body != null ? jsonEncode(body) : null;

@@ -7,6 +7,7 @@ import 'theme/app_theme.dart';
 
 // Placeholder for Dashboard (we'll create this next)
 import 'screens/dashboard_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const StaffChatApp());
@@ -46,7 +47,11 @@ class AuthWrapper extends StatelessWidget {
     }
 
     if (authProvider.isAuthenticated) {
-      return const DashboardScreen();
+      if (authProvider.isStaff) {
+        return const DashboardScreen();
+      } else {
+        return const HomeScreen();
+      }
     }
 
     return const LoginScreen();

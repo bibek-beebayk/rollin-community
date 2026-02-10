@@ -6,6 +6,7 @@ class CustomInput extends StatelessWidget {
   final bool obscureText;
   final TextInputType keyboardType;
   final Widget? prefixIcon;
+  final FocusNode? focusNode;
 
   const CustomInput({
     super.key,
@@ -14,6 +15,7 @@ class CustomInput extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
     this.prefixIcon,
+    this.focusNode,
   });
 
   @override
@@ -26,6 +28,7 @@ class CustomInput extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         obscureText: obscureText,
         keyboardType: keyboardType,
         style: const TextStyle(color: Colors.white),
