@@ -810,6 +810,18 @@ class _MessageBubble extends StatelessWidget {
             child: Image.network(
               fileUrl,
               fit: BoxFit.contain,
+              loadingBuilder: (BuildContext context, Widget child,
+                  ImageChunkEvent? loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                );
+              },
               errorBuilder: (context, error, stackTrace) =>
                   const Icon(Icons.broken_image, color: Colors.white54),
             ),
