@@ -6,6 +6,8 @@ import '../widgets/custom_input.dart';
 import '../widgets/custom_button.dart';
 import '../theme/app_theme.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,6 +18,24 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _rememberMe = prefs.getBool('remember_me') ?? false;
+      if (_rememberMe) {
+        _emailController.text = prefs.getString('saved_username') ?? '';
+        _passwordController.text = prefs.getString('saved_password') ?? '';
+      }
+    });
+  }
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -30,6 +50,18 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text,
         _passwordController.text,
       );
+
+      // Save credentials if Remember Me is checked
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setBool('remember_me', true);
+        await prefs.setString('saved_username', _emailController.text);
+        await prefs.setString('saved_password', _passwordController.text);
+      } else {
+        await prefs.setBool('remember_me', false);
+        await prefs.remove('saved_username');
+        await prefs.remove('saved_password');
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -144,10 +176,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         _buildLabel('Username'),
                         CustomInput(
                           hintText: 'Enter your username',
-                          controller:
-                              _emailController, // Using email controller for username to match code var
+                          controller: _emailController,
                           keyboardType: TextInputType.text,
-                          // No prefix icon in web design, removing for fidelity
                         ),
                         const SizedBox(height: 16),
 
@@ -159,24 +189,56 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
 
                         const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {}, // TODO: Implement forgot password
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+
+                        // Remember Me & Forgot Password
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value ?? false;
+                                    });
+                                  },
+                                  fillColor: MaterialStateProperty.resolveWith(
+                                    (states) =>
+                                        states.contains(MaterialState.selected)
+                                            ? AppTheme.primary
+                                            : Colors.white.withOpacity(0.1),
+                                  ),
+                                  checkColor: Colors.white,
+                                  side: BorderSide(
+                                      color: Colors.white.withOpacity(0.5)),
+                                ),
+                                Text(
+                                  'Remember me',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                            TextButton(
+                              onPressed: () {},
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Forgot Password?',
+                                style: TextStyle(
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
 
                         const SizedBox(height: 24),
@@ -198,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   fontSize: 13),
                             ),
                             Text(
-                              "Register here", // In staff app registration might not be open, but matching design
+                              "Register here",
                               style: TextStyle(
                                 color: AppTheme.primary,
                                 fontWeight: FontWeight.bold,
