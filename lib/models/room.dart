@@ -13,6 +13,7 @@ class Room {
   final int? queue; // ID of the support queue/room this chat belongs to
   final String? queueName;
   final bool canSwitchStation;
+  int unreadCount;
 
   Room({
     required this.id,
@@ -26,6 +27,7 @@ class Room {
     this.queue,
     this.queueName,
     this.canSwitchStation = false,
+    this.unreadCount = 0,
   });
 
   factory Room.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,7 @@ class Room {
       queue: json['queue'],
       queueName: json['queue_name'],
       canSwitchStation: json['can_switch_station'] ?? false,
+      unreadCount: json['unread_count'] ?? 0,
     );
   }
 

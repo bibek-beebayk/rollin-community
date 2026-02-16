@@ -37,8 +37,24 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initQueue());
   }
 
+  late ChatProvider _chatProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _chatProvider = context.read<ChatProvider>();
+  }
+
   @override
   void dispose() {
+    print('DEBUG: ChatScreen dispose called');
+    try {
+      _chatProvider.disconnect();
+      print('DEBUG: ChatProvider disconnected successfully');
+    } catch (e) {
+      print('DEBUG: Error disconnecting ChatProvider: $e');
+    }
+
     _focusNode.dispose();
     _messageController.dispose();
     _scrollController.dispose();
@@ -75,16 +91,23 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (mounted) setState(() => _isLoading = true);
 
-    // Fetch active chats for EVERYONE to get latest room data (including canSwitchStation)
+    // Fetch active chats for EVERYONE to get latest room data
     try {
       await chatProvider.fetchActiveChats(authProvider.apiClient);
+      // Ensure the current room is marked as read in the local list,
+      // in case the API returned an old unread count before we fetched messages.
+      if (mounted) {
+        chatProvider.clearUnread(widget.room.id);
+      }
     } catch (e) {
       print('Error fetching active chats: $e');
     }
 
-    if (!authProvider.isStaff) {
-      // Find the room that matches widget.room (or default to it)
-      // We need the one from provider because it has the latest flags
+    if (authProvider.isStaff) {
+      // Staff always enters a specific room from Dashboard
+      await _openChatThread(widget.room);
+    } else {
+      // Player logic: Find their active session
       final activeRoom = chatProvider.activeChats.firstWhere(
         (r) => r.id == widget.room.id,
         orElse: () => widget.room,
@@ -162,7 +185,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_scrollController.hasClients) {
         Future.delayed(const Duration(milliseconds: 100), () {
           if (_scrollController.hasClients && mounted) {
-            _scrollToBottomInstant(); // Jump instead of animate for snap effect on load
+            _scrollToBottomInstant();
             _scrollController.animateTo(
               0,
               duration: const Duration(milliseconds: 300),
@@ -184,18 +207,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (_selectedChat == null) return;
 
-    // Upload files first
     if (_selectedFiles.isNotEmpty) {
       try {
         if (mounted) setState(() => _isUploading = true);
-
-        // Upload sequentially to ensure order and error handling
         for (var file in _selectedFiles) {
           if (file.path != null) {
             await chatProvider.uploadFile(file.path!, _selectedChat!.id);
           }
         }
-
         if (mounted) {
           setState(() {
             _selectedFiles.clear();
@@ -207,130 +226,29 @@ class _ChatScreenState extends State<ChatScreen> {
             SnackBar(content: Text('Failed to upload file: $e')),
           );
           setState(() => _isUploading = false);
-          return; // Stop if upload fails
+          return;
         }
       } finally {
         if (mounted) setState(() => _isUploading = false);
       }
     }
 
-    // Send text if exists
     if (text.isNotEmpty) {
       chatProvider.sendMessage(text);
       _messageController.clear();
     }
 
-    // Keep focus
     _focusNode.requestFocus();
     Future.delayed(const Duration(milliseconds: 150), _scrollToBottom);
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.read<AuthProvider>();
-    if (_selectedChat == null && authProvider.isStaff) {
-      return _buildQueueView(context);
-    } else {
-      return _buildChatThread(context);
-    }
+    // With unified dashboard, ChatScreen always shows the thread
+    return _buildChatThread(context);
   }
 
-  Widget _buildQueueView(BuildContext context) {
-    final chatProvider = context.watch<ChatProvider>();
-    final queueChats = chatProvider.activeChats
-        .where((chat) => chat.queue == widget.room.id)
-        .toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.room.name} Queue'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _initQueue,
-          )
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : queueChats.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.inbox, size: 48, color: Colors.white24),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No active chats in this queue.',
-                        style: TextStyle(color: Colors.white.withOpacity(0.6)),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: queueChats.length,
-                  itemBuilder: (context, index) {
-                    final chat = queueChats[index];
-                    final displayName = chat.staff != null
-                        ? (chat.name.isNotEmpty
-                            ? chat.name
-                            : "Chat #${chat.id}")
-                        : chat.name;
-
-                    return Card(
-                      color: AppTheme.surface,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppTheme.primary,
-                          child: Text(
-                            displayName.isNotEmpty
-                                ? displayName[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ),
-                        title: Text(
-                          displayName,
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Tap to open chat',
-                          style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 12),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('${chat.onlineCount}',
-                                style: const TextStyle(
-                                    color: Colors.white54, fontSize: 10)),
-                            const SizedBox(width: 4),
-                            Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: chat.onlineCount > 0
-                                    ? Colors.greenAccent
-                                    : Colors.grey,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right,
-                                color: Colors.white54),
-                          ],
-                        ),
-                        onTap: () => _openChatThread(chat),
-                      ),
-                    );
-                  },
-                ),
-    );
-  }
+  // _buildQueueView removed
 
   Widget _buildChatThread(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
@@ -342,28 +260,49 @@ class _ChatScreenState extends State<ChatScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            final authProvider = context.read<AuthProvider>();
-            if (authProvider.isStaff) {
-              if (mounted) {
-                setState(() {
-                  _selectedChat = null;
-                });
-              }
-            } else {
-              Navigator.pop(context);
-            }
+            Navigator.pop(context);
           },
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              context.read<AuthProvider>().isStaff
-                  ? (_selectedChat?.name ?? 'Chat')
-                  : ((_selectedChat?.queueName != null &&
-                          !_selectedChat!.queueName!.startsWith('chat__'))
-                      ? _selectedChat!.queueName!
-                      : 'Support Station'),
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    context.read<AuthProvider>().isStaff
+                        ? _getDisplayName(_selectedChat?.name ?? 'Chat')
+                        : ((_selectedChat?.queueName != null &&
+                                !_selectedChat!.queueName!.startsWith('chat__'))
+                            ? _selectedChat!.queueName!
+                            : 'Support Station'),
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (context.read<AuthProvider>().isStaff &&
+                    _selectedChat != null &&
+                    _getUserTypeLabel(_selectedChat!) != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getUserTypeColor(_selectedChat!),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: Text(
+                      _getUserTypeLabel(_selectedChat!)!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             Text(
               chatProvider.isConnected ? 'Connected' : 'Connecting...',
@@ -384,11 +323,6 @@ class _ChatScreenState extends State<ChatScreen> {
               tooltip: 'Switch Station',
               onPressed: () => _confirmSwitchStation(context),
             ),
-          IconButton(
-            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-            tooltip: 'Close Ticket',
-            onPressed: () => _confirmCloseTicket(context),
-          ),
         ],
       ),
       body: Stack(
@@ -500,49 +434,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _confirmCloseTicket(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Close Ticket?'),
-        content: const Text(
-            'Are you sure you want to close this support ticket? This specific chat room will be archived.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Close Ticket'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && mounted && _selectedChat != null) {
-      try {
-        final api = context.read<AuthProvider>().apiClient;
-        await api.post('/api/rooms/${_selectedChat!.id}/close/');
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ticket closed successfully')),
-          );
-          // Refresh queue/list
-          await _initQueue();
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to close ticket: $e')),
-          );
-        }
-      }
-    }
   }
 
   Future<void> _confirmSwitchStation(BuildContext context) async {
@@ -704,6 +595,42 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
     );
+  }
+
+  String _getDisplayName(String rawName) {
+    String name = rawName;
+    if (name.startsWith('chat__')) {
+      name = name.substring(6);
+    } else if (name.startsWith('chat_')) {
+      name = name.substring(5);
+    }
+
+    if (name.isNotEmpty) {
+      return name[0].toUpperCase() + name.substring(1);
+    }
+    return name;
+  }
+
+  String? _getUserTypeLabel(Room room) {
+    final q = room.queueName?.toLowerCase() ?? '';
+    if (q.contains('agent')) return 'AGENT';
+    if (q.contains('player')) return 'PLAYER';
+    if (q.contains('high roller')) return 'VIP';
+    return null;
+  }
+
+  Color _getUserTypeColor(Room room) {
+    final label = _getUserTypeLabel(room);
+    switch (label) {
+      case 'AGENT':
+        return Colors.blueAccent;
+      case 'PLAYER':
+        return Colors.green;
+      case 'VIP':
+        return Colors.amber.shade700;
+      default:
+        return Colors.grey;
+    }
   }
 }
 

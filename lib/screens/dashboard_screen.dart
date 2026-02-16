@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/chat_provider.dart';
 import '../models/room.dart';
 import '../theme/app_theme.dart';
-import 'chat_screen.dart'; // We will create this next
+import 'chat_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -13,71 +14,75 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  List<Room> _supportRooms = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchRooms();
+    _fetchData();
   }
 
-  Future<void> _fetchRooms() async {
+  Future<void> _fetchData() async {
     try {
       if (!mounted) return;
       setState(() => _isLoading = true);
 
-      final api = context.read<AuthProvider>().apiClient;
+      final apiClient = context.read<AuthProvider>().apiClient;
+      final chatProvider = context.read<ChatProvider>();
 
-      // 1. Fetch Support Rooms (Queues)
-      final response = await api.get('/api/support-rooms/');
-
-      final List<dynamic> jsonList =
-          (response is Map && response.containsKey('data'))
-              ? response['data']
-              : response;
-
-      print(
-          'Dashboard: Fetched ${jsonList.length} rooms. First item: ${jsonList.isNotEmpty ? jsonList.first : "empty"}');
-
-      final allRooms = jsonList.map((j) => Room.fromJson(j)).toList();
+      await Future.wait([
+        chatProvider.fetchActiveChats(apiClient),
+        chatProvider.fetchSupportStations(apiClient),
+      ]);
 
       if (mounted) {
-        setState(() {
-          _supportRooms = allRooms;
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
+        // Connect to notifications channel
+        final token = context.read<AuthProvider>().accessToken;
+        if (token != null) {
+          chatProvider.connectNotifications(token);
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load rooms: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load data: $e')),
+        );
       }
     }
   }
 
-  Future<void> _enterRoom(Room room) async {
-    try {
-      final api = context.read<AuthProvider>().apiClient;
-      await api.post('/api/support-rooms/${room.id}/enter/');
-      await _fetchRooms(); // Refresh to get the new chat room in active chats
+  Future<void> _toggleStation(Room station) async {
+    final chatProvider = context.read<ChatProvider>();
+    final apiClient = context.read<AuthProvider>().apiClient;
+    final currentUser = context.read<AuthProvider>().user;
+    final isConnected = station.staff?.id == currentUser?.id;
 
-      if (mounted) {
-        // After refreshing, try to find the linked chat room
-        // The room object itself should now reflect the staff assignment
-        // so we can just open it directly.
-        _openChat(room);
+    try {
+      setState(() => _isLoading = true); // Show loading during toggle
+      if (isConnected) {
+        await chatProvider.leaveStation(apiClient, station.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Disconnected from ${station.name}')),
+        );
+      } else {
+        await chatProvider.joinStation(apiClient, station.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Connected to ${station.name}')),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to enter room: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update station: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _openChat(Room room) async {
+  void _openChat(Room room) {
+    context.read<ChatProvider>().clearUnread(room.id);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ChatScreen(room: room)),
@@ -86,10 +91,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final chatProvider = context.watch<ChatProvider>();
+    final currentUser = context.read<AuthProvider>().user;
+    final activeChats = chatProvider.activeChats; // These are my chats
+    final stations = chatProvider.supportStations;
+
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Staff Dashboard'),
+        title: const Text('Staff Chat'),
         actions: [
+          // Station Dropdown
+          PopupMenuButton<void>(
+            icon: const Icon(Icons.hub),
+            tooltip: 'Manage Stations',
+            itemBuilder: (context) {
+              if (stations.isEmpty) {
+                return [
+                  const PopupMenuItem(
+                    enabled: false,
+                    child: Text('No stations available'),
+                  ),
+                ];
+              }
+              return stations.map((station) {
+                final isConnected = station.staff?.id == currentUser?.id;
+                final isOccupied = station.staff != null && !isConnected;
+
+                return PopupMenuItem(
+                  enabled: !isOccupied, // Can't toggle if someone else is there
+                  onTap:
+                      () {}, // Handled by checkbox or row tap, but PopupMenuItem needs onTap
+                  child: InkWell(
+                    onTap: isOccupied
+                        ? null
+                        : () {
+                            Navigator.pop(context); // Close menu
+                            _toggleStation(station);
+                          },
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: isConnected,
+                          onChanged: isOccupied
+                              ? null
+                              : (val) {
+                                  Navigator.pop(context);
+                                  _toggleStation(station);
+                                },
+                        ),
+                        Expanded(
+                          child: Text(
+                            station.name,
+                            style: TextStyle(
+                              color: isOccupied ? Colors.grey : Colors.black,
+                            ),
+                          ),
+                        ),
+                        if (isOccupied)
+                          Text(
+                            '(${station.staff?.username})',
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.grey),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchData,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => context.read<AuthProvider>().logout(),
@@ -98,177 +173,159 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _fetchRooms,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionHeader(title: 'Support Workstations'),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount:
-                            MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                        childAspectRatio:
-                            MediaQuery.of(context).size.width > 600 ? 1.2 : 1.0,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
+          : activeChats.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chat_bubble_outline,
+                          size: 64, color: Colors.white.withOpacity(0.2)),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No active chats',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.5), fontSize: 16),
                       ),
-                      itemCount: _supportRooms.length,
-                      itemBuilder: (context, index) {
-                        final room = _supportRooms[index];
-                        final currentUser = context.read<AuthProvider>().user;
-                        final isMine = room.staff?.id == currentUser?.id;
-                        final isOccupied = room.staff != null && !isMine;
-
-                        return _SupportRoomCard(
-                          room: room,
-                          isMine: isMine,
-                          isOccupied: isOccupied,
-                          onTap: () {
-                            if (isMine) {
-                              _openChat(room);
-                            } else if (!isOccupied) _enterRoom(room);
-                          },
-                        );
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        'Connect to a station to receive chats',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.3), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: activeChats.length,
+                  itemBuilder: (context, index) {
+                    final room = activeChats[index];
+                    // Logic to find last message or timestamp could go here if Room model supported it
+                    // For now, simple list item
+                    return Card(
+                      color: AppTheme.surface,
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 4, horizontal: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.primary,
+                          child: Text(
+                            // Use clean name for avatar initial
+                            _getDisplayName(room.name).isNotEmpty
+                                ? _getDisplayName(room.name)[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _getDisplayName(room.name),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (_getUserTypeLabel(room) != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _getUserTypeColor(room),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(0.2)),
+                                ),
+                                child: Text(
+                                  _getUserTypeLabel(room)!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(
+                          // Show Queue Name as context if available, else ID
+                          room.queueName ?? 'ID: ${room.id}',
+                          style:
+                              TextStyle(color: Colors.white.withOpacity(0.7)),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (room.unreadCount > 0)
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  '${room.unreadCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            const Icon(Icons.chevron_right,
+                                color: Colors.white54),
+                          ],
+                        ),
+                        onTap: () => _openChat(room),
+                      ),
+                    );
+                  },
                 ),
-              ),
-            ),
     );
   }
-}
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-}
-
-class _SupportRoomCard extends StatelessWidget {
-  final Room room;
-  final bool isMine;
-  final bool isOccupied;
-  final VoidCallback onTap;
-
-  const _SupportRoomCard({
-    required this.room,
-    required this.isMine,
-    required this.isOccupied,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Color bgColor = Colors.white.withOpacity(0.05);
-    Color borderColor = Colors.transparent;
-    String statusText = 'Available';
-    Color statusColor = Colors.green;
-
-    if (isMine) {
-      bgColor = AppTheme.primary.withOpacity(0.2);
-      borderColor = AppTheme.primary;
-      statusText = 'Active';
-    } else if (isOccupied) {
-      bgColor = Colors.black.withOpacity(0.2);
-      statusText = 'Occupied';
-      statusColor = Colors.red;
+  String _getDisplayName(String rawName) {
+    String name = rawName;
+    if (name.startsWith('chat__')) {
+      name = name.substring(6);
+    } else if (name.startsWith('chat_')) {
+      name = name.substring(5);
     }
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor),
-          boxShadow: isMine
-              ? [
-                  BoxShadow(
-                    color: AppTheme.primary.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isMine
-                    ? Icons.chat_bubble
-                    : isOccupied
-                        ? Icons.lock
-                        : Icons.lock_open,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  room.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: statusColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (isOccupied && room.staff != null)
-                  Text(
-                    'by ${room.staff!.username}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    // Capitalize first letter
+    if (name.isNotEmpty) {
+      return name[0].toUpperCase() + name.substring(1);
+    }
+    return name;
+  }
+
+  String? _getUserTypeLabel(Room room) {
+    // Infer from matching queue name or other logic
+    // Assuming queues are named like "Player Support", "Agent Support"
+    final q = room.queueName?.toLowerCase() ?? '';
+    if (q.contains('agent')) return 'AGENT';
+    if (q.contains('player')) return 'PLAYER';
+    if (q.contains('high roller')) return 'VIP';
+    return null; // Or default to 'USER'
+  }
+
+  Color _getUserTypeColor(Room room) {
+    final label = _getUserTypeLabel(room);
+    switch (label) {
+      case 'AGENT':
+        return Colors.blueAccent;
+      case 'PLAYER':
+        return Colors.green;
+      case 'VIP':
+        return Colors.amber.shade700;
+      default:
+        return Colors.grey;
+    }
   }
 }

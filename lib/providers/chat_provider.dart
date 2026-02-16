@@ -11,6 +11,11 @@ import '../api/api_client.dart';
 class ChatProvider with ChangeNotifier {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription; // Add this
+
+  // Notification Channel
+  WebSocketChannel? _notificationChannel;
+  StreamSubscription? _notificationSubscription;
+
   final List<Message> _messages = [];
   bool _isConnected = false;
   int? _currentRoomId;
@@ -34,8 +39,10 @@ class ChatProvider with ChangeNotifier {
     return uniqueUsers.values.toList();
   }
 
+  List<Room> _supportStations = []; // Available stations/queues
+  List<Room> get supportStations => _supportStations;
+
   Future<void> fetchActiveChats(ApiClient apiClient) async {
-    // ... (same as before)
     try {
       final response = await apiClient.get('/api/rooms/');
       final List<dynamic> data =
@@ -43,12 +50,51 @@ class ChatProvider with ChangeNotifier {
               ? response['data']
               : response;
 
-      print('DEBUG: Active Chats raw data: $data'); // Debug print
+      print('DEBUG: Active Chats raw data: $data');
 
+      // Filter for active chats if needed, or assume backend returns relevant ones
+      // For now, we take all returned rooms as "Active Chats" for the staff
       _activeChats = data.map((j) => Room.fromJson(j)).toList();
       notifyListeners();
     } catch (e) {
       print('ChatProvider: Error fetching active chats: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> fetchSupportStations(ApiClient apiClient) async {
+    try {
+      final response = await apiClient.get('/api/support-rooms/');
+      final List<dynamic> data =
+          (response is Map && response.containsKey('data'))
+              ? response['data']
+              : response;
+
+      _supportStations = data.map((j) => Room.fromJson(j)).toList();
+      notifyListeners();
+    } catch (e) {
+      print('ChatProvider: Error fetching support stations: $e');
+      // Don't rethrow necessarily, just log
+    }
+  }
+
+  Future<void> joinStation(ApiClient apiClient, int roomId) async {
+    try {
+      await apiClient.post('/api/support-rooms/$roomId/enter/');
+      await fetchSupportStations(apiClient); // Refresh station status
+      await fetchActiveChats(apiClient); // Refresh active chats
+    } catch (e) {
+      print('ChatProvider: Error joining station: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> leaveStation(ApiClient apiClient, int roomId) async {
+    try {
+      await apiClient.post('/api/support-rooms/$roomId/leave/');
+      await fetchSupportStations(apiClient); // Refresh station status
+    } catch (e) {
+      print('ChatProvider: Error leaving station: $e');
       rethrow;
     }
   }
@@ -138,6 +184,80 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  void connectNotifications(String accessToken) {
+    if (_notificationChannel != null) {
+      print('DEBUG: Notification channel already connected.');
+      return;
+    }
+
+    final baseUrl = ApiClient.baseUrl;
+    final scheme = baseUrl.startsWith('https') ? 'wss' : 'ws';
+    final host = baseUrl
+        .replaceFirst(RegExp(r'https?://'), '')
+        .replaceAll(RegExp(r'/$'), '');
+
+    final url = '$scheme://$host/ws/notifications/?token=${accessToken.trim()}';
+
+    try {
+      print('DEBUG: Connecting to Notification WS: $url');
+      _notificationChannel = IOWebSocketChannel.connect(
+        url,
+        headers: {'Origin': ApiClient.baseUrl},
+      );
+
+      _notificationSubscription = _notificationChannel!.stream.listen(
+        (data) {
+          print('DEBUG: Notification WS Received: $data');
+          _handleNotification(data);
+        },
+        onDone: () {
+          print('DEBUG: Notification WS Disconnected (Done)');
+          _notificationChannel = null;
+          // Reconnect logic could go here
+        },
+        onError: (error) {
+          print('DEBUG: Notification WS Error: $error');
+          _notificationChannel = null;
+        },
+      );
+    } catch (e) {
+      print('DEBUG: Notification WS Connection Exception: $e');
+    }
+  }
+
+  void _handleNotification(dynamic data) {
+    try {
+      final json = jsonDecode(data);
+      print('DEBUG: Handling Notification: $json');
+      if (json['type'] == 'new_message_notification') {
+        final roomId = json['room_id'];
+        print(
+            'DEBUG: New Message for Room $roomId. Current Room: $_currentRoomId');
+
+        // If message is for a room we are NOT currently viewing
+        if (_currentRoomId != roomId) {
+          // Find the room in active chats and increment unread
+          final roomIndex = _activeChats.indexWhere((r) => r.id == roomId);
+          print('DEBUG: Found room in active chats? Index: $roomIndex');
+
+          if (roomIndex != -1) {
+            _activeChats[roomIndex].unreadCount++;
+            print(
+                'DEBUG: Incremented unread count to ${_activeChats[roomIndex].unreadCount}');
+            notifyListeners();
+          } else {
+            print('DEBUG: Room $roomId not found in activeChats list.');
+          }
+        } else {
+          print('DEBUG: Ignored notification because we are in the room.');
+        }
+      }
+    } catch (e) {
+      print('DEBUG: Error parsing notification: $e');
+    }
+  }
+
+  // ... (existing methods)
   // ... _handleMessage, sendMessage, setHistory ...
   void _handleMessage(dynamic data) {
     try {
@@ -164,6 +284,21 @@ class ChatProvider with ChangeNotifier {
       }
     } catch (e) {
       print('Error parsing message: $e');
+    }
+  }
+
+  // Method to clear unreads when entering a chat
+  void clearUnread(int roomId) {
+    try {
+      final roomIndex = _activeChats.indexWhere((r) => r.id == roomId);
+      if (roomIndex != -1) {
+        // Since Room fields are final, we might need a way to update it.
+        // Option 1: Mutable unreadCount (removed final) -> Done in Room model
+        _activeChats[roomIndex].unreadCount = 0;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error clearing unread: $e');
     }
   }
 
@@ -206,14 +341,32 @@ class ChatProvider with ChangeNotifier {
       _channel!.sink.close();
       _channel = null;
     }
+
+    // Also disconnect notifications on full disconnect (logout)
+    // Or we might want to keep it? usually disconnect() is called on room leave.
+    // Wait, disconnect() here is generic. If it's used for switching rooms, we SHOULD NOT close notifications.
+    // Checking usage: disconnect() is called in connect() (switching rooms) and dispose().
+    // So we should NOT close notifications here unless we split 'disconnectChat' and 'dispose'.
+    // Let's create a separate disconnectNotifications logic and call it in dispose.
+
     _isConnected = false;
     _currentRoomId = null;
     notifyListeners();
   }
 
+  void disconnectNotifications() {
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+    if (_notificationChannel != null) {
+      _notificationChannel!.sink.close();
+      _notificationChannel = null;
+    }
+  }
+
   @override
   void dispose() {
     disconnect();
+    disconnectNotifications();
     super.dispose();
   }
 }

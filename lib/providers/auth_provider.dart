@@ -14,6 +14,7 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
   ApiClient get apiClient => _apiClient;
+  String? get accessToken => _apiClient.accessToken;
 
   AuthProvider() {
     checkAuth();
