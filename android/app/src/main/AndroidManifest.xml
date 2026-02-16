@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="staff_chat"
+        android:label="Rollin Community"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -30,7 +30,13 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Set default FCM notification channel with high importance for sound -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
     </application>
+    <!-- Required for Android 13+ push notification permission -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.

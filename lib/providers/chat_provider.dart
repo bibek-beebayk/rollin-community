@@ -93,6 +93,7 @@ class ChatProvider with ChangeNotifier {
     try {
       await apiClient.post('/api/support-rooms/$roomId/leave/');
       await fetchSupportStations(apiClient); // Refresh station status
+      await fetchActiveChats(apiClient); // Refresh active chats
     } catch (e) {
       print('ChatProvider: Error leaving station: $e');
       rethrow;

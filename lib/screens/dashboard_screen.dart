@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/room.dart';
 import '../theme/app_theme.dart';
+import '../services/notification_service.dart';
 import 'chat_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -42,6 +43,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (token != null) {
           chatProvider.connectNotifications(token);
         }
+        // Initialize push notifications
+        NotificationService.initialize(context.read<AuthProvider>().apiClient);
       }
     } catch (e) {
       if (mounted) {
@@ -81,6 +84,215 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _showStationsSheet(
+      BuildContext context, List<Room> stations, dynamic currentUser) {
+    // Categorize stations
+    final myRooms =
+        stations.where((s) => s.staff?.id == currentUser?.id).toList();
+    final available = stations.where((s) => s.staff == null).toList();
+    final occupied = stations
+        .where((s) => s.staff != null && s.staff?.id != currentUser?.id)
+        .toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 0.85,
+          expand: false,
+          builder: (_, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    'Support Rooms',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Section 1: My Rooms
+                  if (myRooms.isNotEmpty) ...[
+                    _sectionHeader('My Rooms', Icons.person, AppTheme.primary),
+                    ...myRooms.map((station) => _stationTile(
+                          station: station,
+                          trailing: _actionButton(
+                            label: 'Leave',
+                            color: Colors.redAccent,
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _toggleStation(station);
+                            },
+                          ),
+                          textColor: Colors.white,
+                        )),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Section 2: Available Rooms
+                  if (available.isNotEmpty) ...[
+                    _sectionHeader(
+                        'Available', Icons.meeting_room, Colors.green),
+                    ...available.map((station) => _stationTile(
+                          station: station,
+                          trailing: _actionButton(
+                            label: 'Enter',
+                            color: Colors.green,
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _toggleStation(station);
+                            },
+                          ),
+                          textColor: Colors.white,
+                        )),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Section 3: Occupied by Others
+                  if (occupied.isNotEmpty) ...[
+                    _sectionHeader('Occupied', Icons.lock, Colors.white38),
+                    ...occupied.map((station) => _stationTile(
+                          station: station,
+                          subtitle:
+                              'Occupied by ${station.staff?.username ?? 'unknown'}',
+                          trailing: const Icon(Icons.lock_outline,
+                              color: Colors.white24, size: 18),
+                          textColor: Colors.white38,
+                        )),
+                  ],
+
+                  if (stations.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          'No support rooms available',
+                          style:
+                              TextStyle(color: Colors.white.withOpacity(0.5)),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _sectionHeader(String title, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stationTile({
+    required Room station,
+    required Widget trailing,
+    required Color textColor,
+    String? subtitle,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  station.name,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                        color: textColor.withOpacity(0.6), fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+          trailing,
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      height: 32,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color.withOpacity(0.15),
+          foregroundColor: color,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          side: BorderSide(color: color.withOpacity(0.3)),
+        ),
+        child: Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
   void _openChat(Room room) {
     context.read<ChatProvider>().clearUnread(room.id);
     Navigator.push(
@@ -99,67 +311,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Staff Chat'),
+        title: const Text('Rollin Chat'),
         actions: [
-          // Station Dropdown
-          PopupMenuButton<void>(
+          IconButton(
             icon: const Icon(Icons.hub),
             tooltip: 'Manage Stations',
-            itemBuilder: (context) {
-              if (stations.isEmpty) {
-                return [
-                  const PopupMenuItem(
-                    enabled: false,
-                    child: Text('No stations available'),
-                  ),
-                ];
-              }
-              return stations.map((station) {
-                final isConnected = station.staff?.id == currentUser?.id;
-                final isOccupied = station.staff != null && !isConnected;
-
-                return PopupMenuItem(
-                  enabled: !isOccupied, // Can't toggle if someone else is there
-                  onTap:
-                      () {}, // Handled by checkbox or row tap, but PopupMenuItem needs onTap
-                  child: InkWell(
-                    onTap: isOccupied
-                        ? null
-                        : () {
-                            Navigator.pop(context); // Close menu
-                            _toggleStation(station);
-                          },
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: isConnected,
-                          onChanged: isOccupied
-                              ? null
-                              : (val) {
-                                  Navigator.pop(context);
-                                  _toggleStation(station);
-                                },
-                        ),
-                        Expanded(
-                          child: Text(
-                            station.name,
-                            style: TextStyle(
-                              color: isOccupied ? Colors.grey : Colors.black,
-                            ),
-                          ),
-                        ),
-                        if (isOccupied)
-                          Text(
-                            '(${station.staff?.username})',
-                            style: const TextStyle(
-                                fontSize: 10, color: Colors.grey),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList();
-            },
+            onPressed: () => _showStationsSheet(context, stations, currentUser),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -219,7 +376,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         title: Row(
                           children: [
-                            Expanded(
+                            Flexible(
                               child: Text(
                                 _getDisplayName(room.name),
                                 style: const TextStyle(
@@ -230,22 +387,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                             ),
                             if (_getUserTypeLabel(room) != null) ...[
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                    horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
                                   color: _getUserTypeColor(room),
                                   borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                      color: Colors.white.withOpacity(0.2)),
                                 ),
                                 child: Text(
                                   _getUserTypeLabel(room)!,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -309,8 +464,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Infer from matching queue name or other logic
     // Assuming queues are named like "Player Support", "Agent Support"
     final q = room.queueName?.toLowerCase() ?? '';
-    if (q.contains('agent')) return 'AGENT';
-    if (q.contains('player')) return 'PLAYER';
+    if (q.contains('agent')) return 'A';
+    if (q.contains('player')) return 'P';
     if (q.contains('high roller')) return 'VIP';
     return null; // Or default to 'USER'
   }
@@ -318,9 +473,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Color _getUserTypeColor(Room room) {
     final label = _getUserTypeLabel(room);
     switch (label) {
-      case 'AGENT':
+      case 'A':
         return Colors.blueAccent;
-      case 'PLAYER':
+      case 'P':
         return Colors.green;
       case 'VIP':
         return Colors.amber.shade700;

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "195206028710",
+    "project_id": "rollin-community",
+    "storage_bucket": "rollin-community.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:195206028710:android:d10e07298d21cd0b284367",
+        "android_client_info": {
+          "package_name": "com.hirollin.community"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_ZD9uttlU7VvCLhniwBjOVhaO649CHCA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

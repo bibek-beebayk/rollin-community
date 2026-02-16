@@ -194,33 +194,42 @@ class _LoginScreenState extends State<LoginScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: _rememberMe,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _rememberMe = value ?? false;
-                                    });
-                                  },
-                                  fillColor: MaterialStateProperty.resolveWith(
-                                    (states) =>
-                                        states.contains(MaterialState.selected)
-                                            ? AppTheme.primary
-                                            : Colors.white.withOpacity(0.1),
+                            Flexible(
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _rememberMe = value ?? false;
+                                      });
+                                    },
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    fillColor:
+                                        MaterialStateProperty.resolveWith(
+                                      (states) => states
+                                              .contains(MaterialState.selected)
+                                          ? AppTheme.primary
+                                          : Colors.white.withOpacity(0.1),
+                                    ),
+                                    checkColor: Colors.white,
+                                    side: BorderSide(
+                                        color: Colors.white.withOpacity(0.5)),
                                   ),
-                                  checkColor: Colors.white,
-                                  side: BorderSide(
-                                      color: Colors.white.withOpacity(0.5)),
-                                ),
-                                Text(
-                                  'Remember me',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: 13,
+                                  Flexible(
+                                    child: Text(
+                                      'Remember me',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 13,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             TextButton(
                               onPressed: () {},
