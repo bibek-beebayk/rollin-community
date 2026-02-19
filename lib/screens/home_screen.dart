@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../models/room.dart';
 import '../models/event.dart';
 import '../services/event_service.dart';
+import '../services/notification_service.dart';
 import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -28,6 +29,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchEvents() async {
     final authProvider = context.read<AuthProvider>();
     final eventService = EventService(authProvider.apiClient);
+
+    // Initialize notifications (permissions + FCM token)
+    NotificationService.initialize(authProvider.apiClient);
 
     try {
       final events = await eventService.getActiveEvents();

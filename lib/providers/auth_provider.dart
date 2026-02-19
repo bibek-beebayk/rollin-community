@@ -48,6 +48,7 @@ class AuthProvider with ChangeNotifier {
       final response = await _apiClient.post(
         '/api/auth/login/',
         body: {'username': username, 'password': password},
+        skipAuth: true,
       );
 
       print('AuthProvider: Login API success. Response keys: ${response.keys}');
@@ -97,5 +98,60 @@ class AuthProvider with ChangeNotifier {
       _user = null;
       notifyListeners();
     }
+  }
+
+  /// Register a new user. Returns the email address for OTP verification.
+  Future<String> register({
+    required String username,
+    required String email,
+    required String userType,
+    required String password,
+    required String confirmPassword,
+  }) async {
+    final response = await _apiClient.post(
+      '/api/auth/register/',
+      body: {
+        'username': username,
+        'email': email,
+        'user_type': userType,
+        'password': password,
+        'confirm_password': confirmPassword,
+      },
+      skipAuth: true,
+    );
+    final data = response['data'] ?? response;
+    return data['email'] as String;
+  }
+
+  /// Verify OTP and auto-login the user.
+  Future<void> verifyOTP(String email, String otpCode) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiClient.post(
+        '/api/auth/verify-otp/',
+        body: {'email': email, 'otp_code': otpCode},
+        skipAuth: true,
+      );
+
+      final data = response['data'] ?? response;
+      await _apiClient.setTokens(data['access'], data['refresh']);
+      _user = User.fromJson(data['user']);
+    } catch (e) {
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Resend OTP to the given email.
+  Future<void> resendOTP(String email) async {
+    await _apiClient.post(
+      '/api/auth/resend-otp/',
+      body: {'email': email},
+      skipAuth: true,
+    );
   }
 }

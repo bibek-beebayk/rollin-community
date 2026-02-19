@@ -5,8 +5,8 @@ import '../providers/auth_provider.dart';
 import '../widgets/custom_input.dart';
 import '../widgets/custom_button.dart';
 import '../theme/app_theme.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -268,12 +268,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   color: Colors.white.withOpacity(0.7),
                                   fontSize: 13),
                             ),
-                            Text(
-                              "Register here",
-                              style: TextStyle(
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RegisterScreen()),
+                                );
+                              },
+                              child: const Text(
+                                "Register here",
+                                style: TextStyle(
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ],

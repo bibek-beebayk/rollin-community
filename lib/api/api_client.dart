@@ -37,26 +37,26 @@ class ApiClient {
 
   String? get accessToken => _accessToken;
 
-  Future<Map<String, String>> _getHeaders() async {
+  Future<Map<String, String>> _getHeaders({bool skipAuth = false}) async {
     if (_accessToken == null) await _loadTokens();
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    if (_accessToken != null) {
+    if (_accessToken != null && !skipAuth) {
       headers['Authorization'] = 'Bearer $_accessToken';
     }
     return headers;
   }
 
-  Future<dynamic> get(String endpoint) async {
+  Future<dynamic> get(String endpoint, {bool skipAuth = false}) async {
     final url = '$baseUrl$endpoint';
     _logRequest('GET', url);
 
     try {
       final response = await http.get(
         Uri.parse(url),
-        headers: await _getHeaders(),
+        headers: await _getHeaders(skipAuth: skipAuth),
       );
       _logResponse('GET', url, response);
       return _handleResponse(response);
@@ -67,7 +67,7 @@ class ApiClient {
   }
 
   Future<dynamic> postMultipart(String endpoint, String filePath,
-      {String? fieldName}) async {
+      {String? fieldName, bool skipAuth = false}) async {
     final url = '$baseUrl$endpoint';
     _logRequest('POST MULTIPART', url, body: 'File: $filePath');
 
@@ -75,7 +75,7 @@ class ApiClient {
       final request = http.MultipartRequest('POST', Uri.parse(url));
 
       // Headers
-      final headers = await _getHeaders();
+      final headers = await _getHeaders(skipAuth: skipAuth);
       // Remove Content-Type to let MultipartRequest set boundary
       headers.remove('Content-Type');
       request.headers.addAll(headers);
@@ -90,13 +90,14 @@ class ApiClient {
       final response = await http.Response.fromStream(streamedResponse);
 
       // Token Refresh Logic (Duplicate from post - ideally refactor)
-      if (response.statusCode == 401 && _refreshToken != null) {
+      // Only if NOT skipping auth
+      if (!skipAuth && response.statusCode == 401 && _refreshToken != null) {
         print('🔒 401 Unauthorized (Multipart). Attempting token refresh...');
         final success = await _refreshAccessToken();
         if (success) {
           print('🔓 Token refreshed. Retrying Multipart request...');
           final retryRequest = http.MultipartRequest('POST', Uri.parse(url));
-          final newHeaders = await _getHeaders();
+          final newHeaders = await _getHeaders(skipAuth: skipAuth);
           newHeaders.remove('Content-Type');
           retryRequest.headers.addAll(newHeaders);
           retryRequest.files.add(await http.MultipartFile.fromPath(
@@ -118,7 +119,8 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> post(String endpoint, {dynamic body}) async {
+  Future<dynamic> post(String endpoint,
+      {dynamic body, bool skipAuth = false}) async {
     final url = '$baseUrl$endpoint';
     final startBody = body != null ? jsonEncode(body) : null;
     _logRequest('POST', url, body: startBody);
@@ -126,19 +128,19 @@ class ApiClient {
     try {
       var response = await http.post(
         Uri.parse(url),
-        headers: await _getHeaders(),
+        headers: await _getHeaders(skipAuth: skipAuth),
         body: startBody,
       );
 
-      // Token Refresh Logic
-      if (response.statusCode == 401 && _refreshToken != null) {
+      // Token Refresh Logic - Only if NOT skipping auth
+      if (!skipAuth && response.statusCode == 401 && _refreshToken != null) {
         print('🔒 401 Unauthorized. Attempting token refresh...');
         final success = await _refreshAccessToken();
         if (success) {
           print('🔓 Token refreshed. Retrying POST request...');
           response = await http.post(
             Uri.parse(url),
-            headers: await _getHeaders(),
+            headers: await _getHeaders(skipAuth: skipAuth),
             body: startBody,
           );
         }
