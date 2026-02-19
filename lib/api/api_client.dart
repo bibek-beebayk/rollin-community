@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 
 class ApiClient {
-  // Use 10.0.2.2 for Android Emulator, localhost for Windows/iOS Simulator
-  // static const String baseUrl = 'http://10.0.2.2:8000';
-  static const String baseUrl = 'https://betunnel.worldstories.net';
+  static String get baseUrl => AppConfig.baseUrl;
 
   String? _accessToken;
   String? _refreshToken;
