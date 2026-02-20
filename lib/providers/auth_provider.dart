@@ -5,13 +5,15 @@ import '../models/user.dart';
 class AuthProvider with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
   User? _user;
-  bool _isLoading = true;
+  bool _isLoading = false; // default to false
+  bool _isInitializing = true; // used for app startup
 
   bool get isStaff => _user?.isStaff ?? false;
   bool get isAgent => _user?.isAgent ?? false;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
   bool get isAuthenticated => _user != null;
   ApiClient get apiClient => _apiClient;
   String? get accessToken => _apiClient.accessToken;
@@ -21,7 +23,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> checkAuth() async {
-    _isLoading = true;
+    _isInitializing = true;
     notifyListeners();
     try {
       // Check if we have access token (will trigger _loadTokens internally)
@@ -34,7 +36,7 @@ class AuthProvider with ChangeNotifier {
       _user = null;
       await _apiClient.clearTokens();
     } finally {
-      _isLoading = false;
+      _isInitializing = false;
       notifyListeners();
     }
   }

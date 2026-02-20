@@ -66,8 +66,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                'Login Failed: ${e.toString().replaceAll("Exception:", "")}')),
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     }
   }
