@@ -154,4 +154,35 @@ class AuthProvider with ChangeNotifier {
       skipAuth: true,
     );
   }
+
+  /// Initiate user verification (request OTP for Game ID link)
+  Future<void> initiateVerificationRequest() async {
+    await _apiClient.post('/api/auth/initiate-verification-request/');
+  }
+
+  /// Verify user ID with OTP and Game ID
+  Future<void> verifyUserID(String userId, String otp) async {
+    final response = await _apiClient.post(
+      '/api/auth/verify-user-id/',
+      body: {'user_id': userId, 'otp': otp},
+    );
+
+    final data = response['data'] ?? response;
+
+    if (data['status'] == 'verified' && _user != null) {
+      // Update local user state
+      _user = User(
+        id: _user!.id,
+        username: _user!.username,
+        email: _user!.email,
+        userType: _user!.userType,
+        isVerified: true,
+        verificationStatus: 'approved',
+        avatar: _user!.avatar,
+      );
+      notifyListeners();
+    } else {
+      throw Exception(data['message'] ?? 'Verification failed');
+    }
+  }
 }

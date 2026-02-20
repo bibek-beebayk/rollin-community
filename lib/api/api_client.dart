@@ -191,7 +191,26 @@ class ApiClient {
       if (response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } else {
-      throw Exception('API Error: ${response.statusCode} ${response.body}');
+      // Try to parse error message
+      String errorMessage = 'API Error: ${response.statusCode}';
+      try {
+        final body = jsonDecode(response.body);
+        if (body is Map) {
+          if (body['message'] != null) {
+            errorMessage = body['message'];
+          } else if (body['detail'] != null) {
+            errorMessage = body['detail'];
+          } else if (body['error'] != null) {
+            errorMessage = body['error'];
+          }
+        }
+      } catch (_) {
+        // Fallback to raw body if JSON decode fails
+        if (response.body.isNotEmpty) {
+          errorMessage = 'API Error: ${response.statusCode} ${response.body}';
+        }
+      }
+      throw Exception(errorMessage);
     }
   }
 

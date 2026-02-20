@@ -8,6 +8,7 @@ import '../models/event.dart';
 import '../services/event_service.dart';
 import '../services/notification_service.dart';
 import 'chat_screen.dart';
+import 'verify_user_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -89,6 +90,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            _buildVerificationStatus(context, user),
             const SizedBox(height: 32),
 
             // Events Section
@@ -287,6 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => ChatScreen(room: room),
+              settings: const RouteSettings(name: 'ChatScreen'),
             ),
           );
         }
@@ -307,5 +311,80 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+  }
+
+  Widget _buildVerificationStatus(BuildContext context, dynamic user) {
+    if (user == null) return const SizedBox.shrink();
+
+    // Verified
+    if (user.isVerified) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.verified, color: Colors.blueAccent, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Verified Account',
+            style: TextStyle(
+              color: Colors.blueAccent.shade100,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Pending
+    if (user.verificationStatus == 'pending') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.pending, color: Colors.orangeAccent, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Verification Pending',
+            style: TextStyle(
+              color: Colors.orangeAccent.shade100,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Not Verified
+    return Center(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const VerifyUserScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.primary.withOpacity(0.5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.security, color: AppTheme.primary, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'Verify Account',
+                style: TextStyle(
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

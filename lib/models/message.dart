@@ -35,6 +35,7 @@ class Message {
               email: '',
               userType: 'player', // Default to player if unknown
               isVerified: false,
+              verificationStatus: 'none',
             ),
       content: json['content'] ?? (json['message'] ?? ''),
       timestamp: _parseDate(json['timestamp']) ?? DateTime.now(),

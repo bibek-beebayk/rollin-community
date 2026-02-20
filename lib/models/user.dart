@@ -4,6 +4,7 @@ class User {
   final String email;
   final String userType;
   final bool isVerified;
+  final String verificationStatus;
   final String? avatar;
 
   User({
@@ -12,6 +13,7 @@ class User {
     required this.email,
     required this.userType,
     required this.isVerified,
+    required this.verificationStatus,
     this.avatar,
   });
 
@@ -22,6 +24,7 @@ class User {
       email: json['email'] ?? '',
       userType: json['user_type'] ?? 'client',
       isVerified: json['is_verified'] ?? false,
+      verificationStatus: json['verification_status'] ?? 'none',
       avatar: json['avatar'],
     );
   }
@@ -40,6 +43,7 @@ class User {
       'email': email,
       'user_type': userType,
       'is_verified': isVerified,
+      'verification_status': verificationStatus,
       'avatar': avatar,
     };
   }

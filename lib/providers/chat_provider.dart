@@ -100,6 +100,30 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<Room?> joinSupportRoom(ApiClient apiClient) async {
+    try {
+      final response = await apiClient.get('/api/rooms/');
+
+      List<dynamic> data = [];
+      if (response is Map && response.containsKey('data')) {
+        data = response['data'];
+      } else if (response is List) {
+        data = response;
+      }
+      if (response is Map && response.containsKey('results')) {
+        data = response['results'];
+      }
+
+      if (data.isNotEmpty) {
+        return Room.fromJson(data[0]);
+      }
+      return null;
+    } catch (e) {
+      print('ChatProvider: Error joining support room: $e');
+      rethrow;
+    }
+  }
+
   Future<void> fetchMessages(int roomId) async {
     try {
       final response =

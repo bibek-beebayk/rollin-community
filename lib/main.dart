@@ -11,6 +11,8 @@ import 'services/notification_service.dart';
 // Placeholder for Dashboard (we'll create this next)
 import 'screens/dashboard_screen.dart';
 import 'screens/home_screen.dart';
+import 'widgets/global_chat_bubble.dart';
+import 'utils/chat_route_observer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +27,10 @@ void main() async {
 class StaffChatApp extends StatelessWidget {
   const StaffChatApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+  static final ChatRouteObserver chatRouteObserver = ChatRouteObserver();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -35,9 +41,19 @@ class StaffChatApp extends StatelessWidget {
         ), // Added this line
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
+        navigatorObservers: [chatRouteObserver],
         title: 'Staff Chat',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
+        builder: (context, child) {
+          return Stack(
+            children: [
+              child!,
+              const GlobalChatBubble(),
+            ],
+          );
+        },
         home: const AuthWrapper(),
       ),
     );
