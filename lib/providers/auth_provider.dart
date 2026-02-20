@@ -187,4 +187,38 @@ class AuthProvider with ChangeNotifier {
       throw Exception(data['message'] ?? 'Verification failed');
     }
   }
+
+  /// Initiate Forgot Password (send OTP)
+  Future<void> forgotPasswordInit(String email) async {
+    await _apiClient.post(
+      '/api/auth/forgot-password/initiate/',
+      body: {'email': email},
+      skipAuth: true,
+    );
+  }
+
+  /// Verify OTP for Forgot Password
+  Future<String> forgotPasswordVerify(String email, String otpCode) async {
+    final response = await _apiClient.post(
+      '/api/auth/forgot-password/verify-otp/',
+      body: {'email': email, 'otp_code': otpCode},
+      skipAuth: true,
+    );
+    final data = response['data'] ?? response;
+    return data['reset_token'] as String;
+  }
+
+  /// Complete Forgot Password (set new password)
+  Future<void> forgotPasswordConfirm(
+      String resetToken, String newPassword, String confirmNewPassword) async {
+    await _apiClient.post(
+      '/api/auth/forgot-password/complete/',
+      body: {
+        'reset_token': resetToken,
+        'new_password': newPassword,
+        'confirm_new_password': confirmNewPassword,
+      },
+      skipAuth: true,
+    );
+  }
 }
