@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => context.read<AuthProvider>().logout(),
+            onPressed: () => _showLogoutConfirmation(context),
           ),
         ],
       ),
@@ -384,6 +384,35 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E), // Match app theme
+        title: const Text('Log Out', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to log out?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              context.read<AuthProvider>().logout(); // Execute logout
+            },
+            child: const Text('Log Out',
+                style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
       ),
     );
   }
