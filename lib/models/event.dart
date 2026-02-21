@@ -1,3 +1,5 @@
+import '../api/api_client.dart';
+
 class Event {
   final int id;
   final String title;
@@ -17,12 +19,24 @@ class Event {
     required this.isActive,
   });
 
+  static String? _parseImageUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('http')) return url;
+
+    final baseUrl = ApiClient.baseUrl.endsWith('/')
+        ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
+        : ApiClient.baseUrl;
+
+    final imagePath = url.startsWith('/') ? url : '/$url';
+    return '$baseUrl$imagePath';
+  }
+
   factory Event.fromJson(Map<String, dynamic> json) {
     return Event(
       id: json['id'] ?? 0,
       title: json['title'] ?? 'Untitled Event',
       description: json['description'] ?? '',
-      bannerImage: json['banner_image'],
+      bannerImage: _parseImageUrl(json['poster'] as String?),
       startDate: json['start_date'] != null
           ? DateTime.tryParse(json['start_date'])
           : null,

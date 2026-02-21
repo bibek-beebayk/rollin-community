@@ -501,9 +501,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context); // Close dialog
-              context.read<AuthProvider>().logout(); // Execute logout
+
+              final authProvider = context.read<AuthProvider>();
+              final chatProvider = context.read<ChatProvider>();
+              final currentUser = authProvider.user;
+
+              if (currentUser != null) {
+                // Determine occupied stations and leave them
+                for (var station in chatProvider.supportStations) {
+                  if (station.staff?.id == currentUser.id) {
+                    try {
+                      await chatProvider.leaveStation(
+                          authProvider.apiClient, station.id);
+                    } catch (e) {
+                      print('Error leaving station ${station.name}: $e');
+                    }
+                  }
+                }
+              }
+
+              authProvider.logout(); // Execute logout
             },
             child: const Text('Log Out',
                 style: TextStyle(color: Colors.redAccent)),

@@ -121,7 +121,7 @@ class _VerifyUserScreenState extends State<VerifyUserScreen> {
             Text(
               _otpSent
                   ? 'Enter the 6-digit OTP sent to your email.'
-                  : 'Enter your external Game ID to link your account.',
+                  : 'Enter your Hi-Rollin Game ID to link your account.',
               style: const TextStyle(color: Colors.grey),
               textAlign: TextAlign.center,
             ),

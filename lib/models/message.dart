@@ -56,17 +56,18 @@ class Message {
 
   static String _inferMimeType(String path) {
     final lower = path.toLowerCase();
-    if (lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.webp')) {
+    final cleanPath = lower.split('?').first;
+    if (cleanPath.endsWith('.jpg') ||
+        cleanPath.endsWith('.jpeg') ||
+        cleanPath.endsWith('.png') ||
+        cleanPath.endsWith('.gif') ||
+        cleanPath.endsWith('.webp')) {
       return 'image/jpeg';
     }
-    if (lower.endsWith('.mp4') || lower.endsWith('.mov')) {
+    if (cleanPath.endsWith('.mp4') || cleanPath.endsWith('.mov')) {
       return 'video/mp4';
     }
-    if (lower.endsWith('.pdf')) {
+    if (cleanPath.endsWith('.pdf')) {
       return 'application/pdf';
     }
     return 'application/octet-stream';
@@ -100,10 +101,32 @@ class MessageAttachment {
   });
 
   factory MessageAttachment.fromJson(Map<String, dynamic> json) {
+    String fileUrl = json['file'] ?? '';
     return MessageAttachment(
-      file: json['file'] ?? '',
+      file: fileUrl,
       filename: json['filename'],
-      fileType: json['file_type'],
+      fileType: json['file_type'] ?? _inferMimeType(fileUrl),
     );
+  }
+
+  static String _inferMimeType(String path) {
+    final lower = path.toLowerCase();
+    // Strip query parameters for extension checking
+    final cleanPath = lower.split('?').first;
+
+    if (cleanPath.endsWith('.jpg') ||
+        cleanPath.endsWith('.jpeg') ||
+        cleanPath.endsWith('.png') ||
+        cleanPath.endsWith('.gif') ||
+        cleanPath.endsWith('.webp')) {
+      return 'image/jpeg';
+    }
+    if (cleanPath.endsWith('.mp4') || cleanPath.endsWith('.mov')) {
+      return 'video/mp4';
+    }
+    if (cleanPath.endsWith('.pdf')) {
+      return 'application/pdf';
+    }
+    return 'application/octet-stream';
   }
 }

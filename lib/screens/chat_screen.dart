@@ -10,6 +10,8 @@ import '../widgets/custom_input.dart';
 import '../api/api_client.dart';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
@@ -716,12 +718,16 @@ class _MessageBubble extends StatelessWidget {
     // If backend returns relative URL, prepend base URL
     String fileUrl = attachment.file;
     if (!fileUrl.startsWith('http')) {
-      fileUrl = '${ApiClient.baseUrl}$fileUrl';
+      final baseUrl = ApiClient.baseUrl.endsWith('/')
+          ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
+          : ApiClient.baseUrl;
+      final imagePath = fileUrl.startsWith('/') ? fileUrl : '/$fileUrl';
+      fileUrl = '$baseUrl$imagePath';
     }
 
     if (fileType.startsWith('image/')) {
       return GestureDetector(
-        onTap: () => _launchUrl(fileUrl),
+        onTap: () => _showFullScreenImage(context, fileUrl),
         child: Container(
           margin: const EdgeInsets.only(top: 8, bottom: 4),
           constraints: const BoxConstraints(
@@ -752,6 +758,26 @@ class _MessageBubble extends StatelessWidget {
               errorBuilder: (context, error, stackTrace) =>
                   const Icon(Icons.broken_image, color: Colors.white54),
             ),
+          ),
+        ),
+      );
+    } else if (fileType.startsWith('video/')) {
+      return GestureDetector(
+        onTap: () => _showFullScreenVideo(context, fileUrl),
+        child: Container(
+          margin: const EdgeInsets.only(top: 8, bottom: 4),
+          constraints: const BoxConstraints(
+            maxWidth: 200,
+            maxHeight: 150,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: const Center(
+            child:
+                Icon(Icons.play_circle_outline, color: Colors.white, size: 48),
           ),
         ),
       );
@@ -808,6 +834,45 @@ class _MessageBubble extends StatelessWidget {
       print('Could not launch $url');
     }
   }
+
+  void _showFullScreenVideo(BuildContext context, String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenVideoScreen(url: url),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            elevation: 0,
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              panEnabled: true,
+              boundaryMargin: const EdgeInsets.all(20),
+              minScale: 0.5,
+              maxScale: 4,
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SystemMessage extends StatelessWidget {
@@ -838,6 +903,78 @@ class _SystemMessage extends StatelessWidget {
             fontWeight: FontWeight.w400,
           ),
           textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+class _FullScreenVideoScreen extends StatefulWidget {
+  final String url;
+  const _FullScreenVideoScreen({required this.url});
+
+  @override
+  State<_FullScreenVideoScreen> createState() => _FullScreenVideoScreenState();
+}
+
+class _FullScreenVideoScreenState extends State<_FullScreenVideoScreen> {
+  late VideoPlayerController _videoPlayerController;
+  ChewieController? _chewieController;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    _videoPlayerController =
+        VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    await _videoPlayerController.initialize();
+
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController,
+      autoPlay: true,
+      looping: false,
+      aspectRatio: _videoPlayerController.value.aspectRatio > 0
+          ? _videoPlayerController.value.aspectRatio
+          : 16 / 9,
+      errorBuilder: (context, errorMessage) {
+        return Center(
+          child: Text(
+            errorMessage,
+            style: const TextStyle(color: Colors.white),
+          ),
+        );
+      },
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController.dispose();
+    _chewieController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: _chewieController != null &&
+                  _chewieController!.videoPlayerController.value.isInitialized
+              ? Chewie(controller: _chewieController!)
+              : const CircularProgressIndicator(),
         ),
       ),
     );
