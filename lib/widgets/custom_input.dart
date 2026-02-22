@@ -30,7 +30,11 @@ class CustomInput extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         obscureText: obscureText,
-        keyboardType: keyboardType,
+        keyboardType: keyboardType == TextInputType.text && !obscureText
+            ? TextInputType.multiline
+            : keyboardType,
+        minLines: 1,
+        maxLines: obscureText ? 1 : 5,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: hintText,
@@ -38,7 +42,8 @@ class CustomInput extends StatelessWidget {
           border: InputBorder.none,
           focusedBorder: InputBorder.none,
           enabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
       ),
     );

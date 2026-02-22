@@ -556,7 +556,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _buildFilePreviews(),
         SafeArea(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
               color: AppTheme.surface,
               border:
@@ -566,6 +566,8 @@ class _ChatScreenState extends State<ChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 IconButton(
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
                   icon: const Icon(Icons.attach_file, color: Colors.white70),
                   onPressed: _pickFiles,
                 ),
@@ -576,10 +578,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     focusNode: _focusNode,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 38,
+                  height: 38,
                   decoration: const BoxDecoration(
                     gradient: AppTheme.primaryGradient,
                     shape: BoxShape.circle,
