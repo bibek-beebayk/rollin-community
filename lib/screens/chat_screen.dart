@@ -259,12 +259,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        automaticallyImplyLeading: context.read<AuthProvider>().isStaff,
+        leading: context.read<AuthProvider>().isStaff
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              )
+            : null,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

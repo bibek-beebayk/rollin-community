@@ -221,4 +221,36 @@ class AuthProvider with ChangeNotifier {
       skipAuth: true,
     );
   }
+
+  /// Change Password for authenticated user
+  Future<void> changePassword(
+      String oldPassword, String newPassword, String confirmNewPassword) async {
+    try {
+      await _apiClient.post(
+        '/api/auth/change-password/',
+        body: {
+          'old_password': oldPassword,
+          'new_password': newPassword,
+          'confirm_new_password': confirmNewPassword,
+        },
+      );
+    } catch (e) {
+      // The API client throws a Map if the response is JSON error.
+      // E.g. {"old_password":["Current password is incorrect."]}
+      if (e is Map) {
+        String errorMessage = "Failed to change password";
+        if (e.containsKey('old_password')) {
+          errorMessage = e['old_password'][0];
+        } else if (e.containsKey('new_password')) {
+          errorMessage = e['new_password'][0];
+        } else if (e.containsKey('confirm_new_password')) {
+          errorMessage = e['confirm_new_password'][0];
+        } else if (e.containsKey('error')) {
+          errorMessage = e['error'];
+        }
+        throw Exception(errorMessage);
+      }
+      rethrow;
+    }
+  }
 }
