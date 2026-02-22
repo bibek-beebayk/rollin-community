@@ -33,7 +33,8 @@ class Message {
                   (_parseInt(json['sender']) ?? 0),
               username: json['username'] ?? 'Unknown',
               email: '',
-              userType: 'player', // Default to player if unknown
+              userType: json['user_type'] ??
+                  'player', // Use user_type from JSON if available
               isVerified: false,
               verificationStatus: 'none',
             ),

@@ -18,6 +18,7 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    print('DEBUG parsing User fromJson: $json');
     return User(
       id: _parseInt(json['id']) ?? 0,
       username: json['username'] ?? 'Unknown',

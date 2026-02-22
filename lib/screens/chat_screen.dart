@@ -360,6 +360,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
 
                     final isMe = message.sender.id == currentUser?.id;
+                    final isStaff = message.sender.isStaff ||
+                        (isMe && (currentUser?.isStaff ?? false));
 
                     // Grouping Logic
                     bool showSender = true;
@@ -393,7 +395,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     return _MessageBubble(
                       message: message,
+                      isStaff: isStaff,
                       isMe: isMe,
+                      isCurrentUserStaff: currentUser?.isStaff ?? false,
                       showSender: showSender,
                       compactBottom: compactBottom,
                     );
@@ -638,23 +642,47 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class _MessageBubble extends StatelessWidget {
   final Message message;
+  final bool isStaff;
   final bool isMe;
+  final bool isCurrentUserStaff;
   final bool showSender;
   final bool compactBottom;
 
   const _MessageBubble({
     required this.message,
+    required this.isStaff,
     required this.isMe,
+    required this.isCurrentUserStaff,
     this.showSender = true,
     this.compactBottom = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('jm').format(message.timestamp.toLocal());
+    final timeStr = _getHumanReadableTime(message.timestamp.toLocal());
+
+    // Generate a consistent color for a specific staff member based on their ID
+    Color bubbleColor = AppTheme.surface;
+    if (isStaff) {
+      final staffColors = [
+        AppTheme.primary,
+        Colors.indigo,
+        Colors.teal.shade700,
+        Colors.deepOrange.shade700,
+        Colors.brown.shade600,
+        Colors.blueGrey.shade700,
+      ];
+      // Use modulo to cycle through colors based on staff ID
+      bubbleColor = staffColors[message.sender.id % staffColors.length];
+    } else {
+      // Player / Agent color
+      bubbleColor = AppTheme.surface;
+    }
+
+    final bool isAlignedRight = isMe || (isStaff && isCurrentUserStaff);
 
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isAlignedRight ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: EdgeInsets.only(bottom: compactBottom ? 2 : 12),
         constraints: BoxConstraints(
@@ -662,23 +690,25 @@ class _MessageBubble extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? AppTheme.primary : AppTheme.surface,
+          color: bubbleColor,
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(showSender && !isMe ? 16 : 4),
-            topRight: Radius.circular(showSender && isMe ? 16 : 4),
-            bottomLeft: Radius.circular(compactBottom && !isMe ? 4 : 16),
-            bottomRight: Radius.circular(compactBottom && isMe ? 4 : 16),
+            topLeft: Radius.circular(showSender && !isAlignedRight ? 16 : 4),
+            topRight: Radius.circular(showSender && isAlignedRight ? 16 : 4),
+            bottomLeft:
+                Radius.circular(compactBottom && !isAlignedRight ? 4 : 16),
+            bottomRight:
+                Radius.circular(compactBottom && isAlignedRight ? 4 : 16),
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isMe && showSender)
+            if (showSender)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  message.sender.username,
+                  isMe ? 'You' : message.sender.username,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.accent,
@@ -872,6 +902,30 @@ class _MessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getHumanReadableTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inSeconds < 60) {
+      return 'now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} min ago';
+    } else if (difference.inHours < 24) {
+      if (difference.inHours == 1) {
+        return '1 hour ago';
+      }
+      return '${difference.inHours} hours ago';
+    } else {
+      if (difference.inDays == 1) {
+        return 'Yesterday ${DateFormat('jm').format(timestamp)}';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} days ago';
+      } else {
+        return DateFormat('MMM d, yyyy h:mm a').format(timestamp);
+      }
+    }
   }
 }
 
