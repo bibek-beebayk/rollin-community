@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
-import '../models/room.dart';
 import '../models/event.dart';
+import '../models/post.dart';
 import '../services/event_service.dart';
+import '../services/post_service.dart';
 import '../services/notification_service.dart';
-import 'chat_screen.dart';
 import 'verify_user_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,10 +21,16 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Event> _events = [];
   bool _isLoadingEvents = true;
 
+  List<Post> _posts = [];
+  bool _isLoadingPosts = true;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchEvents());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchEvents();
+      _fetchPosts();
+    });
   }
 
   Future<void> _fetchEvents() async {
@@ -52,13 +58,48 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _fetchPosts() async {
+    final authProvider = context.read<AuthProvider>();
+    final postService = PostService(authProvider.apiClient);
+
+    try {
+      final posts = await postService.getLatestPosts();
+      if (mounted) {
+        setState(() {
+          _posts = posts;
+          _isLoadingPosts = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading posts: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingPosts = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    // Optional: Only show loading indicators if desired,
+    // but RefreshIndicator already has a spinner.
+    await Future.wait([
+      _fetchEvents(),
+      _fetchPosts(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Rollin Community'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Rollin Community',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -66,58 +107,267 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Welcome Section
-            Text(
-              'Welcome, ${user?.username}!',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.background,
+              AppTheme.surface,
+              AppTheme.background,
+            ],
+            stops: [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: AppTheme.accent,
+            backgroundColor: AppTheme.surface,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildProfileCard(context, user),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text(
+                        'Live Events',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEventsList(),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text(
+                        'Latest Posts',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLatestPostsList(),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Role: ${user?.userType}',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            _buildVerificationStatus(context, user),
-            const SizedBox(height: 32),
-
-            // Events Section
-            const Text(
-              'Current Events',
-              style: TextStyle(
-                  color: AppTheme.accent,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _buildEventsList(),
-
-            const SizedBox(height: 32),
-
-            // Support Action
-            _buildActionButton(
-              context,
-              icon: Icons.chat_bubble_outline,
-              label: 'Contact Support',
-              onTap: () => _openSupportChat(context),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildProfileCard(BuildContext context, dynamic user) {
+    final username = user?.username ?? 'Guest';
+    final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primary.withOpacity(0.15),
+            Colors.white.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppTheme.primary, AppTheme.accent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                initial,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back,',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  username,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        (user?.userType ?? 'Unknown').toString().toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildVerificationBadge(context, user),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerificationBadge(BuildContext context, dynamic user) {
+    if (user == null) return const SizedBox.shrink();
+
+    if (user.isVerified) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.blueAccent.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blueAccent.withOpacity(0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.verified, color: Colors.blueAccent, size: 12),
+            const SizedBox(width: 4),
+            Text(
+              'VERIFIED',
+              style: TextStyle(
+                color: Colors.blueAccent.shade100,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (user.verificationStatus == 'pending') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.orangeAccent.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orangeAccent.withOpacity(0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.pending, color: Colors.orangeAccent, size: 12),
+            const SizedBox(width: 4),
+            Text(
+              'PENDING',
+              style: TextStyle(
+                color: Colors.orangeAccent.shade100,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const VerifyUserScreen()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.redAccent.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.security, color: Colors.redAccent, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                'VERIFY NOW',
+                style: TextStyle(
+                  color: Colors.redAccent.shade100,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildEventsList() {
@@ -129,17 +379,18 @@ class _HomeScreenState extends State<HomeScreen> {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          color: AppTheme.surface.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
         ),
         child: Column(
           children: [
-            const Icon(Icons.event_busy, color: Colors.white54, size: 48),
+            Icon(Icons.event_busy,
+                color: Colors.white.withOpacity(0.2), size: 48),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'No events currently active',
-              style: TextStyle(color: Colors.white54),
+              style: TextStyle(color: Colors.white.withOpacity(0.5)),
             ),
           ],
         ),
@@ -147,74 +398,103 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return SizedBox(
-      height: 220,
+      height: 240,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
         itemCount: _events.length,
         itemBuilder: (context, index) {
           final event = _events[index];
           final screenWidth = MediaQuery.of(context).size.width;
-          final cardWidth = screenWidth > 600 ? 300.0 : screenWidth * 0.8;
+          final cardWidth = screenWidth > 600 ? 320.0 : screenWidth * 0.75;
 
           return Container(
             width: cardWidth,
-            margin: const EdgeInsets.only(right: 16),
+            margin: const EdgeInsets.only(right: 20),
             decoration: BoxDecoration(
               color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
               image: event.bannerImage != null
                   ? DecorationImage(
                       image: NetworkImage(event.bannerImage!),
                       fit: BoxFit.cover,
-                      colorFilter: ColorFilter.mode(
-                          Colors.black.withOpacity(0.6), BlendMode.darken),
                     )
                   : null,
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  // TODO: Show event details
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        event.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      if (event.startDate != null)
-                        Text(
-                          DateFormat('MMM d, y').format(event.startDate!),
-                          style: const TextStyle(
-                            color: AppTheme.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.8),
+                  ],
+                  stops: const [0.4, 1.0],
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    // TODO: Show event details
+                  },
+                  borderRadius: BorderRadius.circular(24),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (event.startDate != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accent.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              DateFormat('MMM d, y').format(event.startDate!),
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
+                        const SizedBox(height: 8),
+                        Text(
+                          event.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      const SizedBox(height: 8),
-                      Text(
-                        event.description,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 12,
+                        const SizedBox(height: 6),
+                        Text(
+                          event.description,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 13,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -225,166 +505,151 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildActionButton(BuildContext context,
-      {required IconData icon,
-      required String label,
-      required VoidCallback onTap}) {
-    return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+  Widget _buildLatestPostsList() {
+    if (_isLoadingPosts) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_posts.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.article_outlined,
+                  color: Colors.white.withOpacity(0.2), size: 48),
+              const SizedBox(height: 12),
+              Text(
+                'No recent posts available',
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: _posts.length,
+      itemBuilder: (context, index) {
+        final post = _posts[index];
+        final cleanContent =
+            post.content.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(12),
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primary.withOpacity(0.4),
+                color: Colors.black.withOpacity(0.2),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // TODO: Navigate to Post details
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (post.image != null)
+                    ClipRRect(
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(20)),
+                      child: Image.network(
+                        post.image!,
+                        height: 180,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: AppTheme.primary,
+                              child: Text(
+                                post.author?.username.isNotEmpty == true
+                                    ? post.author!.username[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              post.author?.username ?? 'Unknown',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              DateFormat('MMM d')
+                                  .format(post.createdAt.toLocal()),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          post.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                        ),
+                        if (cleanContent.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            cleanContent,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 14,
+                              height: 1.4,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openSupportChat(BuildContext context) async {
-    final authProvider = context.read<AuthProvider>();
-    try {
-      final response = await authProvider.apiClient.get('/api/rooms/');
-
-      List<dynamic> data = [];
-      if (response is Map && response.containsKey('data')) {
-        data = response['data'];
-      } else if (response is List) {
-        data = response;
-      }
-      if (response is Map && response.containsKey('results')) {
-        data = response['results'];
-      }
-
-      if (data.isNotEmpty) {
-        final roomData = data[0];
-        final room = Room.fromJson(roomData);
-
-        if (context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(room: room),
-              settings: const RouteSettings(name: 'ChatScreen'),
             ),
-          );
-        }
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'No active support session found. Please contact admin if this persists.')),
-          );
-        }
-      }
-    } catch (e) {
-      print('Error opening support chat: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to connect: $e')),
+          ),
         );
-      }
-    }
-  }
-
-  Widget _buildVerificationStatus(BuildContext context, dynamic user) {
-    if (user == null) return const SizedBox.shrink();
-
-    // Verified
-    if (user.isVerified) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.verified, color: Colors.blueAccent, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Verified Account',
-            style: TextStyle(
-              color: Colors.blueAccent.shade100,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      );
-    }
-
-    // Pending
-    if (user.verificationStatus == 'pending') {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.pending, color: Colors.orangeAccent, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Verification Pending',
-            style: TextStyle(
-              color: Colors.orangeAccent.shade100,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      );
-    }
-
-    // Not Verified
-    return Center(
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const VerifyUserScreen()),
-          );
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.primary.withOpacity(0.5)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.security, color: AppTheme.primary, size: 16),
-              SizedBox(width: 8),
-              Text(
-                'Verify Account',
-                style: TextStyle(
-                  color: AppTheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      },
     );
   }
 
