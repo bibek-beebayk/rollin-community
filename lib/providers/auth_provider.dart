@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../api/api_client.dart';
 import '../models/user.dart';
+import '../models/app_version.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -18,6 +20,12 @@ class AuthProvider with ChangeNotifier {
   ApiClient get apiClient => _apiClient;
   String? get accessToken => _apiClient.accessToken;
 
+  bool _needsUpdate = false;
+  AppVersion? _latestVersion;
+
+  bool get needsUpdate => _needsUpdate;
+  AppVersion? get latestVersion => _latestVersion;
+
   AuthProvider() {
     checkAuth();
   }
@@ -26,24 +34,68 @@ class AuthProvider with ChangeNotifier {
     _isInitializing = true;
     notifyListeners();
     try {
-      // Block initialization until native local storage completely yields tokens
-      await _apiClient.loadTokens();
+      // 1. Check App Version
+      try {
+        final versionResponse =
+            await _apiClient.get('/api/auth/app-version/', skipAuth: true);
+        final data = versionResponse['data'] ?? versionResponse;
+        _latestVersion = AppVersion.fromJson(data);
 
-      if (_apiClient.accessToken != null) {
-        final response = await _apiClient.get('/api/auth/me/');
-        final data = response['data'] ?? response;
-        final userData = data['user'] ?? data;
-        _user = User.fromJson(userData);
+        final packageInfo = await PackageInfo.fromPlatform();
+        final backendVersion = _latestVersion!.versionCode;
+
+        // Match base version by default (e.g., '1.0.1')
+        String localVersionToCompare = packageInfo.version;
+
+        // If the backend specifically demands a build number (e.g., '1.0.1+2'), compare the full string
+        if (backendVersion.contains('+') &&
+            packageInfo.buildNumber.isNotEmpty) {
+          localVersionToCompare =
+              '${packageInfo.version}+${packageInfo.buildNumber}';
+        }
+
+        if (backendVersion != localVersionToCompare &&
+            _latestVersion!.versionCode != '1.0.0+1') {
+          debugPrint('=== VERSION MISMATCH DETECTED ===');
+          debugPrint('Backend Version: "$backendVersion"');
+          debugPrint('Local Version: "$localVersionToCompare"');
+          debugPrint('Is Mandatory: ${_latestVersion!.isMandatory}');
+
+          _needsUpdate = true;
+        }
+      } catch (e) {
+        debugPrint('Failed to check app version: $e');
       }
+
+      if (_needsUpdate) {
+        // Halt authentication sequence, force user to UpdateScreen
+        _isInitializing = false;
+        notifyListeners();
+        return;
+      }
+
+      await _finishBootSequence();
     } catch (e) {
       debugPrint('Auth check failed: $e');
       _user = null;
-      // ApiClient handles background token refreshing internally. If it natively
-      // bubbles an exception up here to checkAuth, both tokens are truly dead.
       await _apiClient.clearTokens();
     } finally {
-      _isInitializing = false;
-      notifyListeners();
+      if (_isInitializing) {
+        _isInitializing = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _finishBootSequence() async {
+    // Block initialization until native local storage completely yields tokens
+    await _apiClient.loadTokens();
+
+    if (_apiClient.accessToken != null) {
+      final response = await _apiClient.get('/api/auth/me/');
+      final data = response['data'] ?? response;
+      final userData = data['user'] ?? data;
+      _user = User.fromJson(userData);
     }
   }
 
@@ -94,6 +146,24 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       debugPrint(
           'AuthProvider: Notified listeners (Loading: $_isLoading, Authenticated: $isAuthenticated)');
+    }
+  }
+
+  /// Called from the UpdateScreen when a user chooses to skip a non-mandatory update
+  Future<void> skipUpdate() async {
+    _needsUpdate = false;
+    _isInitializing = true;
+    notifyListeners();
+    try {
+      // Resume the boot sequence by skipping the version check
+      await _finishBootSequence();
+    } catch (e) {
+      debugPrint('Skip update boot sequence failed: $e');
+      _user = null;
+      await _apiClient.clearTokens();
+    } finally {
+      _isInitializing = false;
+      notifyListeners();
     }
   }
 

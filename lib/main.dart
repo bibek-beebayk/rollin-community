@@ -11,6 +11,7 @@ import 'services/notification_service.dart';
 // Placeholder for Dashboard (we'll create this next)
 import 'screens/dashboard_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/update_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +58,10 @@ class AuthWrapper extends StatelessWidget {
 
     if (authProvider.isInitializing) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (authProvider.needsUpdate) {
+      return const UpdateScreen();
     }
 
     if (authProvider.isAuthenticated) {

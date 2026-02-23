@@ -1,3 +1,6 @@
+import java.util.Base64
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -17,8 +20,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        jvmToolchain(17)
     }
 
     defaultConfig {
@@ -37,6 +40,40 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    // Extract the ENV dart-define variable automatically injected by Flutter
+    val dartDefines = if (project.hasProperty("dart-defines")) project.property("dart-defines") as String else ""
+    val environment = dartDefines.split(",").mapNotNull {
+        try {
+            val decoded = String(Base64.getDecoder().decode(it))
+            if (decoded.startsWith("ENV=")) decoded.substringAfter("ENV=") else null
+        } catch (e: Exception) {
+            null
+        }
+    }.firstOrNull() ?: "dev"
+
+    tasks.whenTaskAdded {
+        if (name == "assembleRelease") {
+            val currentEnv = environment
+            val currentVersion = flutter.versionName
+            println("\n=========================================================")
+            println("Current Environment: $currentEnv")
+            println("Current Version: $currentVersion")
+            println("=========================================================\n")
+            doLast {
+                val apkDir = layout.buildDirectory.get().dir("outputs/flutter-apk").asFile
+                val oldApk = File(apkDir, "app-release.apk")
+                if (oldApk.exists()) {
+                    val newApk = File(apkDir, "rollin_community_${currentEnv}_${currentVersion}.apk")
+                    oldApk.renameTo(newApk)
+                    println("\n=========================================================")
+                    println("✅ SUCCESS: APK Renamed to:")
+                    println(newApk.absolutePath)
+                    println("=========================================================\n")
+                }
+            }
         }
     }
 }
