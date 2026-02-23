@@ -54,27 +54,14 @@ android {
         }
     }.firstOrNull() ?: "dev"
 
-    tasks.whenTaskAdded {
-        if (name == "assembleRelease") {
-            val currentEnv = environment
-            val currentVersion = flutter.versionName
-            println("\n=========================================================")
-            println("Current Environment: $currentEnv")
-            println("Current Version: $currentVersion")
-            println("=========================================================\n")
-            doLast {
-                val apkDir = layout.buildDirectory.get().dir("outputs/flutter-apk").asFile
-                val oldApk = File(apkDir, "app-release.apk")
-                if (oldApk.exists()) {
-                    val newApk = File(apkDir, "rollin_community_${currentEnv}_${currentVersion}.apk")
-                    oldApk.renameTo(newApk)
-                    println("\n=========================================================")
-                    println("✅ SUCCESS: APK Renamed to:")
-                    println(newApk.absolutePath)
-                    println("=========================================================\n")
-                }
+    applicationVariants.all {
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                val outputFileName = "rollin_community_${environment}_${variant.versionName}.apk"
+                output.outputFileName = outputFileName
             }
-        }
     }
 }
 
