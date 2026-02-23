@@ -9,20 +9,28 @@ import '../models/room.dart';
 import '../api/api_client.dart';
 
 class ChatProvider with ChangeNotifier {
-  WebSocketChannel? _channel;
-  StreamSubscription? _subscription; // Add this
-
   // Notification Channel
   WebSocketChannel? _notificationChannel;
   StreamSubscription? _notificationSubscription;
 
-  final List<Message> _messages = [];
+  // Room mapping caches
+  final Map<int, List<Message>> _roomMessagesCache = {};
+  final Map<int, WebSocketChannel> _channels = {};
+  final Map<int, StreamSubscription> _subscriptions = {};
+
   bool _isConnected = false;
   int? _currentRoomId;
 
   // ... (getters)
-  List<Message> get messages => _messages;
+  List<Message> get messages => _roomMessagesCache[_currentRoomId] ?? [];
   bool get isConnected => _isConnected;
+  int? get currentRoomId => _currentRoomId;
+
+  bool hasCachedRoom(int roomId) {
+    return _roomMessagesCache.containsKey(roomId) &&
+        _roomMessagesCache[roomId]!.isNotEmpty;
+  }
+
   List<Room> _activeChats = [];
   List<Room> get activeChats => _activeChats;
 
@@ -31,7 +39,8 @@ class ChatProvider with ChangeNotifier {
   // ... participants getter
   List<User> get participants {
     final Map<int, User> uniqueUsers = {};
-    for (var msg in _messages) {
+    final currentMsgs = _roomMessagesCache[_currentRoomId] ?? [];
+    for (var msg in currentMsgs) {
       if (!uniqueUsers.containsKey(msg.sender.id)) {
         uniqueUsers[msg.sender.id] = msg.sender;
       }
@@ -146,18 +155,39 @@ class ChatProvider with ChangeNotifier {
       }
       debugPrint(
           'DEBUG: Parsed ${history.length} valid messages from ${data.length} items');
-      setHistory(history);
+      setHistory(roomId, history);
     } catch (e) {
       debugPrint('ChatProvider: Error fetching history: $e');
     }
   }
 
-  void connect(int roomId, String accessToken) {
-    if (_currentRoomId == roomId && _isConnected) return;
+  void setHistory(int roomId, List<Message> history) {
+    _roomMessagesCache.putIfAbsent(roomId, () => []);
 
-    disconnect();
+    // Add only messages we don't already have to prevent ListView rebuilding and flashing
+    bool updated = false;
+    for (var msg in history) {
+      if (!_roomMessagesCache[roomId]!.any((m) => m.id == msg.id)) {
+        _roomMessagesCache[roomId]!.add(msg);
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      _roomMessagesCache[roomId]!
+          .sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      notifyListeners();
+    }
+  }
+
+  void connect(int roomId, String accessToken) {
     _currentRoomId = roomId;
-    _messages.clear();
+
+    if (_channels.containsKey(roomId)) {
+      _isConnected = true;
+      notifyListeners();
+      return;
+    }
 
     // WS URL formatting
     final baseUrl = ApiClient.baseUrl;
@@ -172,7 +202,7 @@ class ChatProvider with ChangeNotifier {
       debugPrint('Connecting to WS: $url');
       debugPrint('WS Origin: ${ApiClient.baseUrl}');
 
-      _channel = IOWebSocketChannel.connect(
+      _channels[roomId] = IOWebSocketChannel.connect(
         url,
         headers: {
           'Origin': ApiClient.baseUrl,
@@ -182,12 +212,14 @@ class ChatProvider with ChangeNotifier {
       notifyListeners();
 
       // Store subscription to cancel it later
-      _subscription = _channel!.stream.listen(
+      _subscriptions[roomId] = _channels[roomId]!.stream.listen(
         (data) {
-          _handleMessage(data);
+          _handleMessage(roomId, data);
         },
         onDone: () {
           debugPrint('WS Disconnected (Room: $roomId)');
+          _channels.remove(roomId);
+          _subscriptions.remove(roomId);
           // Only update state if this is still the current room's connection
           if (_currentRoomId == roomId) {
             _isConnected = false;
@@ -196,6 +228,8 @@ class ChatProvider with ChangeNotifier {
         },
         onError: (error) {
           debugPrint('WS Error (Room: $roomId): $error');
+          _channels.remove(roomId);
+          _subscriptions.remove(roomId);
           if (_currentRoomId == roomId) {
             _isConnected = false;
             notifyListeners();
@@ -204,7 +238,9 @@ class ChatProvider with ChangeNotifier {
       );
     } catch (e) {
       debugPrint('WS Connection Exception: $e');
-      _isConnected = false;
+      if (_currentRoomId == roomId) {
+        _isConnected = false;
+      }
       notifyListeners();
     }
   }
@@ -284,24 +320,28 @@ class ChatProvider with ChangeNotifier {
 
   // ... (existing methods)
   // ... _handleMessage, sendMessage, setHistory ...
-  void _handleMessage(dynamic data) {
+  void _handleMessage(int roomId, dynamic data) {
     try {
       final json = jsonDecode(data);
-      debugPrint('WS Message: $json');
+      debugPrint('WS Message (Room: $roomId): $json');
 
       if (json['type'] == 'websocket.accept') {
-        debugPrint('WS Debug: Connection accepted');
+        debugPrint('WS Debug: Connection accepted (Room: $roomId)');
         return;
       }
 
       if (json['type'] == 'chat_message') {
         try {
           final msg = Message.fromJson(json);
+          // Ensure room exists in cache
+          _roomMessagesCache.putIfAbsent(roomId, () => []);
+
           // Deduplicate
-          if (!_messages.any((m) => m.id == msg.id)) {
-            _messages.add(msg);
-            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-            notifyListeners();
+          if (!_roomMessagesCache[roomId]!.any((m) => m.id == msg.id)) {
+            _roomMessagesCache[roomId]!.add(msg);
+            _roomMessagesCache[roomId]!
+                .sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            if (_currentRoomId == roomId) notifyListeners();
           }
         } catch (e) {
           debugPrint('WS Debug: Error parsing message: $e');
@@ -341,31 +381,27 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  void sendMessage(String content) {
-    if (_channel != null && _isConnected) {
-      _channel!.sink.add(
-        jsonEncode({'type': 'chat_message', 'message': content}),
-      );
+  void sendMessage(int roomId, String content) {
+    if (_channels.containsKey(roomId) && _isConnected) {
+      _channels[roomId]!.sink.add(
+            jsonEncode({'type': 'chat_message', 'message': content}),
+          );
     } else {
-      debugPrint('ChatProvider: Cannot send message, not connected.');
+      debugPrint(
+          'ChatProvider: Cannot send message, not connected to Room $roomId.');
     }
-  }
-
-  void setHistory(List<Message> history) {
-    _messages.clear();
-    _messages.addAll(history);
-    _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-    notifyListeners();
   }
 
   void disconnect() {
-    _subscription?.cancel(); // Cancel listener first!
-    _subscription = null;
-
-    if (_channel != null) {
-      _channel!.sink.close();
-      _channel = null;
+    for (var sub in _subscriptions.values) {
+      sub.cancel(); // Cancel listener first!
     }
+    _subscriptions.clear();
+
+    for (var channel in _channels.values) {
+      channel.sink.close();
+    }
+    _channels.clear();
 
     // Also disconnect notifications on full disconnect (logout)
     // Or we might want to keep it? usually disconnect() is called on room leave.
@@ -377,6 +413,20 @@ class ChatProvider with ChangeNotifier {
     _isConnected = false;
     _currentRoomId = null;
     notifyListeners();
+  }
+
+  void disconnectRoom(int roomId) {
+    _subscriptions[roomId]?.cancel();
+    _subscriptions.remove(roomId);
+
+    _channels[roomId]?.sink.close();
+    _channels.remove(roomId);
+
+    if (_currentRoomId == roomId) {
+      _currentRoomId = null;
+      _isConnected = false;
+      notifyListeners();
+    }
   }
 
   void disconnectNotifications() {

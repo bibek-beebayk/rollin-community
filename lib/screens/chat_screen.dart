@@ -39,23 +39,15 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initQueue());
   }
 
-  late ChatProvider _chatProvider;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _chatProvider = context.read<ChatProvider>();
   }
 
   @override
   void dispose() {
     debugPrint('DEBUG: ChatScreen dispose called');
-    try {
-      _chatProvider.disconnect();
-      debugPrint('DEBUG: ChatProvider disconnected successfully');
-    } catch (e) {
-      debugPrint('DEBUG: Error disconnecting ChatProvider: $e');
-    }
+    // REMOVED _chatProvider.disconnect() to persist connection across pushes
 
     _focusNode.dispose();
     _messageController.dispose();
@@ -91,46 +83,67 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatProvider = context.read<ChatProvider>();
     final authProvider = context.read<AuthProvider>();
 
-    if (mounted) setState(() => _isLoading = true);
+    final isAlreadyLoaded = chatProvider.hasCachedRoom(widget.room.id);
+
+    if (!isAlreadyLoaded) {
+      if (mounted) setState(() => _isLoading = true);
+    }
 
     // Fetch active chats for EVERYONE to get latest room data
-    try {
-      await chatProvider.fetchActiveChats(authProvider.apiClient);
-      // Ensure the current room is marked as read in the local list,
-      // in case the API returned an old unread count before we fetched messages.
+    final fetchActiveFuture =
+        chatProvider.fetchActiveChats(authProvider.apiClient).then((_) {
       if (mounted) {
         chatProvider.clearUnread(widget.room.id);
       }
-    } catch (e) {
+    }).catchError((e) {
       debugPrint('Error fetching active chats: $e');
+    });
+
+    if (!isAlreadyLoaded) {
+      await fetchActiveFuture;
     }
 
     if (authProvider.isStaff) {
       // Staff always enters a specific room from Dashboard
-      await _openChatThread(widget.room);
+      if (isAlreadyLoaded) {
+        _openChatThread(widget.room, isAlreadyLoaded: true);
+      } else {
+        await _openChatThread(widget.room);
+      }
     } else {
       // Player logic: Find their active session
-      final activeRoom = chatProvider.activeChats.firstWhere(
-        (r) => r.id == widget.room.id,
-        orElse: () => widget.room,
-      );
+      Room topRoom = widget.room;
+      if (!isAlreadyLoaded) {
+        topRoom = chatProvider.activeChats.firstWhere(
+          (r) => r.id == widget.room.id,
+          orElse: () => widget.room,
+        );
+      }
 
       if (mounted) {
         setState(() {
-          _selectedChat = activeRoom;
+          _selectedChat = topRoom;
         });
       }
-      await _openChatThread(activeRoom);
+
+      if (isAlreadyLoaded) {
+        _openChatThread(topRoom, isAlreadyLoaded: true);
+      } else {
+        await _openChatThread(topRoom);
+      }
     }
 
     if (mounted) setState(() => _isLoading = false);
   }
 
-  Future<void> _openChatThread(Room chatRoom) async {
+  Future<void> _openChatThread(Room chatRoom,
+      {bool isAlreadyLoaded = false}) async {
     if (mounted) {
       setState(() {
         _selectedChat = chatRoom;
-        _isLoading = true;
+        if (!isAlreadyLoaded) {
+          _isLoading = true;
+        }
       });
     }
 
@@ -141,19 +154,29 @@ class _ChatScreenState extends State<ChatScreen> {
     if (apiClient.accessToken != null) {
       try {
         try {
-          await apiClient.post('/api/rooms/${chatRoom.id}/join/');
+          // Fire and forget join attempt
+          apiClient.post('/api/rooms/${chatRoom.id}/join/');
         } catch (e) {
           // Ignore if already joined
         }
 
         chatProvider.connect(chatRoom.id, apiClient.accessToken!);
 
-        await chatProvider.fetchMessages(chatRoom.id);
+        chatProvider.connect(chatRoom.id, apiClient.accessToken!);
 
-        if (mounted) {
-          setState(() => _isLoading = false);
-          Future.delayed(
-              const Duration(milliseconds: 100), _scrollToBottomInstant);
+        if (isAlreadyLoaded) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _scrollToBottomInstant();
+          });
+          // Also fetch messages silently in background to catch up on any missed WS events
+          chatProvider.fetchMessages(chatRoom.id);
+        } else {
+          await chatProvider.fetchMessages(chatRoom.id);
+          if (mounted) {
+            setState(() => _isLoading = false);
+            Future.delayed(
+                const Duration(milliseconds: 100), _scrollToBottomInstant);
+          }
         }
       } catch (e) {
         debugPrint('Error opening chat: $e');
@@ -236,7 +259,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     if (text.isNotEmpty) {
-      chatProvider.sendMessage(text);
+      if (chatProvider.currentRoomId != null) {
+        chatProvider.sendMessage(chatProvider.currentRoomId!, text);
+      }
       _messageController.clear();
     }
 
@@ -295,7 +320,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: BoxDecoration(
                       color: _getUserTypeColor(_selectedChat!),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     child: Text(
                       _getUserTypeLabel(_selectedChat!)!,
@@ -411,7 +437,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 Center(
                   child: Text(
                     'No messages yet',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                    style:
+                        TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                   ),
                 ),
               if (_isUploading)
@@ -427,8 +454,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2)),
                       const SizedBox(width: 8),
                       Text('Uploading...',
-                          style:
-                              TextStyle(color: Colors.white.withValues(alpha: 0.7))),
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7))),
                     ],
                   ),
                 ),
@@ -516,7 +543,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 decoration: BoxDecoration(
                   color: AppTheme.background,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.2)),
                 ),
                 child: isImage && file.path != null
                     ? ClipRRect(
@@ -564,8 +592,8 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
               color: AppTheme.surface,
-              border:
-                  Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+              border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -951,15 +979,15 @@ class _SystemMessage extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white
-              .withValues(alpha: 0.1), // var(--color-bg-secondary) approximation
+          color: Colors.white.withValues(
+              alpha: 0.1), // var(--color-bg-secondary) approximation
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           cleanContent,
           style: TextStyle(
-            color: Colors.white
-                .withValues(alpha: 0.6), // var(--color-text-muted) approximation
+            color: Colors.white.withValues(
+                alpha: 0.6), // var(--color-text-muted) approximation
             fontSize: 12, // ~0.75rem
             fontWeight: FontWeight.w400,
           ),
