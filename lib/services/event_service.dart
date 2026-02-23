@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../api/api_client.dart';
 import '../models/event.dart';
 
@@ -23,7 +24,7 @@ class EventService {
 
       return data.map((json) => Event.fromJson(json)).toList();
     } catch (e) {
-      print('EventService: Error fetching events: $e');
+      debugPrint('EventService: Error fetching events: $e');
       // Return empty list instead of throwing to avoid crashing UI
       return [];
     }

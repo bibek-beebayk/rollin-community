@@ -66,11 +66,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() => _isLoading = true); // Show loading during toggle
       if (isConnected) {
         await chatProvider.leaveStation(apiClient, station.id);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Disconnected from ${station.name}')),
         );
       } else {
         await chatProvider.joinStation(apiClient, station.id);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Connected to ${station.name}')),
         );
@@ -192,7 +194,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Text(
                           'No support rooms available',
                           style:
-                              TextStyle(color: Colors.white.withOpacity(0.5)),
+                              TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                         ),
                       ),
                     ),
@@ -238,7 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -259,7 +261,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                        color: textColor.withOpacity(0.6), fontSize: 12),
+                        color: textColor.withValues(alpha: 0.6), fontSize: 12),
                   ),
               ],
             ),
@@ -280,12 +282,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color.withOpacity(0.15),
+          backgroundColor: color.withValues(alpha: 0.15),
           foregroundColor: color,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          side: BorderSide(color: color.withOpacity(0.3)),
+          side: BorderSide(color: color.withValues(alpha: 0.3)),
         ),
         child: Text(label,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -336,18 +338,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.chat_bubble_outline,
-                          size: 64, color: Colors.white.withOpacity(0.2)),
+                          size: 64, color: Colors.white.withValues(alpha: 0.2)),
                       const SizedBox(height: 16),
                       Text(
                         'No active chats',
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.5), fontSize: 16),
+                            color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Connect to a station to receive chats',
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.3), fontSize: 12),
+                            color: Colors.white.withValues(alpha: 0.3), fontSize: 12),
                       ),
                     ],
                   ),
@@ -411,7 +413,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           // Show Queue Name as context if available, else ID
                           room.queueName ?? 'ID: ${room.id}',
                           style:
-                              TextStyle(color: Colors.white.withOpacity(0.7)),
+                              TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -516,7 +518,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       await chatProvider.leaveStation(
                           authProvider.apiClient, station.id);
                     } catch (e) {
-                      print('Error leaving station ${station.name}: $e');
+                      debugPrint('Error leaving station ${station.name}: $e');
                     }
                   }
                 }

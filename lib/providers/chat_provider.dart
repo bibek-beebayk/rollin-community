@@ -50,14 +50,14 @@ class ChatProvider with ChangeNotifier {
               ? response['data']
               : response;
 
-      print('DEBUG: Active Chats raw data: $data');
+      debugPrint('DEBUG: Active Chats raw data: $data');
 
       // Filter for active chats if needed, or assume backend returns relevant ones
       // For now, we take all returned rooms as "Active Chats" for the staff
       _activeChats = data.map((j) => Room.fromJson(j)).toList();
       notifyListeners();
     } catch (e) {
-      print('ChatProvider: Error fetching active chats: $e');
+      debugPrint('ChatProvider: Error fetching active chats: $e');
       rethrow;
     }
   }
@@ -73,7 +73,7 @@ class ChatProvider with ChangeNotifier {
       _supportStations = data.map((j) => Room.fromJson(j)).toList();
       notifyListeners();
     } catch (e) {
-      print('ChatProvider: Error fetching support stations: $e');
+      debugPrint('ChatProvider: Error fetching support stations: $e');
       // Don't rethrow necessarily, just log
     }
   }
@@ -84,7 +84,7 @@ class ChatProvider with ChangeNotifier {
       await fetchSupportStations(apiClient); // Refresh station status
       await fetchActiveChats(apiClient); // Refresh active chats
     } catch (e) {
-      print('ChatProvider: Error joining station: $e');
+      debugPrint('ChatProvider: Error joining station: $e');
       rethrow;
     }
   }
@@ -95,7 +95,7 @@ class ChatProvider with ChangeNotifier {
       await fetchSupportStations(apiClient); // Refresh station status
       await fetchActiveChats(apiClient); // Refresh active chats
     } catch (e) {
-      print('ChatProvider: Error leaving station: $e');
+      debugPrint('ChatProvider: Error leaving station: $e');
       rethrow;
     }
   }
@@ -119,7 +119,7 @@ class ChatProvider with ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('ChatProvider: Error joining support room: $e');
+      debugPrint('ChatProvider: Error joining support room: $e');
       rethrow;
     }
   }
@@ -144,11 +144,11 @@ class ChatProvider with ChangeNotifier {
           // Skip invalid messages
         }
       }
-      print(
+      debugPrint(
           'DEBUG: Parsed ${history.length} valid messages from ${data.length} items');
       setHistory(history);
     } catch (e) {
-      print('ChatProvider: Error fetching history: $e');
+      debugPrint('ChatProvider: Error fetching history: $e');
     }
   }
 
@@ -169,8 +169,8 @@ class ChatProvider with ChangeNotifier {
     final url = '$scheme://$host/ws/chat/$roomId/?token=${accessToken.trim()}';
 
     try {
-      print('Connecting to WS: $url');
-      print('WS Origin: ${ApiClient.baseUrl}');
+      debugPrint('Connecting to WS: $url');
+      debugPrint('WS Origin: ${ApiClient.baseUrl}');
 
       _channel = IOWebSocketChannel.connect(
         url,
@@ -187,7 +187,7 @@ class ChatProvider with ChangeNotifier {
           _handleMessage(data);
         },
         onDone: () {
-          print('WS Disconnected (Room: $roomId)');
+          debugPrint('WS Disconnected (Room: $roomId)');
           // Only update state if this is still the current room's connection
           if (_currentRoomId == roomId) {
             _isConnected = false;
@@ -195,7 +195,7 @@ class ChatProvider with ChangeNotifier {
           }
         },
         onError: (error) {
-          print('WS Error (Room: $roomId): $error');
+          debugPrint('WS Error (Room: $roomId): $error');
           if (_currentRoomId == roomId) {
             _isConnected = false;
             notifyListeners();
@@ -203,7 +203,7 @@ class ChatProvider with ChangeNotifier {
         },
       );
     } catch (e) {
-      print('WS Connection Exception: $e');
+      debugPrint('WS Connection Exception: $e');
       _isConnected = false;
       notifyListeners();
     }
@@ -211,7 +211,7 @@ class ChatProvider with ChangeNotifier {
 
   void connectNotifications(String accessToken) {
     if (_notificationChannel != null) {
-      print('DEBUG: Notification channel already connected.');
+      debugPrint('DEBUG: Notification channel already connected.');
       return;
     }
 
@@ -224,7 +224,7 @@ class ChatProvider with ChangeNotifier {
     final url = '$scheme://$host/ws/notifications/?token=${accessToken.trim()}';
 
     try {
-      print('DEBUG: Connecting to Notification WS: $url');
+      debugPrint('DEBUG: Connecting to Notification WS: $url');
       _notificationChannel = IOWebSocketChannel.connect(
         url,
         headers: {'Origin': ApiClient.baseUrl},
@@ -232,53 +232,53 @@ class ChatProvider with ChangeNotifier {
 
       _notificationSubscription = _notificationChannel!.stream.listen(
         (data) {
-          print('DEBUG: Notification WS Received: $data');
+          debugPrint('DEBUG: Notification WS Received: $data');
           _handleNotification(data);
         },
         onDone: () {
-          print('DEBUG: Notification WS Disconnected (Done)');
+          debugPrint('DEBUG: Notification WS Disconnected (Done)');
           _notificationChannel = null;
           // Reconnect logic could go here
         },
         onError: (error) {
-          print('DEBUG: Notification WS Error: $error');
+          debugPrint('DEBUG: Notification WS Error: $error');
           _notificationChannel = null;
         },
       );
     } catch (e) {
-      print('DEBUG: Notification WS Connection Exception: $e');
+      debugPrint('DEBUG: Notification WS Connection Exception: $e');
     }
   }
 
   void _handleNotification(dynamic data) {
     try {
       final json = jsonDecode(data);
-      print('DEBUG: Handling Notification: $json');
+      debugPrint('DEBUG: Handling Notification: $json');
       if (json['type'] == 'new_message_notification') {
         final roomId = json['room_id'];
-        print(
+        debugPrint(
             'DEBUG: New Message for Room $roomId. Current Room: $_currentRoomId');
 
         // If message is for a room we are NOT currently viewing
         if (_currentRoomId != roomId) {
           // Find the room in active chats and increment unread
           final roomIndex = _activeChats.indexWhere((r) => r.id == roomId);
-          print('DEBUG: Found room in active chats? Index: $roomIndex');
+          debugPrint('DEBUG: Found room in active chats? Index: $roomIndex');
 
           if (roomIndex != -1) {
             _activeChats[roomIndex].unreadCount++;
-            print(
+            debugPrint(
                 'DEBUG: Incremented unread count to ${_activeChats[roomIndex].unreadCount}');
             notifyListeners();
           } else {
-            print('DEBUG: Room $roomId not found in activeChats list.');
+            debugPrint('DEBUG: Room $roomId not found in activeChats list.');
           }
         } else {
-          print('DEBUG: Ignored notification because we are in the room.');
+          debugPrint('DEBUG: Ignored notification because we are in the room.');
         }
       }
     } catch (e) {
-      print('DEBUG: Error parsing notification: $e');
+      debugPrint('DEBUG: Error parsing notification: $e');
     }
   }
 
@@ -287,10 +287,10 @@ class ChatProvider with ChangeNotifier {
   void _handleMessage(dynamic data) {
     try {
       final json = jsonDecode(data);
-      print('WS Message: $json');
+      debugPrint('WS Message: $json');
 
       if (json['type'] == 'websocket.accept') {
-        print('WS Debug: Connection accepted');
+        debugPrint('WS Debug: Connection accepted');
         return;
       }
 
@@ -304,11 +304,11 @@ class ChatProvider with ChangeNotifier {
             notifyListeners();
           }
         } catch (e) {
-          print('WS Debug: Error parsing message: $e');
+          debugPrint('WS Debug: Error parsing message: $e');
         }
       }
     } catch (e) {
-      print('Error parsing message: $e');
+      debugPrint('Error parsing message: $e');
     }
   }
 
@@ -323,7 +323,7 @@ class ChatProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error clearing unread: $e');
+      debugPrint('Error clearing unread: $e');
     }
   }
 
@@ -336,7 +336,7 @@ class ChatProvider with ChangeNotifier {
         filePath,
       );
     } catch (e) {
-      print('ChatProvider: Error uploading file: $e');
+      debugPrint('ChatProvider: Error uploading file: $e');
       rethrow;
     }
   }
@@ -347,7 +347,7 @@ class ChatProvider with ChangeNotifier {
         jsonEncode({'type': 'chat_message', 'message': content}),
       );
     } else {
-      print('ChatProvider: Cannot send message, not connected.');
+      debugPrint('ChatProvider: Cannot send message, not connected.');
     }
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../models/post.dart';
 import '../api/api_client.dart';
 
@@ -23,7 +24,7 @@ class PostService {
 
       return results.map((json) => Post.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching posts: $e');
+      debugPrint('Error fetching posts: $e');
       return [];
     }
   }

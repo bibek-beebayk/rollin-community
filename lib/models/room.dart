@@ -32,7 +32,7 @@ class Room {
 
   factory Room.fromJson(Map<String, dynamic> json) {
     // DEBUG: Print raw JSON to find the correct "online" field
-    // print('ROOM JSON: $json');
+    // debugPrint('ROOM JSON: $json');
 
     return Room(
       id: json['id'] ?? 0,

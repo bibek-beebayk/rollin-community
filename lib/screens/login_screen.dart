@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0xFF8B5CF6).withOpacity(0.3), // Violet
+                    Color(0xFF8B5CF6).withValues(alpha: 0.3), // Violet
                     Colors.transparent
                   ],
                   stops: const [0.0, 1.0],
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0xFFEC4899).withOpacity(0.3), // Pink
+                    Color(0xFFEC4899).withValues(alpha: 0.3), // Pink
                     Colors.transparent
                   ],
                   stops: const [0.0, 1.0],
@@ -133,12 +133,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
                       color:
-                          const Color(0xFF1E1E2E).withOpacity(0.4), // Glass bg
+                          const Color(0xFF1E1E2E).withValues(alpha: 0.4), // Glass bg
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 32,
                           offset: const Offset(0, 8),
                         ),
@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Welcome back! Please login to your account.',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -210,21 +210,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                         MaterialTapTargetSize.shrinkWrap,
                                     visualDensity: VisualDensity.compact,
                                     fillColor:
-                                        MaterialStateProperty.resolveWith(
+                                        WidgetStateProperty.resolveWith(
                                       (states) => states
-                                              .contains(MaterialState.selected)
+                                              .contains(WidgetState.selected)
                                           ? AppTheme.primary
-                                          : Colors.white.withOpacity(0.1),
+                                          : Colors.white.withValues(alpha: 0.1),
                                     ),
                                     checkColor: Colors.white,
                                     side: BorderSide(
-                                        color: Colors.white.withOpacity(0.5)),
+                                        color: Colors.white.withValues(alpha: 0.5)),
                                   ),
                                   Flexible(
                                     child: Text(
                                       'Remember me',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: Colors.white.withValues(alpha: 0.9),
                                         fontSize: 13,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -275,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Text(
                               "Don't have an account? ",
                               style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   fontSize: 13),
                             ),
                             GestureDetector(

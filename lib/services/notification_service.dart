@@ -5,7 +5,7 @@ import '../api/api_client.dart';
 /// Top-level handler for background messages (must be top-level function).
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('DEBUG: Background message received: ${message.messageId}');
+  debugPrint('DEBUG: Background message received: ${message.messageId}');
 }
 
 class NotificationService {
@@ -23,28 +23,28 @@ class NotificationService {
       );
 
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        print('DEBUG: Push notification permission denied');
+        debugPrint('DEBUG: Push notification permission denied');
         return;
       }
 
-      print('DEBUG: Push permission status: ${settings.authorizationStatus}');
+      debugPrint('DEBUG: Push permission status: ${settings.authorizationStatus}');
 
       // 2. Get FCM token
       final token = await _messaging.getToken();
       if (token != null) {
-        print('DEBUG: FCM Token: $token');
+        debugPrint('DEBUG: FCM Token: $token');
         await _registerToken(token, apiClient);
       }
 
       // 3. Listen for token refresh
       _messaging.onTokenRefresh.listen((newToken) {
-        print('DEBUG: FCM Token refreshed: $newToken');
+        debugPrint('DEBUG: FCM Token refreshed: $newToken');
         _registerToken(newToken, apiClient);
       });
 
       // 4. Handle foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        print(
+        debugPrint(
             'DEBUG: Foreground message: ${message.notification?.title} - ${message.notification?.body}');
         // Foreground messages are already handled by the WebSocket notification channel
         // so we don't need to show a duplicate local notification.
@@ -52,17 +52,17 @@ class NotificationService {
 
       // 5. Handle notification tap (when app was in background)
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        print('DEBUG: Notification tapped: ${message.data}');
+        debugPrint('DEBUG: Notification tapped: ${message.data}');
         // Could navigate to specific chat room here using message.data['link']
       });
 
       // 6. Check if app was opened from a notification (when app was terminated)
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
-        print('DEBUG: App opened from notification: ${initialMessage.data}');
+        debugPrint('DEBUG: App opened from notification: ${initialMessage.data}');
       }
     } catch (e) {
-      print('DEBUG: Error initializing notifications: $e');
+      debugPrint('DEBUG: Error initializing notifications: $e');
     }
   }
 
@@ -76,9 +76,9 @@ class NotificationService {
             defaultTargetPlatform == TargetPlatform.android ? 'android' : 'ios',
         'browser': 'flutter_app',
       });
-      print('DEBUG: FCM token registered with backend');
+      debugPrint('DEBUG: FCM token registered with backend');
     } catch (e) {
-      print('DEBUG: Error registering FCM token: $e');
+      debugPrint('DEBUG: Error registering FCM token: $e');
     }
   }
 }

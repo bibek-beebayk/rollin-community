@@ -168,7 +168,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF8B5CF6).withOpacity(0.3), // Violet
+                    const Color(0xFF8B5CF6).withValues(alpha: 0.3), // Violet
                     Colors.transparent
                   ],
                   stops: const [0.0, 1.0],
@@ -186,7 +186,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFEC4899).withOpacity(0.3), // Pink
+                    const Color(0xFFEC4899).withValues(alpha: 0.3), // Pink
                     Colors.transparent
                   ],
                   stops: const [0.0, 1.0],
@@ -217,12 +217,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     constraints: const BoxConstraints(maxWidth: 450),
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E2E).withOpacity(0.4),
+                      color: const Color(0xFF1E1E2E).withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 32,
                           offset: const Offset(0, 8),
                         ),
@@ -264,7 +264,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           _getSubtitleText(),
           style: TextStyle(
             fontSize: 14,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
           ),
           textAlign: TextAlign.center,
         ),
@@ -275,8 +275,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.1),
-                border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                color: Colors.redAccent.withValues(alpha: 0.1),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
                 borderRadius: BorderRadius.circular(8),
               ),
               width: double.infinity,

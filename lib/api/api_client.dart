@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,10 +11,10 @@ class ApiClient {
   String? _refreshToken;
 
   ApiClient() {
-    _loadTokens();
+    loadTokens();
   }
 
-  Future<void> _loadTokens() async {
+  Future<void> loadTokens() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('access_token');
     _refreshToken = prefs.getString('refresh_token');
@@ -38,7 +39,7 @@ class ApiClient {
   String? get accessToken => _accessToken;
 
   Future<Map<String, String>> _getHeaders({bool skipAuth = false}) async {
-    if (_accessToken == null) await _loadTokens();
+    if (_accessToken == null) await loadTokens();
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -92,10 +93,10 @@ class ApiClient {
       // Token Refresh Logic (Duplicate from post - ideally refactor)
       // Only if NOT skipping auth
       if (!skipAuth && response.statusCode == 401 && _refreshToken != null) {
-        print('🔒 401 Unauthorized (Multipart). Attempting token refresh...');
+        debugPrint('🔒 401 Unauthorized (Multipart). Attempting token refresh...');
         final success = await _refreshAccessToken();
         if (success) {
-          print('🔓 Token refreshed. Retrying Multipart request...');
+          debugPrint('🔓 Token refreshed. Retrying Multipart request...');
           final retryRequest = http.MultipartRequest('POST', Uri.parse(url));
           final newHeaders = await _getHeaders(skipAuth: skipAuth);
           newHeaders.remove('Content-Type');
@@ -134,10 +135,10 @@ class ApiClient {
 
       // Token Refresh Logic - Only if NOT skipping auth
       if (!skipAuth && response.statusCode == 401 && _refreshToken != null) {
-        print('🔒 401 Unauthorized. Attempting token refresh...');
+        debugPrint('🔒 401 Unauthorized. Attempting token refresh...');
         final success = await _refreshAccessToken();
         if (success) {
-          print('🔓 Token refreshed. Retrying POST request...');
+          debugPrint('🔓 Token refreshed. Retrying POST request...');
           response = await http.post(
             Uri.parse(url),
             headers: await _getHeaders(skipAuth: skipAuth),
@@ -181,7 +182,7 @@ class ApiClient {
       }
       return false;
     } catch (e) {
-      print('Token Refresh Error: $e');
+      debugPrint('Token Refresh Error: $e');
       return false;
     }
   }
@@ -215,25 +216,25 @@ class ApiClient {
   }
 
   void _logRequest(String method, String url, {String? body}) {
-    print('----------------------------------------------------------------');
-    print('🌐 API REQUEST: $method $url');
-    if (body != null) print('📦 Body: $body');
-    print('----------------------------------------------------------------');
+    debugPrint('----------------------------------------------------------------');
+    debugPrint('🌐 API REQUEST: $method $url');
+    if (body != null) debugPrint('📦 Body: $body');
+    debugPrint('----------------------------------------------------------------');
   }
 
   void _logResponse(String method, String url, http.Response response) {
-    print('----------------------------------------------------------------');
-    print('✅ API RESPONSE: $method $url');
-    print('📊 Status: ${response.statusCode}');
-    print(
+    debugPrint('----------------------------------------------------------------');
+    debugPrint('✅ API RESPONSE: $method $url');
+    debugPrint('📊 Status: ${response.statusCode}');
+    debugPrint(
         '📄 Data: ${response.body.length > 500 ? "${response.body.substring(0, 500)}..." : response.body}');
-    print('----------------------------------------------------------------');
+    debugPrint('----------------------------------------------------------------');
   }
 
   void _logError(String method, String url, Object error) {
-    print('----------------------------------------------------------------');
-    print('❌ API ERROR: $method $url');
-    print('⚠️ Details: $error');
-    print('----------------------------------------------------------------');
+    debugPrint('----------------------------------------------------------------');
+    debugPrint('❌ API ERROR: $method $url');
+    debugPrint('⚠️ Details: $error');
+    debugPrint('----------------------------------------------------------------');
   }
 }

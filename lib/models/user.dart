@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 class User {
   final int id;
   final String username;
@@ -18,7 +19,7 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    print('DEBUG parsing User fromJson: $json');
+    debugPrint('DEBUG parsing User fromJson: $json');
     return User(
       id: _parseInt(json['id']) ?? 0,
       username: json['username'] ?? 'Unknown',

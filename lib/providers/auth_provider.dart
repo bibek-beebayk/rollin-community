@@ -26,14 +26,20 @@ class AuthProvider with ChangeNotifier {
     _isInitializing = true;
     notifyListeners();
     try {
-      // Check if we have access token (will trigger _loadTokens internally)
+      // Block initialization until native local storage completely yields tokens
+      await _apiClient.loadTokens();
+
       if (_apiClient.accessToken != null) {
         final response = await _apiClient.get('/api/auth/me/');
-        _user = User.fromJson(response);
+        final data = response['data'] ?? response;
+        final userData = data['user'] ?? data;
+        _user = User.fromJson(userData);
       }
     } catch (e) {
-      print('Auth check failed: $e');
+      debugPrint('Auth check failed: $e');
       _user = null;
+      // ApiClient handles background token refreshing internally. If it natively
+      // bubbles an exception up here to checkAuth, both tokens are truly dead.
       await _apiClient.clearTokens();
     } finally {
       _isInitializing = false;
@@ -43,7 +49,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> login(String username, String password) async {
     try {
-      print('AuthProvider: Attempting login for $username');
+      debugPrint('AuthProvider: Attempting login for $username');
       _isLoading = true;
       notifyListeners();
 
@@ -53,19 +59,20 @@ class AuthProvider with ChangeNotifier {
         skipAuth: true,
       );
 
-      print('AuthProvider: Login API success. Response keys: ${response.keys}');
+      debugPrint(
+          'AuthProvider: Login API success. Response keys: ${response.keys}');
 
       // Handle "data" wrapper if present
       final data = response['data'] ?? response;
 
       if (data['user'] == null) {
-        print('AuthProvider Error: "user" key missing in data');
+        debugPrint('AuthProvider Error: "user" key missing in data');
         throw Exception('Invalid response: missing user data');
       }
 
-      print('AuthProvider: Parsing user...');
+      debugPrint('AuthProvider: Parsing user...');
       final user = User.fromJson(data['user']);
-      print(
+      debugPrint(
           'AuthProvider: User parsed. Type: ${user.userType}, IsStaff: ${user.isStaff}');
 
       // REMOVED: Staff only check
@@ -73,19 +80,19 @@ class AuthProvider with ChangeNotifier {
       //   throw Exception('Access denied: Staff only');
       // }
 
-      print('AuthProvider: Setting tokens...');
+      debugPrint('AuthProvider: Setting tokens...');
       await _apiClient.setTokens(data['access'], data['refresh']);
 
       _user = user;
-      print('AuthProvider: Login complete. User set.');
+      debugPrint('AuthProvider: Login complete. User set.');
     } catch (e) {
-      print('AuthProvider: Login error: $e');
+      debugPrint('AuthProvider: Login error: $e');
       _user = null;
       rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
-      print(
+      debugPrint(
           'AuthProvider: Notified listeners (Loading: $_isLoading, Authenticated: $isAuthenticated)');
     }
   }
@@ -94,7 +101,7 @@ class AuthProvider with ChangeNotifier {
     try {
       await _apiClient.post('/api/auth/logout/');
     } catch (e) {
-      print('Logout error: $e');
+      debugPrint('Logout error: $e');
     } finally {
       await _apiClient.clearTokens();
       _user = null;

@@ -241,7 +241,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'We sent a 6-digit code to',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                   ),
                   Text(
                     widget.email,
@@ -276,11 +276,11 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                             decoration: InputDecoration(
                               counterText: '',
                               filled: true,
-                              fillColor: Colors.white.withOpacity(0.1),
+                              fillColor: Colors.white.withValues(alpha: 0.1),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
-                                    color: Colors.white.withOpacity(0.2)),
+                                    color: Colors.white.withValues(alpha: 0.2)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -321,7 +321,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   if (_expiresIn > 0)
                     Text(
                       'Code expires in ${_formatTime(_expiresIn)}',
-                      style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                     )
                   else
                     const Text(

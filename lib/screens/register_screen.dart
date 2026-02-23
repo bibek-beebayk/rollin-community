@@ -122,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     'Join Rollin Community today!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 16,
                     ),
                   ),
@@ -132,7 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Text(
                     'I AM A...',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                       letterSpacing: 1.0,
@@ -205,7 +205,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
@@ -248,11 +248,11 @@ class _UserTypeButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primary.withOpacity(0.2)
-              : Colors.white.withOpacity(0.05),
+              ? AppTheme.primary.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.05),
           border: Border.all(
             color:
-                isSelected ? AppTheme.primary : Colors.white.withOpacity(0.1),
+                isSelected ? AppTheme.primary : Colors.white.withValues(alpha: 0.1),
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
@@ -262,7 +262,7 @@ class _UserTypeButton extends StatelessWidget {
             label,
             style: TextStyle(
               color:
-                  isSelected ? AppTheme.primary : Colors.white.withOpacity(0.7),
+                  isSelected ? AppTheme.primary : Colors.white.withValues(alpha: 0.7),
               fontWeight: FontWeight.bold,
             ),
           ),

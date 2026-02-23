@@ -30,7 +30,7 @@ class _MainScreenState extends State<MainScreen> {
           color: AppTheme.surface,
           border: Border(
             top: BorderSide(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               width: 1,
             ),
           ),
@@ -45,7 +45,7 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: AppTheme.accent,
-          unselectedItemColor: Colors.white.withOpacity(0.4),
+          unselectedItemColor: Colors.white.withValues(alpha: 0.4),
           showSelectedLabels: true,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,

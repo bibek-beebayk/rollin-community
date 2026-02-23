@@ -31,7 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isUploading = false;
   Room? _selectedChat;
-  List<PlatformFile> _selectedFiles = [];
+  final List<PlatformFile> _selectedFiles = [];
 
   @override
   void initState() {
@@ -49,12 +49,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    print('DEBUG: ChatScreen dispose called');
+    debugPrint('DEBUG: ChatScreen dispose called');
     try {
       _chatProvider.disconnect();
-      print('DEBUG: ChatProvider disconnected successfully');
+      debugPrint('DEBUG: ChatProvider disconnected successfully');
     } catch (e) {
-      print('DEBUG: Error disconnecting ChatProvider: $e');
+      debugPrint('DEBUG: Error disconnecting ChatProvider: $e');
     }
 
     _focusNode.dispose();
@@ -77,7 +77,7 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } catch (e) {
-      print('Error picking files: $e');
+      debugPrint('Error picking files: $e');
     }
   }
 
@@ -102,7 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
         chatProvider.clearUnread(widget.room.id);
       }
     } catch (e) {
-      print('Error fetching active chats: $e');
+      debugPrint('Error fetching active chats: $e');
     }
 
     if (authProvider.isStaff) {
@@ -156,7 +156,7 @@ class _ChatScreenState extends State<ChatScreen> {
               const Duration(milliseconds: 100), _scrollToBottomInstant);
         }
       } catch (e) {
-        print('Error opening chat: $e');
+        debugPrint('Error opening chat: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Failed to load chat: $e')),
@@ -295,7 +295,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: BoxDecoration(
                       color: _getUserTypeColor(_selectedChat!),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     child: Text(
                       _getUserTypeLabel(_selectedChat!)!,
@@ -411,7 +411,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Center(
                   child: Text(
                     'No messages yet',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                   ),
                 ),
               if (_isUploading)
@@ -428,7 +428,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       const SizedBox(width: 8),
                       Text('Uploading...',
                           style:
-                              TextStyle(color: Colors.white.withOpacity(0.7))),
+                              TextStyle(color: Colors.white.withValues(alpha: 0.7))),
                     ],
                   ),
                 ),
@@ -472,6 +472,8 @@ class _ChatScreenState extends State<ChatScreen> {
         final api = context.read<AuthProvider>().apiClient;
         await api.post('/api/rooms/switch-station/');
 
+        if (!mounted) return;
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Switched station successfully')),
@@ -514,7 +516,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 decoration: BoxDecoration(
                   color: AppTheme.background,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                 ),
                 child: isImage && file.path != null
                     ? ClipRRect(
@@ -563,7 +565,7 @@ class _ChatScreenState extends State<ChatScreen> {
             decoration: BoxDecoration(
               color: AppTheme.surface,
               border:
-                  Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                  Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -732,7 +734,7 @@ class _MessageBubble extends StatelessWidget {
               Text(
                 timeStr,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 10,
                 ),
               ),
@@ -771,7 +773,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -808,7 +810,7 @@ class _MessageBubble extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.black,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: const Center(
             child:
@@ -823,9 +825,9 @@ class _MessageBubble extends StatelessWidget {
           margin: const EdgeInsets.only(top: 8, bottom: 4),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -866,7 +868,7 @@ class _MessageBubble extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      print('Could not launch $url');
+      debugPrint('Could not launch $url');
     }
   }
 
@@ -950,14 +952,14 @@ class _SystemMessage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white
-              .withOpacity(0.1), // var(--color-bg-secondary) approximation
+              .withValues(alpha: 0.1), // var(--color-bg-secondary) approximation
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           cleanContent,
           style: TextStyle(
             color: Colors.white
-                .withOpacity(0.6), // var(--color-text-muted) approximation
+                .withValues(alpha: 0.6), // var(--color-text-muted) approximation
             fontSize: 12, // ~0.75rem
             fontWeight: FontWeight.w400,
           ),
