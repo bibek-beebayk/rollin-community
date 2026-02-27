@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/chat_provider.dart';
+import '../services/notification_service.dart';
 import '../widgets/custom_input.dart';
 import '../widgets/custom_button.dart';
 import '../theme/app_theme.dart';
@@ -47,10 +50,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     try {
-      await Provider.of<AuthProvider>(context, listen: false).login(
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      await authProvider.login(
         _emailController.text,
         _passwordController.text,
       );
+
+      // Warm up staff data in background so Dashboard opens faster.
+      unawaited(_preloadStaffSession(authProvider, chatProvider));
 
       // Save credentials if Remember Me is checked
       final prefs = await SharedPreferences.getInstance();
@@ -71,6 +79,25 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: Colors.redAccent,
         ),
       );
+    }
+  }
+
+  Future<void> _preloadStaffSession(
+      AuthProvider authProvider, ChatProvider chatProvider) async {
+    try {
+      if (!authProvider.isStaff) return;
+      final token = authProvider.accessToken;
+      if (token == null || token.isEmpty) return;
+
+      await Future.wait([
+        chatProvider.fetchActiveChats(authProvider.apiClient),
+        chatProvider.fetchSupportStations(authProvider.apiClient),
+      ]);
+
+      chatProvider.connectNotifications(token);
+      await NotificationService.initialize(authProvider.apiClient);
+    } catch (e) {
+      debugPrint('LoginScreen: staff preload failed: $e');
     }
   }
 

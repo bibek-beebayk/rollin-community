@@ -25,6 +25,7 @@ class ChatProvider with ChangeNotifier {
   bool _isConnected = false;
   int? _currentRoomId;
   bool _isChatTabActive = false;
+  bool _isRouteChatOpen = false;
   bool _unreadLoaded = false;
   final Map<int, int> _persistedUnread = {};
 
@@ -37,9 +38,14 @@ class ChatProvider with ChangeNotifier {
   bool get isConnected => _isConnected;
   int? get currentRoomId => _currentRoomId;
   bool get isChatTabActive => _isChatTabActive;
+  bool get isRouteChatOpen => _isRouteChatOpen;
 
   void setChatTabActive(bool isActive) {
     _isChatTabActive = isActive;
+  }
+
+  void setRouteChatOpen(bool isOpen) {
+    _isRouteChatOpen = isOpen;
   }
 
   void handleAppResumed(String accessToken) {
@@ -134,6 +140,14 @@ class ChatProvider with ChangeNotifier {
 
       // Merge server unread with locally persisted unread to survive app restarts.
       for (final room in _activeChats) {
+        // If user is actively viewing this room, force unread to 0 locally.
+        final isActivelyViewingChat = _isChatTabActive || _isRouteChatOpen;
+        if (isActivelyViewingChat && _currentRoomId == room.id) {
+          room.unreadCount = 0;
+          _persistedUnread.remove(room.id);
+          continue;
+        }
+
         final localUnread = _persistedUnread[room.id] ?? 0;
         if (localUnread > room.unreadCount) {
           room.unreadCount = localUnread;
@@ -380,12 +394,21 @@ class ChatProvider with ChangeNotifier {
       final json = jsonDecode(data);
       debugPrint('DEBUG: Handling Notification: $json');
       if (json['type'] == 'new_message_notification') {
-        final roomId = json['room_id'];
+        final dynamic roomIdRaw = json['room_id'];
+        final int? roomId = roomIdRaw is int
+            ? roomIdRaw
+            : int.tryParse(roomIdRaw?.toString() ?? '');
+        if (roomId == null) {
+          debugPrint('DEBUG: Invalid room_id in notification: $roomIdRaw');
+          return;
+        }
         debugPrint(
-            'DEBUG: New Message for Room $roomId. Current Room: $_currentRoomId, ChatTabActive: $_isChatTabActive');
+            'DEBUG: New Message for Room $roomId. Current Room: $_currentRoomId, ChatTabActive: $_isChatTabActive, RouteChatOpen: $_isRouteChatOpen');
 
-        // Count unread unless user is actively viewing this exact room in Chat tab.
-        final isViewingSameRoom = _isChatTabActive && _currentRoomId == roomId;
+        // Count unread unless user is actively viewing this exact room.
+        final isActivelyViewingChat = _isChatTabActive || _isRouteChatOpen;
+        final isViewingSameRoom =
+            isActivelyViewingChat && _currentRoomId == roomId;
         if (!isViewingSameRoom) {
           // Find the room in active chats and increment unread
           final roomIndex = _activeChats.indexWhere((r) => r.id == roomId);
@@ -434,7 +457,12 @@ class ChatProvider with ChangeNotifier {
             _roomMessagesCache[roomId]!.add(msg);
             _roomMessagesCache[roomId]!
                 .sort((a, b) => a.timestamp.compareTo(b.timestamp));
-            if (_currentRoomId == roomId) notifyListeners();
+            if (_currentRoomId == roomId) {
+              // This chat is currently open; unread should never accumulate here.
+              clearUnread(roomId);
+            } else {
+              notifyListeners();
+            }
           }
         } catch (e) {
           debugPrint('WS Debug: Error parsing message: $e');

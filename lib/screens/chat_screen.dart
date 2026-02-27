@@ -6,7 +6,6 @@ import '../models/message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/custom_input.dart';
 import '../api/api_client.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -47,6 +46,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     debugPrint('DEBUG: ChatScreen dispose called');
+    context.read<ChatProvider>().setRouteChatOpen(false);
     // REMOVED _chatProvider.disconnect() to persist connection across pushes
 
     _focusNode.dispose();
@@ -82,6 +82,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _initQueue() async {
     final chatProvider = context.read<ChatProvider>();
     final authProvider = context.read<AuthProvider>();
+    chatProvider.setRouteChatOpen(authProvider.isStaff);
 
     final isAlreadyLoaded = chatProvider.hasCachedRoom(widget.room.id);
 
@@ -276,12 +277,27 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildChatThread(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final currentUser = context.read<AuthProvider>().user;
+    final isStaffUser = context.read<AuthProvider>().isStaff;
     final messages = chatProvider.messages;
+    final unreadSwitchCount = chatProvider.activeChats.fold<int>(
+      0,
+      (sum, room) =>
+          sum +
+          ((_selectedChat != null && room.id == _selectedChat!.id)
+              ? 0
+              : room.unreadCount),
+    );
+    final titleText = isStaffUser
+        ? _getDisplayName(_selectedChat?.name ?? 'Chat')
+        : ((_selectedChat?.queueName != null &&
+                !_selectedChat!.queueName!.startsWith('chat__'))
+            ? _selectedChat!.queueName!
+            : 'Support Station');
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: context.read<AuthProvider>().isStaff,
-        leading: context.read<AuthProvider>().isStaff
+        automaticallyImplyLeading: isStaffUser,
+        leading: isStaffUser
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
@@ -289,61 +305,126 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               )
             : null,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        titleSpacing: 8,
+        title: Row(
           children: [
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    context.read<AuthProvider>().isStaff
-                        ? _getDisplayName(_selectedChat?.name ?? 'Chat')
-                        : ((_selectedChat?.queueName != null &&
-                                !_selectedChat!.queueName!.startsWith('chat__'))
-                            ? _selectedChat!.queueName!
-                            : 'Support Station'),
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.9),
+              child: Text(
+                titleText.isNotEmpty ? titleText[0].toUpperCase() : '?',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
-                if (context.read<AuthProvider>().isStaff &&
-                    _selectedChat != null &&
-                    _getUserTypeLabel(_selectedChat!) != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _getUserTypeColor(_selectedChat!),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                    child: Text(
-                      _getUserTypeLabel(_selectedChat!)!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          titleText,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (isStaffUser &&
+                          _selectedChat != null &&
+                          _getUserTypeLabel(_selectedChat!) != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _getUserTypeColor(_selectedChat!),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _getUserTypeLabel(_selectedChat!)!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: chatProvider.isConnected
+                              ? Colors.greenAccent
+                              : Colors.orangeAccent,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        chatProvider.isConnected ? 'Live connection' : 'Reconnecting...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ],
-            ),
-            Text(
-              chatProvider.isConnected ? 'Connected' : 'Connecting...',
-              style: TextStyle(
-                fontSize: 12,
-                color: chatProvider.isConnected
-                    ? Colors.greenAccent
-                    : Colors.orangeAccent,
               ),
             ),
           ],
         ),
         actions: [
-          if (!context.read<AuthProvider>().isStaff &&
+          if (isStaffUser)
+            IconButton(
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.forum),
+                  if (unreadSwitchCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18),
+                        child: Text(
+                          unreadSwitchCount > 99
+                              ? '99+'
+                              : '$unreadSwitchCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              tooltip: 'Switch Chat',
+              onPressed: () => _showChatSwitcher(context),
+            ),
+          if (!isStaffUser &&
               (_selectedChat?.canSwitchStation ?? false))
             IconButton(
               icon: const Icon(Icons.swap_horiz, color: Colors.white),
@@ -357,91 +438,120 @@ class _ChatScreenState extends State<ChatScreen> {
           Column(
             children: [
               Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    // Reverse the index since we're using reverse: true
-                    // messages is sorted Oldest -> Newest
-                    // index 0 (bottom) should be Newest (last in list)
-                    final reversedIndex = messages.length - 1 - index;
-                    final message = messages[reversedIndex];
+                child: Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(14),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                  ),
+                  child: messages.isEmpty && !_isLoading
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.chat_bubble_outline,
+                                    size: 42,
+                                    color:
+                                        Colors.white.withValues(alpha: 0.28)),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'No messages yet',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Start the conversation below',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          padding: const EdgeInsets.all(14),
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final reversedIndex = messages.length - 1 - index;
+                            final message = messages[reversedIndex];
 
-                    // Check for System Message
-                    // Assuming system messages have type 'system' or 'notification'
-                    // OR if content implies it (fallback)
-                    final isSystemMessage = message.type == 'system' ||
-                        message.type == 'notification' ||
-                        message.sender.id == 0 || // Assuming 0 is system
-                        message.content.startsWith('System:') ||
-                        message.content
-                            .toLowerCase()
-                            .contains('switched station');
+                            final isSystemMessage = message.type == 'system' ||
+                                message.type == 'notification' ||
+                                message.sender.id == 0 ||
+                                message.content.startsWith('System:') ||
+                                message.content
+                                    .toLowerCase()
+                                    .contains('switched station');
 
-                    if (isSystemMessage) {
-                      return _SystemMessage(message: message);
-                    }
+                            if (isSystemMessage) {
+                              return _SystemMessage(message: message);
+                            }
 
-                    final isMe = message.sender.id == currentUser?.id;
-                    final isStaff = message.sender.isStaff ||
-                        (isMe && (currentUser?.isStaff ?? false));
+                            final isMe = message.sender.id == currentUser?.id;
+                            final isStaff = message.sender.isStaff ||
+                                (isMe && (currentUser?.isStaff ?? false));
 
-                    // Grouping Logic
-                    bool showSender = true;
-                    bool compactBottom = false;
+                            bool showSender = true;
+                            bool compactBottom = false;
 
-                    // Check Older Message (index + 1 in ListView)
-                    if (reversedIndex > 0) {
-                      final olderMessage = messages[reversedIndex - 1];
-                      // Check if same sender and time diff < 5 mins
-                      final diff = message.timestamp
-                          .difference(olderMessage.timestamp)
-                          .inMinutes;
+                            if (reversedIndex > 0) {
+                              final olderMessage = messages[reversedIndex - 1];
+                              final diff = message.timestamp
+                                  .difference(olderMessage.timestamp)
+                                  .inMinutes;
 
-                      if (olderMessage.sender.id == message.sender.id &&
-                          diff.abs() < 5) {
-                        showSender = false;
-                      }
-                    }
+                              if (olderMessage.sender.id == message.sender.id &&
+                                  diff.abs() < 5) {
+                                showSender = false;
+                              }
+                            }
 
-                    // Check Newer Message (index - 1 in ListView)
-                    if (reversedIndex < messages.length - 1) {
-                      final newerMessage = messages[reversedIndex + 1];
-                      final diff = newerMessage.timestamp
-                          .difference(message.timestamp)
-                          .inMinutes;
-                      if (newerMessage.sender.id == message.sender.id &&
-                          diff.abs() < 5) {
-                        compactBottom = true;
-                      }
-                    }
+                            if (reversedIndex < messages.length - 1) {
+                              final newerMessage = messages[reversedIndex + 1];
+                              final diff = newerMessage.timestamp
+                                  .difference(message.timestamp)
+                                  .inMinutes;
+                              if (newerMessage.sender.id == message.sender.id &&
+                                  diff.abs() < 5) {
+                                compactBottom = true;
+                              }
+                            }
 
-                    return _MessageBubble(
-                      message: message,
-                      isStaff: isStaff,
-                      isMe: isMe,
-                      isCurrentUserStaff: currentUser?.isStaff ?? false,
-                      showSender: showSender,
-                      compactBottom: compactBottom,
-                    );
-                  },
+                            return _MessageBubble(
+                              message: message,
+                              isStaff: isStaff,
+                              isMe: isMe,
+                              isCurrentUserStaff: currentUser?.isStaff ?? false,
+                              showSender: showSender,
+                              compactBottom: compactBottom,
+                            );
+                          },
+                        ),
                 ),
               ),
-              if (messages.isEmpty && !_isLoading)
-                Center(
-                  child: Text(
-                    'No messages yet',
-                    style:
-                        TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                  ),
-                ),
               if (_isUploading)
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  color: AppTheme.surface,
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08)),
+                  ),
                   child: Row(
                     children: [
                       const SizedBox(
@@ -449,7 +559,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2)),
                       const SizedBox(width: 8),
-                      Text('Uploading...',
+                      Text('Uploading attachments...',
                           style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.7))),
                     ],
@@ -468,7 +578,152 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _showChatSwitcher(BuildContext context) async {
+    _focusNode.unfocus();
+    FocusScope.of(context).unfocus();
+
+    final chatProvider = context.read<ChatProvider>();
+    final activeChats = chatProvider.activeChats;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) {
+        if (activeChats.isEmpty) {
+          return SizedBox(
+            height: 180,
+            child: Center(
+              child: Text(
+                'No active chats available',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+              ),
+            ),
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 38,
+                height: 4,
+                margin: const EdgeInsets.only(top: 10, bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Switch Conversation',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: activeChats.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(color: Colors.white.withValues(alpha: 0.08)),
+                  itemBuilder: (context, index) {
+                    final room = activeChats[index];
+                    final isCurrent = _selectedChat?.id == room.id;
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isCurrent
+                            ? AppTheme.accent
+                            : AppTheme.primary.withValues(alpha: 0.9),
+                        child: Text(
+                          _getDisplayName(room.name).isNotEmpty
+                              ? _getDisplayName(room.name)[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: isCurrent ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        _getDisplayName(room.name),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight:
+                              isCurrent ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        room.queueName ?? 'ID: ${room.id}',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6)),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (room.unreadCount > 0)
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${room.unreadCount}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          Icon(
+                            isCurrent ? Icons.check_circle : Icons.chevron_right,
+                            color: isCurrent
+                                ? Colors.greenAccent
+                                : Colors.white54,
+                          ),
+                        ],
+                      ),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        if (isCurrent) return;
+                        chatProvider.clearUnread(room.id);
+                        await _openChatThread(room);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (mounted) {
+      _focusNode.unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+  }
+
   Future<void> _confirmSwitchStation(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -490,24 +745,22 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     if (confirm == true && mounted) {
-      if (mounted) setState(() => _isLoading = true);
+      setState(() => _isLoading = true);
       try {
-        final api = context.read<AuthProvider>().apiClient;
+        final api = authProvider.apiClient;
         await api.post('/api/rooms/switch-station/');
 
         if (!mounted) return;
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Switched station successfully')),
-          );
-          // Re-init queue to fetch new room and join it
-          await _initQueue();
-        }
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Switched station successfully')),
+        );
+        // Re-init queue to fetch new room and join it
+        await _initQueue();
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(content: Text('Failed to switch station: $e')),
           );
         }
@@ -519,111 +772,252 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_selectedFiles.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: AppTheme.surface,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _selectedFiles.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final file = _selectedFiles[index];
-          final isImage =
-              ['jpg', 'jpeg', 'png'].contains(file.extension?.toLowerCase());
-
-          return Stack(
+      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppTheme.background,
-                  borderRadius: BorderRadius.circular(8),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              Text(
+                'Attachments (${_selectedFiles.length})',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                child: isImage && file.path != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(file.path!),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : const Center(
-                        child: Icon(Icons.insert_drive_file,
-                            color: Colors.white70, size: 24),
-                      ),
               ),
-              Positioned(
-                top: -6,
-                right: -6,
-                child: GestureDetector(
-                  onTap: () => _removeFile(index),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child:
-                        const Icon(Icons.close, size: 12, color: Colors.white),
-                  ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedFiles.clear();
+                  });
+                },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
+                child: const Text('Clear all'),
               ),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 62,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _selectedFiles.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final file = _selectedFiles[index];
+                final ext = file.extension?.toLowerCase() ?? '';
+                final isImage = ['jpg', 'jpeg', 'png'].contains(ext);
+
+                return Container(
+                  width: 168,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.background.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(10),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: isImage && file.path != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  File(file.path!),
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Icon(
+                                ext == 'pdf'
+                                    ? Icons.picture_as_pdf
+                                    : ext == 'mp4' || ext == 'mov'
+                                        ? Icons.videocam
+                                        : Icons.insert_drive_file,
+                                color: Colors.white70,
+                                size: 20,
+                              ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              file.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatFileSize(file.size),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.55),
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _removeFile(index),
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 12, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildInputArea() {
+    final hasContent = !_isUploading &&
+        (_messageController.text.trim().isNotEmpty || _selectedFiles.isNotEmpty);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildFilePreviews(),
         SafeArea(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: AppTheme.surface,
-              border: Border(
-                  top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+              borderRadius: BorderRadius.circular(18),
+              border:
+                  Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                IconButton(
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.attach_file, color: Colors.white70),
-                  onPressed: _pickFiles,
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.85),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    padding: const EdgeInsets.all(0),
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                    onPressed: _isUploading ? null : _pickFiles,
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: CustomInput(
-                    hintText: 'Type a message...',
-                    controller: _messageController,
-                    focusNode: _focusNode,
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.background.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.emoji_emotions_outlined,
+                          size: 18,
+                          color: Colors.white.withValues(alpha: 0.55),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            focusNode: _focusNode,
+                            minLines: 1,
+                            maxLines: 4,
+                            textCapitalization: TextCapitalization.sentences,
+                            onChanged: (_) => setState(() {}),
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 14),
+                            decoration: InputDecoration(
+                              isCollapsed: true,
+                              border: InputBorder.none,
+                              hintText: _isUploading
+                                  ? 'Uploading attachments...'
+                                  : 'Type a message...',
+                              hintStyle: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.45),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: const BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
+                  decoration: BoxDecoration(
+                    gradient: hasContent
+                        ? AppTheme.primaryGradient
+                        : LinearGradient(
+                            colors: [
+                              Colors.white.withValues(alpha: 0.12),
+                              Colors.white.withValues(alpha: 0.08),
+                            ],
+                          ),
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
                     icon: _isUploading
                         ? const Padding(
-                            padding: EdgeInsets.all(12.0),
+                            padding: EdgeInsets.all(10),
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2),
                           )
-                        : const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _isUploading ? null : _sendMessage,
+                        : Icon(Icons.send_rounded,
+                            color: hasContent ? Colors.white : Colors.white54,
+                            size: 19),
+                    onPressed: hasContent ? _sendMessage : null,
                   ),
                 ),
               ],
@@ -632,6 +1026,12 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
     );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   String _getDisplayName(String rawName) {

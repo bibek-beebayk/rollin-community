@@ -16,20 +16,32 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
+  bool _autoOpenedStationSheet = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData(initialLoad: true);
+    });
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchData({bool initialLoad = false, bool showLoader = false}) async {
     try {
       if (!mounted) return;
-      setState(() => _isLoading = true);
+      final chatProvider = context.read<ChatProvider>();
+      final hasCachedData = chatProvider.activeChats.isNotEmpty ||
+          chatProvider.supportStations.isNotEmpty;
+
+      final shouldShowLoader = showLoader || (initialLoad && !hasCachedData);
+      if (shouldShowLoader) {
+        setState(() => _isLoading = true);
+      } else if (_isLoading && hasCachedData) {
+        setState(() => _isLoading = false);
+      }
 
       final apiClient = context.read<AuthProvider>().apiClient;
-      final chatProvider = context.read<ChatProvider>();
+      final authProvider = context.read<AuthProvider>();
 
       await Future.wait([
         chatProvider.fetchActiveChats(apiClient),
@@ -37,14 +49,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ]);
 
       if (mounted) {
-        setState(() => _isLoading = false);
+        if (_isLoading) {
+          setState(() => _isLoading = false);
+        }
         // Connect to notifications channel
-        final token = context.read<AuthProvider>().accessToken;
+        final token = authProvider.accessToken;
         if (token != null) {
           chatProvider.connectNotifications(token);
         }
-        // Initialize push notifications
-        NotificationService.initialize(context.read<AuthProvider>().apiClient);
+        // Initialize push notifications (idempotent and now safe to call repeatedly)
+        NotificationService.initialize(authProvider.apiClient);
+
+        // If staff has no active station, immediately guide them to station selection.
+        if (!_autoOpenedStationSheet &&
+            !_hasConnectedStation(chatProvider.supportStations, authProvider.user)) {
+          _autoOpenedStationSheet = true;
+          Future.microtask(() {
+            if (!mounted) return;
+            _showStationsSheet(
+              context,
+              chatProvider.supportStations,
+              authProvider.user,
+            );
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -63,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isConnected = station.staff?.id == currentUser?.id;
 
     try {
-      setState(() => _isLoading = true); // Show loading during toggle
+      setState(() => _isLoading = true); // Show loading during station toggle
       if (isConnected) {
         await chatProvider.leaveStation(apiClient, station.id);
         if (!mounted) return;
@@ -84,6 +112,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  bool _hasConnectedStation(List<Room> stations, dynamic currentUser) {
+    return stations.any((s) => s.staff?.id == currentUser?.id);
   }
 
   void _showStationsSheet(
@@ -309,11 +341,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final currentUser = context.read<AuthProvider>().user;
     final activeChats = chatProvider.activeChats; // These are my chats
     final stations = chatProvider.supportStations;
+    final connectedStations =
+        stations.where((s) => s.staff?.id == currentUser?.id).length;
+    final unreadTotal =
+        activeChats.fold<int>(0, (sum, room) => sum + room.unreadCount);
+    final hasConnectedStation = _hasConnectedStation(stations, currentUser);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Rollin Chat'),
+        title: const Text('Staff Control Center'),
         actions: [
           IconButton(
             icon: const Icon(Icons.hub),
@@ -322,7 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchData,
+            onPressed: () => _fetchData(showLoader: true),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -330,120 +367,328 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : activeChats.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.chat_bubble_outline,
-                          size: 64, color: Colors.white.withValues(alpha: 0.2)),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No active chats',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Connect to a station to receive chats',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3), fontSize: 12),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: activeChats.length,
-                  itemBuilder: (context, index) {
-                    final room = activeChats[index];
-                    // Logic to find last message or timestamp could go here if Room model supported it
-                    // For now, simple list item
-                    return Card(
-                      color: AppTheme.surface,
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 4, horizontal: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppTheme.primary,
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () => _fetchData(showLoader: false),
+            color: AppTheme.accent,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                _buildOverviewCard(
+                  connectedStations: connectedStations,
+                  activeChats: activeChats.length,
+                  unreadTotal: unreadTotal,
+                ),
+                const SizedBox(height: 16),
+                _buildSectionTitle('Active Conversations', activeChats.length),
+                const SizedBox(height: 10),
+                if (activeChats.isEmpty)
+                  _buildEmptyChatsCard(
+                    hasConnectedStation: hasConnectedStation,
+                    stations: stations,
+                    currentUser: currentUser,
+                  )
+                else
+                  ...activeChats.map(_buildChatCard),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black.withValues(alpha: 0.25),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewCard({
+    required int connectedStations,
+    required int activeChats,
+    required int unreadTotal,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primary.withValues(alpha: 0.28),
+            AppTheme.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.insights, size: 14, color: Colors.white70),
+              const SizedBox(width: 6),
+              Text(
+                'Shift Overview',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricTile(
+                  'Stations',
+                  connectedStations.toString(),
+                  Icons.hub,
+                  Colors.tealAccent,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildMetricTile(
+                  'Chats',
+                  activeChats.toString(),
+                  Icons.chat_bubble,
+                  AppTheme.accent,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildMetricTile(
+                  'Unread',
+                  unreadTotal.toString(),
+                  Icons.mark_chat_unread,
+                  Colors.redAccent,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricTile(
+      String label, String value, IconData icon, Color iconColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 14, color: iconColor),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, int count) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyChatsCard({
+    required bool hasConnectedStation,
+    required List<Room> stations,
+    required dynamic currentUser,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.forum_outlined,
+              size: 44, color: Colors.white.withValues(alpha: 0.25)),
+          const SizedBox(height: 12),
+          Text(
+            hasConnectedStation ? 'No active chats yet' : 'No active station selected',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasConnectedStation
+                ? 'Pull to refresh while waiting for new messages.'
+                : 'Connect to a station to start receiving conversations.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 12,
+            ),
+          ),
+          if (!hasConnectedStation) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _showStationsSheet(context, stations, currentUser),
+              icon: const Icon(Icons.hub),
+              label: const Text('Select Station'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatCard(Room room) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _openChat(room),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppTheme.primary,
+                child: Text(
+                  _getDisplayName(room.name).isNotEmpty
+                      ? _getDisplayName(room.name)[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
                           child: Text(
-                            // Use clean name for avatar initial
-                            _getDisplayName(room.name).isNotEmpty
-                                ? _getDisplayName(room.name)[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(color: Colors.white),
+                            _getDisplayName(room.name),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        title: Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _getDisplayName(room.name),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                        if (_getUserTypeLabel(room) != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: _getUserTypeColor(room),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _getUserTypeLabel(room)!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (_getUserTypeLabel(room) != null) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: _getUserTypeColor(room),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  _getUserTypeLabel(room)!,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        subtitle: Text(
-                          // Show Queue Name as context if available, else ID
-                          room.queueName ?? 'ID: ${room.id}',
-                          style:
-                              TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (room.unreadCount > 0)
-                              Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: Colors.redAccent,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  '${room.unreadCount}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            const Icon(Icons.chevron_right,
-                                color: Colors.white54),
-                          ],
-                        ),
-                        onTap: () => _openChat(room),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      room.queueName ?? 'ID: ${room.id}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 12,
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
+              ),
+              if (room.unreadCount > 0)
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${room.unreadCount}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              const Icon(Icons.chevron_right, color: Colors.white54),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
