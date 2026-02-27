@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/message.dart';
 import '../models/user.dart';
 import '../models/room.dart';
@@ -17,14 +18,44 @@ class ChatProvider with ChangeNotifier {
   final Map<int, List<Message>> _roomMessagesCache = {};
   final Map<int, WebSocketChannel> _channels = {};
   final Map<int, StreamSubscription> _subscriptions = {};
+  final Map<int, String> _roomAccessTokens = {};
+  final Map<int, Timer> _roomReconnectTimers = {};
+  final Set<int> _manualRoomDisconnects = {};
 
   bool _isConnected = false;
   int? _currentRoomId;
+  bool _isChatTabActive = false;
+  bool _unreadLoaded = false;
+  final Map<int, int> _persistedUnread = {};
+
+  String? _notificationAccessToken;
+  Timer? _notificationReconnectTimer;
+  bool _manualNotificationDisconnect = false;
 
   // ... (getters)
   List<Message> get messages => _roomMessagesCache[_currentRoomId] ?? [];
   bool get isConnected => _isConnected;
   int? get currentRoomId => _currentRoomId;
+  bool get isChatTabActive => _isChatTabActive;
+
+  void setChatTabActive(bool isActive) {
+    _isChatTabActive = isActive;
+  }
+
+  void handleAppResumed(String accessToken) {
+    _notificationAccessToken = accessToken;
+
+    // Ensure notification socket is alive.
+    if (_notificationChannel == null) {
+      connectNotifications(accessToken);
+    }
+
+    // Ensure currently viewed room socket is alive.
+    final roomId = _currentRoomId;
+    if (roomId != null && !_channels.containsKey(roomId)) {
+      connect(roomId, accessToken);
+    }
+  }
 
   bool hasCachedRoom(int roomId) {
     return _roomMessagesCache.containsKey(roomId) &&
@@ -51,8 +82,44 @@ class ChatProvider with ChangeNotifier {
   List<Room> _supportStations = []; // Available stations/queues
   List<Room> get supportStations => _supportStations;
 
+  Future<void> _ensureUnreadLoaded() async {
+    if (_unreadLoaded) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('chat_unread_counts');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          _persistedUnread.clear();
+          decoded.forEach((k, v) {
+            final roomId = int.tryParse(k);
+            final count = v is int ? v : int.tryParse('$v');
+            if (roomId != null && count != null && count > 0) {
+              _persistedUnread[roomId] = count;
+            }
+          });
+        }
+      } catch (_) {
+        // ignore malformed local cache
+      }
+    }
+    _unreadLoaded = true;
+  }
+
+  Future<void> _saveUnreadCounts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = <String, int>{};
+    for (final room in _activeChats) {
+      if (room.unreadCount > 0) {
+        payload['${room.id}'] = room.unreadCount;
+      }
+    }
+    await prefs.setString('chat_unread_counts', jsonEncode(payload));
+  }
+
   Future<void> fetchActiveChats(ApiClient apiClient) async {
     try {
+      await _ensureUnreadLoaded();
       final response = await apiClient.get('/api/rooms/');
       final List<dynamic> data =
           (response is Map && response.containsKey('data'))
@@ -64,6 +131,16 @@ class ChatProvider with ChangeNotifier {
       // Filter for active chats if needed, or assume backend returns relevant ones
       // For now, we take all returned rooms as "Active Chats" for the staff
       _activeChats = data.map((j) => Room.fromJson(j)).toList();
+
+      // Merge server unread with locally persisted unread to survive app restarts.
+      for (final room in _activeChats) {
+        final localUnread = _persistedUnread[room.id] ?? 0;
+        if (localUnread > room.unreadCount) {
+          room.unreadCount = localUnread;
+        }
+      }
+
+      await _saveUnreadCounts();
       notifyListeners();
     } catch (e) {
       debugPrint('ChatProvider: Error fetching active chats: $e');
@@ -182,6 +259,10 @@ class ChatProvider with ChangeNotifier {
 
   void connect(int roomId, String accessToken) {
     _currentRoomId = roomId;
+    _roomAccessTokens[roomId] = accessToken;
+    _manualRoomDisconnects.remove(roomId);
+    _roomReconnectTimers[roomId]?.cancel();
+    _roomReconnectTimers.remove(roomId);
 
     if (_channels.containsKey(roomId)) {
       _isConnected = true;
@@ -225,6 +306,7 @@ class ChatProvider with ChangeNotifier {
             _isConnected = false;
             notifyListeners();
           }
+          _scheduleRoomReconnect(roomId);
         },
         onError: (error) {
           debugPrint('WS Error (Room: $roomId): $error');
@@ -234,6 +316,7 @@ class ChatProvider with ChangeNotifier {
             _isConnected = false;
             notifyListeners();
           }
+          _scheduleRoomReconnect(roomId);
         },
       );
     } catch (e) {
@@ -246,6 +329,11 @@ class ChatProvider with ChangeNotifier {
   }
 
   void connectNotifications(String accessToken) {
+    _notificationAccessToken = accessToken;
+    _manualNotificationDisconnect = false;
+    _notificationReconnectTimer?.cancel();
+    _notificationReconnectTimer = null;
+
     if (_notificationChannel != null) {
       debugPrint('DEBUG: Notification channel already connected.');
       return;
@@ -274,11 +362,12 @@ class ChatProvider with ChangeNotifier {
         onDone: () {
           debugPrint('DEBUG: Notification WS Disconnected (Done)');
           _notificationChannel = null;
-          // Reconnect logic could go here
+          _scheduleNotificationReconnect();
         },
         onError: (error) {
           debugPrint('DEBUG: Notification WS Error: $error');
           _notificationChannel = null;
+          _scheduleNotificationReconnect();
         },
       );
     } catch (e) {
@@ -293,16 +382,19 @@ class ChatProvider with ChangeNotifier {
       if (json['type'] == 'new_message_notification') {
         final roomId = json['room_id'];
         debugPrint(
-            'DEBUG: New Message for Room $roomId. Current Room: $_currentRoomId');
+            'DEBUG: New Message for Room $roomId. Current Room: $_currentRoomId, ChatTabActive: $_isChatTabActive');
 
-        // If message is for a room we are NOT currently viewing
-        if (_currentRoomId != roomId) {
+        // Count unread unless user is actively viewing this exact room in Chat tab.
+        final isViewingSameRoom = _isChatTabActive && _currentRoomId == roomId;
+        if (!isViewingSameRoom) {
           // Find the room in active chats and increment unread
           final roomIndex = _activeChats.indexWhere((r) => r.id == roomId);
           debugPrint('DEBUG: Found room in active chats? Index: $roomIndex');
 
           if (roomIndex != -1) {
             _activeChats[roomIndex].unreadCount++;
+            _persistedUnread[roomId] = _activeChats[roomIndex].unreadCount;
+            unawaited(_saveUnreadCounts());
             debugPrint(
                 'DEBUG: Incremented unread count to ${_activeChats[roomIndex].unreadCount}');
             notifyListeners();
@@ -310,7 +402,8 @@ class ChatProvider with ChangeNotifier {
             debugPrint('DEBUG: Room $roomId not found in activeChats list.');
           }
         } else {
-          debugPrint('DEBUG: Ignored notification because we are in the room.');
+          debugPrint(
+              'DEBUG: Ignored notification because user is actively viewing this room.');
         }
       }
     } catch (e) {
@@ -360,10 +453,28 @@ class ChatProvider with ChangeNotifier {
         // Since Room fields are final, we might need a way to update it.
         // Option 1: Mutable unreadCount (removed final) -> Done in Room model
         _activeChats[roomIndex].unreadCount = 0;
+        _persistedUnread.remove(roomId);
+        unawaited(_saveUnreadCounts());
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Error clearing unread: $e');
+    }
+  }
+
+  // Clear all unread counters locally (useful when user is actively in Chat tab).
+  void clearAllUnread() {
+    bool updated = false;
+    for (final room in _activeChats) {
+      if (room.unreadCount > 0) {
+        room.unreadCount = 0;
+        _persistedUnread.remove(room.id);
+        updated = true;
+      }
+    }
+    if (updated) {
+      unawaited(_saveUnreadCounts());
+      notifyListeners();
     }
   }
 
@@ -393,6 +504,13 @@ class ChatProvider with ChangeNotifier {
   }
 
   void disconnect() {
+    _manualRoomDisconnects.addAll(_channels.keys);
+
+    for (var timer in _roomReconnectTimers.values) {
+      timer.cancel();
+    }
+    _roomReconnectTimers.clear();
+
     for (var sub in _subscriptions.values) {
       sub.cancel(); // Cancel listener first!
     }
@@ -416,6 +534,10 @@ class ChatProvider with ChangeNotifier {
   }
 
   void disconnectRoom(int roomId) {
+    _manualRoomDisconnects.add(roomId);
+    _roomReconnectTimers[roomId]?.cancel();
+    _roomReconnectTimers.remove(roomId);
+
     _subscriptions[roomId]?.cancel();
     _subscriptions.remove(roomId);
 
@@ -430,12 +552,44 @@ class ChatProvider with ChangeNotifier {
   }
 
   void disconnectNotifications() {
+    _manualNotificationDisconnect = true;
+    _notificationReconnectTimer?.cancel();
+    _notificationReconnectTimer = null;
     _notificationSubscription?.cancel();
     _notificationSubscription = null;
     if (_notificationChannel != null) {
       _notificationChannel!.sink.close();
       _notificationChannel = null;
     }
+  }
+
+  void _scheduleRoomReconnect(int roomId) {
+    if (_manualRoomDisconnects.contains(roomId)) return;
+    if (_currentRoomId != roomId) return;
+
+    final token = _roomAccessTokens[roomId];
+    if (token == null || token.isEmpty) return;
+
+    _roomReconnectTimers[roomId]?.cancel();
+    _roomReconnectTimers[roomId] = Timer(const Duration(seconds: 2), () {
+      if (_manualRoomDisconnects.contains(roomId)) return;
+      if (_currentRoomId != roomId) return;
+      if (_channels.containsKey(roomId)) return;
+      connect(roomId, token);
+    });
+  }
+
+  void _scheduleNotificationReconnect() {
+    if (_manualNotificationDisconnect) return;
+    final token = _notificationAccessToken;
+    if (token == null || token.isEmpty) return;
+
+    _notificationReconnectTimer?.cancel();
+    _notificationReconnectTimer = Timer(const Duration(seconds: 2), () {
+      if (_manualNotificationDisconnect) return;
+      if (_notificationChannel != null) return;
+      connectNotifications(token);
+    });
   }
 
   @override

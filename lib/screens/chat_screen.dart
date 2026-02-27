@@ -91,11 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Fetch active chats for EVERYONE to get latest room data
     final fetchActiveFuture =
-        chatProvider.fetchActiveChats(authProvider.apiClient).then((_) {
-      if (mounted) {
-        chatProvider.clearUnread(widget.room.id);
-      }
-    }).catchError((e) {
+        chatProvider.fetchActiveChats(authProvider.apiClient).catchError((e) {
       debugPrint('Error fetching active chats: $e');
     });
 
