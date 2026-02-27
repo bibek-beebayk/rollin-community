@@ -9,6 +9,10 @@ import android.os.Build
 import android.os.Bundle
 
 class MainActivity : FlutterActivity() {
+    companion object {
+        private const val CHAT_CHANNEL_ID = "chat_messages_v2"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         createNotificationChannel()
@@ -16,15 +20,17 @@ class MainActivity : FlutterActivity() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val soundUri = Uri.parse("${android.content.ContentResolver.SCHEME_ANDROID_RESOURCE}://${packageName}/raw/notification_sound")
+
             val channel = NotificationChannel(
-                "high_importance_channel",
+                CHAT_CHANNEL_ID,
                 "Chat Messages",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifications for new chat messages"
                 enableVibration(true)
                 setSound(
-                    android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,
+                    soundUri,
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)

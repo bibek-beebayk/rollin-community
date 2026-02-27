@@ -33,7 +33,7 @@
         <!-- Set default FCM notification channel with high importance for sound -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="high_importance_channel" />
+            android:value="chat_messages_v2" />
     </application>
     <!-- Required for Android 13+ push notification permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

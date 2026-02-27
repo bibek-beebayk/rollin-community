@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../api/api_client.dart';
@@ -10,10 +11,20 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  static bool _listenersBound = false;
+  static String? _lastRegisteredToken;
+
+  static Future<void> _ensureFirebaseInitialized() async {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
+    }
+  }
 
   /// Initialize push notifications: request permission, get token, register with backend.
   static Future<void> initialize(ApiClient apiClient) async {
     try {
+      await _ensureFirebaseInitialized();
+
       // 1. Request permission
       final settings = await _messaging.requestPermission(
         alert: true,
@@ -32,13 +43,20 @@ class NotificationService {
       // 2. Get FCM token
       final token = await _messaging.getToken();
       if (token != null) {
-        debugPrint('DEBUG: FCM Token: $token');
-        await _registerToken(token, apiClient);
+        if (_lastRegisteredToken != token) {
+          debugPrint('DEBUG: FCM Token: $token');
+          await _registerToken(token, apiClient);
+          _lastRegisteredToken = token;
+        }
       }
+
+      if (_listenersBound) return;
+      _listenersBound = true;
 
       // 3. Listen for token refresh
       _messaging.onTokenRefresh.listen((newToken) {
         debugPrint('DEBUG: FCM Token refreshed: $newToken');
+        _lastRegisteredToken = newToken;
         _registerToken(newToken, apiClient);
       });
 
