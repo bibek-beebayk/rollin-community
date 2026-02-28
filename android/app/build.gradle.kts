@@ -1,5 +1,4 @@
 import java.util.Base64
-import java.io.File
 
 plugins {
     id("com.android.application")
@@ -54,14 +53,32 @@ android {
         }
     }.firstOrNull() ?: "dev"
 
-    applicationVariants.all {
-        val variant = this
-        variant.outputs
-            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
-            .forEach { output ->
-                val outputFileName = "rollin_community_${environment}_${variant.versionName}.apk"
-                output.outputFileName = outputFileName
-            }
+    val releaseVersionName = defaultConfig.versionName ?: "1.0.0"
+    val releaseVersionCode = defaultConfig.versionCode ?: 1
+    val normalizedEnv = environment.lowercase().ifBlank { "dev" }
+    val renamedReleaseApk =
+        "staff_chat_${normalizedEnv}_v${releaseVersionName}+${releaseVersionCode}_release.apk"
+
+    val syncFlutterExpectedReleaseApk by tasks.registering(Copy::class) {
+        from(layout.buildDirectory.dir("outputs/apk/release"))
+        include("app-release.apk")
+        into(layout.buildDirectory.dir("outputs/flutter-apk"))
+    }
+
+    val copyRenamedReleaseApk by tasks.registering(Copy::class) {
+        from(layout.buildDirectory.dir("outputs/apk/release"))
+        include("app-release.apk")
+        into(layout.buildDirectory.dir("outputs/flutter-apk"))
+        rename("app-release.apk", renamedReleaseApk)
+    }
+
+    tasks.matching {
+        it.name == "assembleRelease" ||
+            it.name == "packageRelease" ||
+            it.name == "flutterBuildRelease"
+    }.configureEach {
+        finalizedBy(syncFlutterExpectedReleaseApk)
+        finalizedBy(copyRenamedReleaseApk)
     }
 }
 

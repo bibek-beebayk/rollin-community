@@ -23,18 +23,40 @@ class Message {
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
+    final dynamic senderRaw = json['sender'];
+    final bool hasSenderMap = senderRaw is Map<String, dynamic>;
+
+    int? parsedSenderId;
+    String parsedSenderUsername = 'Unknown';
+    String parsedSenderType = 'client';
+
+    if (hasSenderMap) {
+      final senderMap = senderRaw;
+      parsedSenderId = _parseInt(senderMap['id']);
+      parsedSenderUsername = (senderMap['username'] ?? 'Unknown').toString();
+      parsedSenderType = (senderMap['user_type'] ?? 'client').toString();
+    } else {
+      parsedSenderId =
+          _parseInt(json['user_id']) ?? _parseInt(json['sender']) ?? 0;
+      parsedSenderUsername = (json['username'] ??
+              json['sender_username'] ??
+              json['sender_name'] ??
+              'Unknown')
+          .toString();
+      parsedSenderType =
+          (json['user_type'] ?? json['sender_type'] ?? 'client').toString();
+    }
+
     return Message(
       id: _parseInt(json['id']) ?? _parseInt(json['message_id']) ?? 0,
-      roomId: _parseInt(json['room']) ?? 0,
-      sender: (json['sender'] != null && json['sender'] is Map<String, dynamic>)
-          ? User.fromJson(json['sender'])
+      roomId: _parseInt(json['room']) ?? _parseInt(json['room_id']) ?? 0,
+      sender: hasSenderMap
+          ? User.fromJson(senderRaw)
           : User(
-              id: _parseInt(json['user_id']) ??
-                  (_parseInt(json['sender']) ?? 0),
-              username: json['username'] ?? 'Unknown',
+              id: parsedSenderId ?? 0,
+              username: parsedSenderUsername,
               email: '',
-              userType: json['user_type'] ??
-                  'player', // Use user_type from JSON if available
+              userType: parsedSenderType,
               isVerified: false,
               verificationStatus: 'none',
             ),

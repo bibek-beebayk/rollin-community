@@ -534,9 +534,24 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               return _SystemMessage(message: message);
                             }
 
-                            final isMe = message.sender.id == currentUser?.id;
+                            final currentUsername =
+                                currentUser?.username.trim().toLowerCase() ??
+                                    '';
+                            final senderUsername =
+                                message.sender.username.trim().toLowerCase();
+                            final isMe = (currentUser?.id != null &&
+                                    message.sender.id == currentUser!.id) ||
+                                (currentUsername.isNotEmpty &&
+                                    senderUsername == currentUsername);
                             final isStaff = message.sender.isStaff ||
                                 (isMe && (currentUser?.isStaff ?? false));
+                            bool sameSender(Message a, Message b) {
+                              if (a.sender.id > 0 && b.sender.id > 0) {
+                                return a.sender.id == b.sender.id;
+                              }
+                              return a.sender.username.trim().toLowerCase() ==
+                                  b.sender.username.trim().toLowerCase();
+                            }
 
                             bool showSender = true;
                             bool compactBottom = false;
@@ -547,7 +562,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                   .difference(olderMessage.timestamp)
                                   .inMinutes;
 
-                              if (olderMessage.sender.id == message.sender.id &&
+                              if (sameSender(olderMessage, message) &&
                                   diff.abs() < 5) {
                                 showSender = false;
                               }
@@ -558,7 +573,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               final diff = newerMessage.timestamp
                                   .difference(message.timestamp)
                                   .inMinutes;
-                              if (newerMessage.sender.id == message.sender.id &&
+                              if (sameSender(newerMessage, message) &&
                                   diff.abs() < 5) {
                                 compactBottom = true;
                               }

@@ -22,6 +22,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final chatProvider = context.read<ChatProvider>();
+      chatProvider.setChatTabActive(false);
+      chatProvider.setRouteChatOpen(false);
       _fetchData(initialLoad: true);
     });
   }
@@ -53,9 +56,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           setState(() => _isLoading = false);
         }
         // Connect to notifications channel
-        final token = authProvider.accessToken;
-        if (token != null) {
+        await authProvider.apiClient.loadTokens();
+        final token = authProvider.apiClient.accessToken;
+        if (token != null && token.isNotEmpty) {
           chatProvider.connectNotifications(token);
+        } else {
+          debugPrint('DashboardScreen: access token unavailable for notification WS');
         }
         // Initialize push notifications (idempotent and now safe to call repeatedly)
         NotificationService.initialize(authProvider.apiClient);

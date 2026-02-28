@@ -422,7 +422,11 @@ class ChatProvider with ChangeNotifier {
                 'DEBUG: Incremented unread count to ${_activeChats[roomIndex].unreadCount}');
             notifyListeners();
           } else {
-            debugPrint('DEBUG: Room $roomId not found in activeChats list.');
+            debugPrint(
+                'DEBUG: Room $roomId not found in activeChats list. Refreshing active chats.');
+            // New/previously-unlisted room: refresh from server so dashboard badges
+            // update without requiring manual screen refresh.
+            unawaited(fetchActiveChats(ApiClient()));
           }
         } else {
           debugPrint(
