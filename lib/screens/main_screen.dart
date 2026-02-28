@@ -129,6 +129,86 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _handleNavTap(int index, ChatProvider chatProvider) {
+    if (index == 1 && !_chatTabLoaded) {
+      _chatTabLoaded = true;
+    }
+    setState(() {
+      _currentIndex = index;
+    });
+    chatProvider.setChatTabActive(index == 1);
+    if (index == 0) {
+      _refreshUnreadCounts();
+    }
+    if (index == 1) {
+      // User is now in Chat tab; do not keep stale unread badge visible.
+      chatProvider.clearAllUnread();
+    }
+  }
+
+  Widget _buildNavItem({
+    required String label,
+    required IconData icon,
+    required IconData activeIcon,
+    required bool selected,
+    required VoidCallback onTap,
+    int unreadCount = 0,
+  }) {
+    final Color activeTextColor = Colors.white;
+    final Color inactiveTextColor = Colors.white.withValues(alpha: 0.6);
+    final Color iconColor = selected ? activeTextColor : inactiveTextColor;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                height: 2,
+                width: selected ? 18 : 0,
+                margin: const EdgeInsets.only(bottom: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              _buildChatTabIcon(
+                icon: selected ? activeIcon : icon,
+                unreadCount: unreadCount,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: iconColor,
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,74 +221,60 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           const SettingsScreen(),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: Colors.white.withValues(alpha: 0.05),
-              width: 1,
-            ),
-          ),
-        ),
-        child: Consumer<ChatProvider>(
-          builder: (context, chatProvider, child) {
-            final int totalUnreadCount = chatProvider.activeChats
-                .fold<int>(0, (sum, room) => sum + (room.unreadCount));
-            final int unreadCountForBadge =
-                _currentIndex == 1 ? 0 : totalUnreadCount;
+      bottomNavigationBar: Consumer<ChatProvider>(
+        builder: (context, chatProvider, child) {
+          final int totalUnreadCount = chatProvider.activeChats
+              .fold<int>(0, (sum, room) => sum + room.unreadCount);
+          final int unreadCountForBadge =
+              _currentIndex == 1 ? 0 : totalUnreadCount;
 
-            return BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: (index) {
-                if (index == 1 && !_chatTabLoaded) {
-                  _chatTabLoaded = true;
-                }
-                setState(() {
-                  _currentIndex = index;
-                });
-                chatProvider.setChatTabActive(index == 1);
-                if (index == 0) {
-                  _refreshUnreadCounts();
-                }
-                if (index == 1) {
-                  // User is now in Chat tab; do not keep stale unread badge visible.
-                  chatProvider.clearAllUnread();
-                }
-              },
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              selectedItemColor: AppTheme.accent,
-              unselectedItemColor: Colors.white.withValues(alpha: 0.4),
-              showSelectedLabels: true,
-              showUnselectedLabels: true,
-              type: BottomNavigationBarType.fixed,
-              items: [
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.home_outlined),
-                  activeIcon: Icon(Icons.home),
-                  label: 'Home',
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                BottomNavigationBarItem(
-                  icon: _buildChatTabIcon(
-                    icon: Icons.chat_bubble_outline,
-                    unreadCount: unreadCountForBadge,
-                  ),
-                  activeIcon: _buildChatTabIcon(
-                    icon: Icons.chat_bubble,
-                    unreadCount: unreadCountForBadge,
-                  ),
-                  label: 'Chat',
+                child: Row(
+                  children: [
+                    _buildNavItem(
+                      label: 'Home',
+                      icon: Icons.home_outlined,
+                      activeIcon: Icons.home,
+                      selected: _currentIndex == 0,
+                      onTap: () => _handleNavTap(0, chatProvider),
+                    ),
+                    _buildNavItem(
+                      label: 'Chat',
+                      icon: Icons.chat_bubble_outline,
+                      activeIcon: Icons.chat_bubble,
+                      selected: _currentIndex == 1,
+                      unreadCount: unreadCountForBadge,
+                      onTap: () => _handleNavTap(1, chatProvider),
+                    ),
+                    _buildNavItem(
+                      label: 'Settings',
+                      icon: Icons.settings_outlined,
+                      activeIcon: Icons.settings,
+                      selected: _currentIndex == 2,
+                      onTap: () => _handleNavTap(2, chatProvider),
+                    ),
+                  ],
                 ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.settings_outlined),
-                  activeIcon: Icon(Icons.settings),
-                  label: 'Settings',
-                ),
-              ],
-            );
-          },
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

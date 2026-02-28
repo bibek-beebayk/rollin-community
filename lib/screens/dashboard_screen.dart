@@ -5,7 +5,9 @@ import '../providers/chat_provider.dart';
 import '../models/room.dart';
 import '../theme/app_theme.dart';
 import '../services/notification_service.dart';
+import '../services/navigation_service.dart';
 import 'chat_screen.dart';
+import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -740,7 +742,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E2E), // Match app theme
         title: const Text('Log Out', style: TextStyle(color: Colors.white)),
         content: const Text(
@@ -749,13 +751,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child:
                 const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(dialogContext); // Close dialog
 
               final authProvider = context.read<AuthProvider>();
               final chatProvider = context.read<ChatProvider>();
@@ -775,7 +777,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
               }
 
-              authProvider.logout(); // Execute logout
+              await authProvider.logout();
+              chatProvider.disconnect();
+              chatProvider.disconnectNotifications();
+
+              final nav = NavigationService.navigatorKey.currentState;
+              if (nav == null) return;
+              nav.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const AuthWrapper()),
+                (route) => false,
+              );
             },
             child: const Text('Log Out',
                 style: TextStyle(color: Colors.redAccent)),
