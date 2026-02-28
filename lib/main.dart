@@ -8,6 +8,7 @@ import 'providers/chat_provider.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
+import 'services/navigation_service.dart';
 
 // Placeholder for Dashboard (we'll create this next)
 import 'screens/dashboard_screen.dart';
@@ -39,9 +40,6 @@ Future<void> _initializeFirebase() async {
 class StaffChatApp extends StatelessWidget {
   const StaffChatApp({super.key});
 
-  static final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>();
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -52,7 +50,7 @@ class StaffChatApp extends StatelessWidget {
         ), // Added this line
       ],
       child: MaterialApp(
-        navigatorKey: navigatorKey,
+        navigatorKey: NavigationService.navigatorKey,
         title: 'Staff Chat',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,

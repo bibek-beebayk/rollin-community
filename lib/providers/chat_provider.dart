@@ -461,8 +461,11 @@ class ChatProvider with ChangeNotifier {
             _roomMessagesCache[roomId]!.add(msg);
             _roomMessagesCache[roomId]!
                 .sort((a, b) => a.timestamp.compareTo(b.timestamp));
-            if (_currentRoomId == roomId) {
-              // This chat is currently open; unread should never accumulate here.
+            final isActivelyViewingChat = _isChatTabActive || _isRouteChatOpen;
+            final isViewingSameRoom =
+                isActivelyViewingChat && _currentRoomId == roomId;
+            if (isViewingSameRoom) {
+              // Only clear unread when the user is actively viewing this room.
               clearUnread(roomId);
             } else {
               notifyListeners();

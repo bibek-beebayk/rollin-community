@@ -975,116 +975,124 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildFilePreviews(),
-        SafeArea(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(18),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.85),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    padding: const EdgeInsets.all(0),
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                    onPressed: _isUploading ? null : _pickFiles,
-                  ),
+        Container(
+          margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          constraints: const BoxConstraints(
+            minHeight: 54,
+            maxHeight: 120,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.85),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.background.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.06),
-                      ),
+                child: IconButton(
+                  padding: const EdgeInsets.all(0),
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                  onPressed: _isUploading ? null : _pickFiles,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minHeight: 38,
+                    maxHeight: 92,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.background.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.06),
                     ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints:
-                              const BoxConstraints(minWidth: 24, minHeight: 24),
-                          icon: Icon(
-                            Icons.emoji_emotions_outlined,
-                            size: 18,
-                            color: Colors.white.withValues(alpha: 0.55),
-                          ),
-                          onPressed: _openEmojiPicker,
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 24, minHeight: 24),
+                        icon: Icon(
+                          Icons.emoji_emotions_outlined,
+                          size: 18,
+                          color: Colors.white.withValues(alpha: 0.55),
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            focusNode: _focusNode,
-                            minLines: 1,
-                            maxLines: 4,
-                            textCapitalization: TextCapitalization.sentences,
-                            onChanged: (_) => setState(() {}),
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 14),
-                            decoration: InputDecoration(
-                              isCollapsed: true,
-                              border: InputBorder.none,
-                              hintText: _isUploading
-                                  ? 'Uploading attachments...'
-                                  : 'Type a message...',
-                              hintStyle: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.45),
-                              ),
+                        onPressed: _openEmojiPicker,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          focusNode: _focusNode,
+                          minLines: 1,
+                          maxLines: 4,
+                          textAlignVertical: TextAlignVertical.center,
+                          textCapitalization: TextCapitalization.sentences,
+                          onChanged: (_) => setState(() {}),
+                          style:
+                              const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                            ),
+                            border: InputBorder.none,
+                            hintText: _isUploading
+                                ? 'Uploading attachments...'
+                                : 'Type a message...',
+                            hintStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.45),
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    gradient: hasContent
-                        ? AppTheme.primaryGradient
-                        : LinearGradient(
-                            colors: [
-                              Colors.white.withValues(alpha: 0.12),
-                              Colors.white.withValues(alpha: 0.08),
-                            ],
-                          ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: _isUploading
-                        ? const Padding(
-                            padding: EdgeInsets.all(10),
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2),
-                          )
-                        : Icon(Icons.send_rounded,
-                            color: hasContent ? Colors.white : Colors.white54,
-                            size: 19),
-                    onPressed: hasContent ? _sendMessage : null,
-                  ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  gradient: hasContent
+                      ? AppTheme.primaryGradient
+                      : LinearGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.12),
+                            Colors.white.withValues(alpha: 0.08),
+                          ],
+                        ),
+                  shape: BoxShape.circle,
                 ),
-              ],
-            ),
+                child: IconButton(
+                  icon: _isUploading
+                      ? const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2),
+                        )
+                      : Icon(Icons.send_rounded,
+                          color: hasContent ? Colors.white : Colors.white54,
+                          size: 19),
+                  onPressed: hasContent ? _sendMessage : null,
+                ),
+              ),
+            ],
           ),
         ),
       ],

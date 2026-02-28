@@ -8,7 +8,9 @@ import 'support_chat_tab.dart';
 import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int initialIndex;
+
+  const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -22,6 +24,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
+    if (_currentIndex == 1) {
+      _chatTabLoaded = true;
+    }
     WidgetsBinding.instance.addObserver(this);
     _initChatData();
   }
