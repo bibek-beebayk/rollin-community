@@ -100,7 +100,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Icon(icon),
+        Icon(icon, size: 20),
         if (showBadge)
           Positioned(
             right: -10,
@@ -147,17 +147,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildNavItem({
-    required String label,
     required IconData icon,
     required IconData activeIcon,
     required bool selected,
     required VoidCallback onTap,
     int unreadCount = 0,
   }) {
-    final Color activeTextColor = Colors.white;
-    final Color inactiveTextColor = Colors.white.withValues(alpha: 0.6);
-    final Color iconColor = selected ? activeTextColor : inactiveTextColor;
-
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -190,17 +185,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _buildChatTabIcon(
                 icon: selected ? activeIcon : icon,
                 unreadCount: unreadCount,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: iconColor,
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                ),
               ),
             ],
           ),
@@ -248,14 +232,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 child: Row(
                   children: [
                     _buildNavItem(
-                      label: 'Home',
                       icon: Icons.home_outlined,
                       activeIcon: Icons.home,
                       selected: _currentIndex == 0,
                       onTap: () => _handleNavTap(0, chatProvider),
                     ),
                     _buildNavItem(
-                      label: 'Chat',
                       icon: Icons.chat_bubble_outline,
                       activeIcon: Icons.chat_bubble,
                       selected: _currentIndex == 1,
@@ -263,7 +245,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       onTap: () => _handleNavTap(1, chatProvider),
                     ),
                     _buildNavItem(
-                      label: 'Settings',
                       icon: Icons.settings_outlined,
                       activeIcon: Icons.settings,
                       selected: _currentIndex == 2,
