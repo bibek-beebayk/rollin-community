@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'dart:async';
 
 class ChatScreen extends StatefulWidget {
   final Room room;
@@ -32,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  Timer? _typingDebounceTimer;
   bool _isLoading = true;
   bool _isUploading = false;
   bool _isPinnedSectionExpanded = false;
@@ -67,6 +69,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // REMOVED _chatProvider.disconnect() to persist connection across pushes
 
     _focusNode.dispose();
+    _typingDebounceTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -259,6 +262,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     final chatProvider = context.read<ChatProvider>();
+    final currentUser = context.read<AuthProvider>().user;
 
     if ((text.isEmpty && _selectedFiles.isEmpty) || !chatProvider.isConnected) {
       return;
@@ -294,10 +298,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     if (text.isNotEmpty) {
       if (chatProvider.currentRoomId != null) {
+        if (currentUser == null) return;
         chatProvider.sendMessage(
           chatProvider.currentRoomId!,
           text,
           replyToMessageId: _replyToMessage?.id,
+          sender: currentUser,
         );
       }
       _messageController.clear();
@@ -325,6 +331,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final currentUser = context.read<AuthProvider>().user;
     final isStaffUser = context.read<AuthProvider>().isStaff;
     final messages = chatProvider.messages;
+    final typingUsers = chatProvider
+        .typingUsersForRoom(_selectedChat?.id)
+        .where((u) => _normalizeUsername(u) != _normalizeUsername(currentUser?.username ?? ''))
+        .toList(growable: false);
     final pinnedMessages = messages
         .where(
           (m) =>
@@ -350,6 +360,26 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 !_selectedChat!.queueName!.startsWith('chat__'))
             ? _selectedChat!.queueName!
             : 'Support Station');
+    int? latestOwnMessageId;
+    if (currentUser != null) {
+      for (var i = messages.length - 1; i >= 0; i--) {
+        final m = messages[i];
+        final isSystem = m.type == 'system' ||
+            m.type == 'notification' ||
+            m.sender.id == 0 ||
+            m.content.startsWith('System:') ||
+            m.content.toLowerCase().contains('switched station');
+        if (isSystem) continue;
+        final sameUserId = m.sender.id > 0 && m.sender.id == currentUser.id;
+        final sameUsername =
+            _normalizeUsername(m.sender.username) ==
+                _normalizeUsername(currentUser.username);
+        if (sameUserId || sameUsername) {
+          latestOwnMessageId = m.id;
+          break;
+        }
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -358,6 +388,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
+                  context.read<ChatProvider>().setRouteChatOpen(false);
+                  context.read<ChatProvider>().setChatTabActive(false);
                   Navigator.pop(context);
                 },
               )
@@ -638,6 +670,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 isCurrentUserStaff: currentUser?.isStaff ?? false,
                                 showSender: showSender,
                                 compactBottom: compactBottom,
+                                showStatus: isMe && message.id == latestOwnMessageId,
                                 isHighlighted:
                                     _highlightedMessageId == message.id,
                                 replySourceMessage: replySourceMessage,
@@ -677,6 +710,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
+              if (typingUsers.isNotEmpty)
+                _buildTypingIndicator(typingUsers),
               _buildInputArea(),
             ],
           ),
@@ -1302,7 +1337,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           maxLines: 4,
                           textAlignVertical: TextAlignVertical.center,
                           textCapitalization: TextCapitalization.sentences,
-                          onChanged: (_) => setState(() {}),
+                          onChanged: _handleComposerChanged,
                           style:
                               const TextStyle(color: Colors.white, fontSize: 14),
                           decoration: InputDecoration(
@@ -1424,6 +1459,36 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       },
     );
     if (mounted) _focusNode.requestFocus();
+  }
+
+  void _handleComposerChanged(String value) {
+    setState(() {});
+    final roomId = context.read<ChatProvider>().currentRoomId;
+    if (roomId == null || value.trim().isEmpty) return;
+    _typingDebounceTimer?.cancel();
+    _typingDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      context.read<ChatProvider>().sendTyping(roomId);
+    });
+  }
+
+  Widget _buildTypingIndicator(List<String> typingUsers) {
+    final label = typingUsers.length == 1
+        ? '${typingUsers.first} is typing...'
+        : '${typingUsers.first} and others are typing...';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.62),
+          fontSize: 11.5,
+          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 
   Widget _buildReplyPreview(Message replyMessage) {
@@ -1766,6 +1831,7 @@ class _MessageBubble extends StatelessWidget {
   final bool isCurrentUserStaff;
   final bool showSender;
   final bool compactBottom;
+  final bool showStatus;
   final bool isHighlighted;
   final VoidCallback onCopy;
   final VoidCallback onPinToggle;
@@ -1780,6 +1846,7 @@ class _MessageBubble extends StatelessWidget {
     required this.isCurrentUserStaff,
     this.showSender = true,
     this.compactBottom = false,
+    this.showStatus = false,
     this.isHighlighted = false,
     required this.onCopy,
     required this.onPinToggle,
@@ -1790,6 +1857,11 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeStr = _getHumanReadableTime(message.timestamp.toLocal());
+    final statusLabel = (isMe && showStatus)
+        ? (message.isPending
+            ? 'Sending'
+            : (message.isRead ? 'Seen' : 'Sent'))
+        : null;
     Color bubbleColor = AppTheme.surface;
     if (isStaff) {
       final staffColors = [
@@ -1954,6 +2026,20 @@ class _MessageBubble extends StatelessWidget {
                   ),
                 ),
               ),
+            if (statusLabel != null && compactBottom)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    color: statusLabel == 'Seen'
+                        ? AppTheme.accent.withValues(alpha: 0.95)
+                        : metaTextColor,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             if (!compactBottom)
               Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1961,6 +2047,19 @@ class _MessageBubble extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (statusLabel != null) ...[
+                        Text(
+                          statusLabel,
+                          style: TextStyle(
+                            color: statusLabel == 'Seen'
+                                ? AppTheme.accent.withValues(alpha: 0.95)
+                                : metaTextColor,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       Icon(
                         Icons.schedule_rounded,
                         size: 11,

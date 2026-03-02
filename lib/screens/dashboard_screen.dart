@@ -335,12 +335,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _openChat(Room room) {
+  Future<void> _openChat(Room room) async {
     context.read<ChatProvider>().clearUnread(room.id);
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ChatScreen(room: room)),
     );
+    if (!mounted) return;
+    final chatProvider = context.read<ChatProvider>();
+    chatProvider.setRouteChatOpen(false);
+    chatProvider.setChatTabActive(false);
   }
 
   @override

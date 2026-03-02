@@ -7,6 +7,7 @@ class Message {
   final String content;
   final DateTime timestamp;
   final bool isRead;
+  final bool isPending;
   final bool isEdited;
   final bool isPinned;
   final bool isDeleted;
@@ -14,6 +15,7 @@ class Message {
   final int? replyToMessageId;
   final String? replyToContent;
   final String? replyToSenderUsername;
+  final int? clientTempId;
 
   Message({
     required this.id,
@@ -22,6 +24,7 @@ class Message {
     required this.content,
     required this.timestamp,
     this.isRead = false,
+    this.isPending = false,
     this.isEdited = false,
     this.isPinned = false,
     this.isDeleted = false,
@@ -29,6 +32,7 @@ class Message {
     this.replyToMessageId,
     this.replyToContent,
     this.replyToSenderUsername,
+    this.clientTempId,
     this.attachment,
   });
 
@@ -105,6 +109,7 @@ class Message {
       content: json['content'] ?? (json['message'] ?? ''),
       timestamp: _parseDate(json['timestamp']) ?? DateTime.now(),
       isRead: json['is_read'] ?? false,
+      isPending: json['is_pending'] ?? false,
       isEdited: json['is_edited'] ?? false,
       isPinned: json['is_pinned'] ?? false,
       isDeleted: json['is_deleted'] ?? false,
@@ -112,6 +117,7 @@ class Message {
       replyToMessageId: parsedReplyToMessageId,
       replyToContent: parsedReplyToContent,
       replyToSenderUsername: parsedReplyToSenderUsername,
+      clientTempId: _parseInt(json['client_temp_id']),
       attachment: json['attachment'] != null
           ? (json['attachment'] is String
               ? MessageAttachment(

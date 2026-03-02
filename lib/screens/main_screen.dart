@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../theme/app_theme.dart';
 import '../providers/chat_provider.dart';
 import '../providers/auth_provider.dart';
@@ -143,6 +144,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (index == 1) {
       // User is now in Chat tab; do not keep stale unread badge visible.
       chatProvider.clearAllUnread();
+      final userId = context.read<AuthProvider>().user?.id;
+      final roomId = chatProvider.currentRoomId;
+      if (userId != null && roomId != null) {
+        unawaited(
+          chatProvider.fetchMessages(roomId).then((_) {
+            chatProvider.acknowledgeRoomAsRead(roomId, userId);
+          }),
+        );
+      }
     }
   }
 

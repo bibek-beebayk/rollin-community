@@ -21,6 +21,9 @@ class ChatProvider with ChangeNotifier {
   final Map<int, String> _roomAccessTokens = {};
   final Map<int, Timer> _roomReconnectTimers = {};
   final Set<int> _manualRoomDisconnects = {};
+  final Map<int, Map<int, String>> _typingUsersByRoom = {};
+  final Map<String, Timer> _typingExpiryTimers = {};
+  int _localTempMessageId = -1;
 
   bool _isConnected = false;
   int? _currentRoomId;
@@ -39,6 +42,12 @@ class ChatProvider with ChangeNotifier {
   int? get currentRoomId => _currentRoomId;
   bool get isChatTabActive => _isChatTabActive;
   bool get isRouteChatOpen => _isRouteChatOpen;
+  List<String> typingUsersForRoom(int? roomId) {
+    if (roomId == null) return const [];
+    final users = _typingUsersByRoom[roomId];
+    if (users == null || users.isEmpty) return const [];
+    return users.values.toList(growable: false);
+  }
 
   void setChatTabActive(bool isActive) {
     _isChatTabActive = isActive;
@@ -424,9 +433,17 @@ class ChatProvider with ChangeNotifier {
           } else {
             debugPrint(
                 'DEBUG: Room $roomId not found in activeChats list. Refreshing active chats.');
-            // New/previously-unlisted room: refresh from server so dashboard badges
-            // update without requiring manual screen refresh.
-            unawaited(fetchActiveChats(ApiClient()));
+            // Keep local unread in sync immediately even before room list refresh.
+            _persistedUnread[roomId] = (_persistedUnread[roomId] ?? 0) + 1;
+            unawaited(_saveUnreadCounts());
+            notifyListeners();
+
+            // Refresh active chats using an authenticated client.
+            unawaited(() async {
+              final api = ApiClient();
+              await api.loadTokens();
+              await fetchActiveChats(api);
+            }());
           }
         } else {
           debugPrint(
@@ -455,18 +472,34 @@ class ChatProvider with ChangeNotifier {
           final msg = Message.fromJson(json);
           // Ensure room exists in cache
           _roomMessagesCache.putIfAbsent(roomId, () => []);
+          final roomMessages = _roomMessagesCache[roomId]!;
+          final clientTempId = msg.clientTempId;
+          if (clientTempId != null) {
+            roomMessages.removeWhere((m) => m.isPending && m.id == clientTempId);
+          } else {
+            final pendingIndex = roomMessages.indexWhere(
+              (m) =>
+                  m.isPending &&
+                  m.sender.id == msg.sender.id &&
+                  m.content == msg.content,
+            );
+            if (pendingIndex != -1) {
+              roomMessages.removeAt(pendingIndex);
+            }
+          }
 
           // Deduplicate
-          if (!_roomMessagesCache[roomId]!.any((m) => m.id == msg.id)) {
-            _roomMessagesCache[roomId]!.add(msg);
-            _roomMessagesCache[roomId]!
-                .sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          if (!roomMessages.any((m) => m.id == msg.id)) {
+            roomMessages.add(msg);
+            roomMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
             final isActivelyViewingChat = _isChatTabActive || _isRouteChatOpen;
             final isViewingSameRoom =
                 isActivelyViewingChat && _currentRoomId == roomId;
             if (isViewingSameRoom) {
               // Only clear unread when the user is actively viewing this room.
               clearUnread(roomId);
+              // Realtime seen update for the sender when recipient is on this chat.
+              sendReadReceipt(roomId, [msg.id]);
             } else {
               notifyListeners();
             }
@@ -474,6 +507,72 @@ class ChatProvider with ChangeNotifier {
         } catch (e) {
           debugPrint('WS Debug: Error parsing message: $e');
         }
+        return;
+      }
+
+      if (json['type'] == 'typing' || json['type'] == 'user_typing') {
+        final userIdRaw = json['user_id'];
+        final int? userId = userIdRaw is int
+            ? userIdRaw
+            : int.tryParse(userIdRaw?.toString() ?? '');
+        final username = (json['username'] ?? '').toString().trim();
+        if (userId == null || username.isEmpty) return;
+
+        _typingUsersByRoom.putIfAbsent(roomId, () => <int, String>{});
+        _typingUsersByRoom[roomId]![userId] = username;
+        final key = '$roomId:$userId';
+        _typingExpiryTimers[key]?.cancel();
+        _typingExpiryTimers[key] = Timer(const Duration(seconds: 2), () {
+          final roomMap = _typingUsersByRoom[roomId];
+          roomMap?.remove(userId);
+          if (roomMap != null && roomMap.isEmpty) {
+            _typingUsersByRoom.remove(roomId);
+          }
+          notifyListeners();
+        });
+        notifyListeners();
+        return;
+      }
+
+      if (json['type'] == 'chat_message_read') {
+        final raw = json['message_ids'];
+        final ids = <int>{};
+        if (raw is List) {
+          for (final item in raw) {
+            final id = item is int ? item : int.tryParse(item.toString());
+            if (id != null) ids.add(id);
+          }
+        }
+        if (ids.isEmpty) return;
+        final roomMessages = _roomMessagesCache[roomId];
+        if (roomMessages == null) return;
+
+        var changed = false;
+        for (var i = 0; i < roomMessages.length; i++) {
+          final old = roomMessages[i];
+          if (!old.isRead && ids.contains(old.id)) {
+            roomMessages[i] = Message(
+              id: old.id,
+              roomId: old.roomId,
+              sender: old.sender,
+              content: old.content,
+              timestamp: old.timestamp,
+              isRead: true,
+              isPending: old.isPending,
+              isEdited: old.isEdited,
+              isPinned: old.isPinned,
+              isDeleted: old.isDeleted,
+              type: old.type,
+              replyToMessageId: old.replyToMessageId,
+              replyToContent: old.replyToContent,
+              replyToSenderUsername: old.replyToSenderUsername,
+              clientTempId: old.clientTempId,
+              attachment: old.attachment,
+            );
+            changed = true;
+          }
+        }
+        if (changed) notifyListeners();
         return;
       }
 
@@ -497,6 +596,7 @@ class ChatProvider with ChangeNotifier {
           content: json['message']?.toString() ?? old.content,
           timestamp: old.timestamp,
           isRead: old.isRead,
+          isPending: false,
           isEdited: json['is_edited'] ?? true,
           isPinned: old.isPinned,
           isDeleted: old.isDeleted,
@@ -504,6 +604,7 @@ class ChatProvider with ChangeNotifier {
           replyToMessageId: old.replyToMessageId,
           replyToContent: old.replyToContent,
           replyToSenderUsername: old.replyToSenderUsername,
+          clientTempId: old.clientTempId,
           attachment: old.attachment,
         );
         notifyListeners();
@@ -530,6 +631,7 @@ class ChatProvider with ChangeNotifier {
           content: 'This message was deleted.',
           timestamp: old.timestamp,
           isRead: old.isRead,
+          isPending: false,
           isEdited: old.isEdited,
           isPinned: false,
           isDeleted: json['is_deleted'] ?? true,
@@ -537,6 +639,7 @@ class ChatProvider with ChangeNotifier {
           replyToMessageId: old.replyToMessageId,
           replyToContent: old.replyToContent,
           replyToSenderUsername: old.replyToSenderUsername,
+          clientTempId: old.clientTempId,
           attachment: null,
         );
         notifyListeners();
@@ -563,6 +666,7 @@ class ChatProvider with ChangeNotifier {
           content: old.content,
           timestamp: old.timestamp,
           isRead: old.isRead,
+          isPending: old.isPending,
           isEdited: old.isEdited,
           isPinned: json['is_pinned'] ?? old.isPinned,
           isDeleted: old.isDeleted,
@@ -570,6 +674,7 @@ class ChatProvider with ChangeNotifier {
           replyToMessageId: old.replyToMessageId,
           replyToContent: old.replyToContent,
           replyToSenderUsername: old.replyToSenderUsername,
+          clientTempId: old.clientTempId,
           attachment: old.attachment,
         );
         notifyListeners();
@@ -627,11 +732,42 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  void sendMessage(int roomId, String content, {int? replyToMessageId}) {
+  void sendMessage(
+    int roomId,
+    String content, {
+    int? replyToMessageId,
+    required User sender,
+  }) {
     if (_channels.containsKey(roomId) && _isConnected) {
+      final localTempId = _localTempMessageId--;
+      final roomMessages = _roomMessagesCache.putIfAbsent(roomId, () => []);
+      Message? replySource;
+      if (replyToMessageId != null) {
+        final idx = roomMessages.indexWhere((m) => m.id == replyToMessageId);
+        if (idx != -1) replySource = roomMessages[idx];
+      }
+      roomMessages.add(
+        Message(
+          id: localTempId,
+          roomId: roomId,
+          sender: sender,
+          content: content,
+          timestamp: DateTime.now(),
+          isRead: false,
+          isPending: true,
+          replyToMessageId: replyToMessageId,
+          replyToContent: replySource?.content,
+          replyToSenderUsername: replySource?.sender.username,
+          clientTempId: localTempId,
+        ),
+      );
+      roomMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      notifyListeners();
+
       final payload = <String, dynamic>{
         'type': 'chat_message',
         'message': content,
+        'client_temp_id': localTempId,
       };
       if (replyToMessageId != null) {
         payload['reply_to'] = replyToMessageId;
@@ -662,6 +798,11 @@ class ChatProvider with ChangeNotifier {
       channel.sink.close();
     }
     _channels.clear();
+    for (final timer in _typingExpiryTimers.values) {
+      timer.cancel();
+    }
+    _typingExpiryTimers.clear();
+    _typingUsersByRoom.clear();
 
     // Also disconnect notifications on full disconnect (logout)
     // Or we might want to keep it? usually disconnect() is called on room leave.
@@ -702,6 +843,66 @@ class ChatProvider with ChangeNotifier {
     if (_notificationChannel != null) {
       _notificationChannel!.sink.close();
       _notificationChannel = null;
+    }
+  }
+
+  void sendTyping(int roomId) {
+    if (_channels.containsKey(roomId) && _isConnected) {
+      _channels[roomId]!.sink.add(
+        jsonEncode({'type': 'typing'}),
+      );
+    }
+  }
+
+  void sendReadReceipt(int roomId, List<int> messageIds) {
+    if (messageIds.isEmpty) return;
+    if (_channels.containsKey(roomId) && _isConnected) {
+      _channels[roomId]!.sink.add(
+        jsonEncode({
+          'type': 'chat_read',
+          'message_ids': messageIds,
+        }),
+      );
+    }
+  }
+
+  void acknowledgeRoomAsRead(int roomId, int currentUserId) {
+    final roomMessages = _roomMessagesCache[roomId];
+    if (roomMessages == null || roomMessages.isEmpty) return;
+
+    final idsToAck = <int>[];
+    for (var i = 0; i < roomMessages.length; i++) {
+      final old = roomMessages[i];
+      final shouldAck = !old.isRead &&
+          !old.isPending &&
+          old.id > 0 &&
+          old.sender.id != currentUserId;
+      if (!shouldAck) continue;
+
+      idsToAck.add(old.id);
+      roomMessages[i] = Message(
+        id: old.id,
+        roomId: old.roomId,
+        sender: old.sender,
+        content: old.content,
+        timestamp: old.timestamp,
+        isRead: true,
+        isPending: old.isPending,
+        isEdited: old.isEdited,
+        isPinned: old.isPinned,
+        isDeleted: old.isDeleted,
+        type: old.type,
+        replyToMessageId: old.replyToMessageId,
+        replyToContent: old.replyToContent,
+        replyToSenderUsername: old.replyToSenderUsername,
+        clientTempId: old.clientTempId,
+        attachment: old.attachment,
+      );
+    }
+
+    if (idsToAck.isNotEmpty) {
+      notifyListeners();
+      sendReadReceipt(roomId, idsToAck);
     }
   }
 
