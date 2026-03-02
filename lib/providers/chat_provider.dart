@@ -21,6 +21,8 @@ class ChatProvider with ChangeNotifier {
   final Map<int, String> _roomAccessTokens = {};
   final Map<int, Timer> _roomReconnectTimers = {};
   final Set<int> _manualRoomDisconnects = {};
+  final Map<int, bool> _isFetchingOlderByRoom = {};
+  final Map<int, bool> _hasMoreOlderByRoom = {};
   final Map<int, Map<int, String>> _typingUsersByRoom = {};
   final Map<String, Timer> _typingExpiryTimers = {};
   int _localTempMessageId = -1;
@@ -255,29 +257,73 @@ class ChatProvider with ChangeNotifier {
       }
       debugPrint(
           'DEBUG: Parsed ${history.length} valid messages from ${data.length} items');
+      _hasMoreOlderByRoom[roomId] = history.length >= 50;
       setHistory(roomId, history);
     } catch (e) {
       debugPrint('ChatProvider: Error fetching history: $e');
     }
   }
 
+  Future<bool> fetchOlderMessages(int roomId, {int limit = 50}) async {
+    if (_isFetchingOlderByRoom[roomId] == true) return false;
+    if (_hasMoreOlderByRoom[roomId] == false) return false;
+
+    final roomMessages = _roomMessagesCache[roomId];
+    if (roomMessages == null || roomMessages.isEmpty) return false;
+    final oldestId = roomMessages.first.id;
+    if (oldestId <= 0) return false;
+
+    _isFetchingOlderByRoom[roomId] = true;
+    try {
+      final response = await ApiClient()
+          .get('/api/rooms/$roomId/messages/?before_id=$oldestId&limit=$limit');
+      final List<dynamic> data =
+          (response is Map && response.containsKey('results'))
+              ? response['results']
+              : (response is Map && response.containsKey('data'))
+                  ? response['data']
+                  : (response is List ? response : []);
+
+      final older = <Message>[];
+      for (final item in data) {
+        try {
+          older.add(Message.fromJson(item));
+        } catch (_) {
+          // Ignore invalid messages.
+        }
+      }
+      final added = _appendHistory(roomId, older);
+      _hasMoreOlderByRoom[roomId] = older.length >= limit && added > 0;
+      return added > 0;
+    } catch (e) {
+      debugPrint('ChatProvider: Error fetching older messages: $e');
+      return false;
+    } finally {
+      _isFetchingOlderByRoom[roomId] = false;
+    }
+  }
+
   void setHistory(int roomId, List<Message> history) {
+    final added = _appendHistory(roomId, history);
+    if (added > 0) notifyListeners();
+  }
+
+  int _appendHistory(int roomId, List<Message> history) {
     _roomMessagesCache.putIfAbsent(roomId, () => []);
 
-    // Add only messages we don't already have to prevent ListView rebuilding and flashing
-    bool updated = false;
-    for (var msg in history) {
+    var updated = 0;
+    for (final msg in history) {
       if (!_roomMessagesCache[roomId]!.any((m) => m.id == msg.id)) {
         _roomMessagesCache[roomId]!.add(msg);
-        updated = true;
+        updated++;
       }
     }
 
-    if (updated) {
+    if (updated > 0) {
       _roomMessagesCache[roomId]!
           .sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      notifyListeners();
     }
+    return updated;
   }
 
   void connect(int roomId, String accessToken) {

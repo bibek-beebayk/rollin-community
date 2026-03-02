@@ -36,8 +36,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Timer? _typingDebounceTimer;
   bool _isLoading = true;
   bool _isUploading = false;
+  bool _isLoadingOlder = false;
   bool _isPinnedSectionExpanded = false;
   int? _highlightedMessageId;
+  int? _menuOpenMessageId;
   Message? _replyToMessage;
   Room? _selectedChat;
   final List<PlatformFile> _selectedFiles = [];
@@ -53,6 +55,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onScrollForHistory);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initQueue());
   }
 
@@ -71,6 +74,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _focusNode.dispose();
     _typingDebounceTimer?.cancel();
     _messageController.dispose();
+    _scrollController.removeListener(_onScrollForHistory);
     _scrollController.dispose();
     super.dispose();
   }
@@ -169,6 +173,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _selectedChat = chatRoom;
+        _isLoadingOlder = false;
         _replyToMessage = null;
         if (!isAlreadyLoaded && showBlockingLoader) {
           _isLoading = true;
@@ -316,6 +321,29 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     _focusNode.requestFocus();
     Future.delayed(const Duration(milliseconds: 150), _scrollToBottom);
+  }
+
+  void _onScrollForHistory() {
+    if (_isLoading || _isLoadingOlder) return;
+    if (!_scrollController.hasClients) return;
+    final roomId = _selectedChat?.id;
+    if (roomId == null) return;
+
+    final position = _scrollController.position;
+    final nearTop = position.pixels >= (position.maxScrollExtent - 180);
+    if (!nearTop) return;
+
+    _loadOlderMessages(roomId);
+  }
+
+  Future<void> _loadOlderMessages(int roomId) async {
+    if (_isLoadingOlder) return;
+    setState(() => _isLoadingOlder = true);
+    try {
+      await context.read<ChatProvider>().fetchOlderMessages(roomId);
+    } finally {
+      if (mounted) setState(() => _isLoadingOlder = false);
+    }
   }
 
   @override
@@ -583,8 +611,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           controller: _scrollController,
                           reverse: true,
                           padding: const EdgeInsets.all(14),
-                          itemCount: messages.length,
+                          itemCount: messages.length + (_isLoadingOlder ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (_isLoadingOlder && index == messages.length) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            }
                             final reversedIndex = messages.length - 1 - index;
                             final message = messages[reversedIndex];
 
@@ -672,8 +712,19 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 compactBottom: compactBottom,
                                 showStatus: isMe && message.id == latestOwnMessageId,
                                 isHighlighted:
-                                    _highlightedMessageId == message.id,
+                                    _highlightedMessageId == message.id ||
+                                        _menuOpenMessageId == message.id,
                                 replySourceMessage: replySourceMessage,
+                                onMenuVisibilityChanged: (isOpen) {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    if (isOpen) {
+                                      _menuOpenMessageId = message.id;
+                                    } else if (_menuOpenMessageId == message.id) {
+                                      _menuOpenMessageId = null;
+                                    }
+                                  });
+                                },
                                 onCopy: () => _copyMessage(message),
                                 onPinToggle: () => _togglePinMessage(message),
                                 onEdit:
@@ -1833,6 +1884,7 @@ class _MessageBubble extends StatelessWidget {
   final bool compactBottom;
   final bool showStatus;
   final bool isHighlighted;
+  final ValueChanged<bool>? onMenuVisibilityChanged;
   final VoidCallback onCopy;
   final VoidCallback onPinToggle;
   final VoidCallback? onEdit;
@@ -1848,6 +1900,7 @@ class _MessageBubble extends StatelessWidget {
     this.compactBottom = false,
     this.showStatus = false,
     this.isHighlighted = false,
+    this.onMenuVisibilityChanged,
     required this.onCopy,
     required this.onPinToggle,
     this.onEdit,
@@ -1951,7 +2004,7 @@ class _MessageBubble extends StatelessWidget {
                     GestureRecognizerFactoryWithHandlers<
                         LongPressGestureRecognizer>(
                   () => LongPressGestureRecognizer(
-                        duration: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 200),
                       ),
                   (instance) {
                     instance.onLongPressStart = (details) {
@@ -2222,6 +2275,7 @@ class _MessageBubble extends StatelessWidget {
   }
 
   void _showMessageActions(BuildContext context, Offset globalPosition) {
+    onMenuVisibilityChanged?.call(true);
     final attachment = message.attachment;
     final hasAttachment = attachment != null;
     String? attachmentUrl;
@@ -2309,6 +2363,8 @@ class _MessageBubble extends StatelessWidget {
           onDelete?.call();
           break;
       }
+    }).whenComplete(() {
+      onMenuVisibilityChanged?.call(false);
     });
   }
 
@@ -2475,7 +2531,7 @@ class _MessageBubble extends StatelessWidget {
       }
 
       final directory = await _resolveDownloadDirectory();
-      final sanitized = _sanitizeFilename(fileName);
+      final sanitized = _buildDownloadFilename(fileName, url);
       final destination = await _createUniqueFile(
           '${directory.path}${Platform.pathSeparator}$sanitized');
 
@@ -2494,11 +2550,26 @@ class _MessageBubble extends StatelessWidget {
   }
 
   Future<Directory> _resolveDownloadDirectory() async {
-    Directory? dir = await getDownloadsDirectory();
-    dir ??= await getExternalStorageDirectory();
-    dir ??= await getApplicationDocumentsDirectory();
-    await dir.create(recursive: true);
-    return dir;
+    if (Platform.isAndroid) {
+      // Force public root downloads folder on Android.
+      final dir = Directory('/storage/emulated/0/Download');
+      await dir.create(recursive: true);
+
+      final probe = File(
+          '${dir.path}${Platform.pathSeparator}.write_probe_${DateTime.now().microsecondsSinceEpoch}');
+      await probe.writeAsString('ok', flush: true);
+      if (await probe.exists()) {
+        await probe.delete();
+      }
+      return dir;
+    }
+
+    final downloadsDir = await getDownloadsDirectory();
+    if (downloadsDir != null) {
+      await downloadsDir.create(recursive: true);
+      return downloadsDir;
+    }
+    throw Exception('Downloads directory is unavailable on this device');
   }
 
   Future<File> _createUniqueFile(String desiredPath) async {
@@ -2524,12 +2595,40 @@ class _MessageBubble extends StatelessWidget {
     return cleaned;
   }
 
+  String _buildDownloadFilename(String rawName, String url) {
+    String candidate = rawName.trim();
+
+    // If backend sends a signed URL/path as "filename", strip it.
+    if (candidate.contains('://') || candidate.contains('?') || candidate.contains('&')) {
+      candidate = _deriveFilenameFromUrl(candidate);
+    }
+    if (candidate.isEmpty || candidate == 'attachment') {
+      candidate = _deriveFilenameFromUrl(url);
+    }
+
+    candidate = _sanitizeFilename(candidate);
+
+    // Preserve extension while capping length to avoid OS/path errors.
+    const maxNameLength = 80;
+    final dot = candidate.lastIndexOf('.');
+    if (candidate.length > maxNameLength && dot > 0 && dot < candidate.length - 1) {
+      final ext = candidate.substring(dot);
+      final allowedBaseLen = (maxNameLength - ext.length).clamp(1, maxNameLength);
+      candidate = '${candidate.substring(0, allowedBaseLen)}$ext';
+    } else if (candidate.length > maxNameLength) {
+      candidate = candidate.substring(0, maxNameLength);
+    }
+
+    return candidate;
+  }
+
   String _deriveFilenameFromUrl(String url) {
     try {
       final uri = Uri.parse(url);
       final segment =
           uri.pathSegments.isNotEmpty ? uri.pathSegments.last : 'attachment';
-      return segment.isEmpty ? 'attachment' : segment;
+      final decoded = Uri.decodeComponent(segment);
+      return decoded.isEmpty ? 'attachment' : decoded;
     } catch (_) {
       return 'attachment';
     }
