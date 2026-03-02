@@ -155,6 +155,68 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> patch(String endpoint,
+      {dynamic body, bool skipAuth = false}) async {
+    final url = '$baseUrl$endpoint';
+    final startBody = body != null ? jsonEncode(body) : null;
+    _logRequest('PATCH', url, body: startBody);
+
+    try {
+      var response = await http.patch(
+        Uri.parse(url),
+        headers: await _getHeaders(skipAuth: skipAuth),
+        body: startBody,
+      );
+
+      if (!skipAuth && response.statusCode == 401 && _refreshToken != null) {
+        debugPrint('401 Unauthorized. Attempting token refresh for PATCH...');
+        final success = await _refreshAccessToken();
+        if (success) {
+          response = await http.patch(
+            Uri.parse(url),
+            headers: await _getHeaders(skipAuth: skipAuth),
+            body: startBody,
+          );
+        }
+      }
+
+      _logResponse('PATCH', url, response);
+      return _handleResponse(response);
+    } catch (e) {
+      _logError('PATCH', url, e);
+      rethrow;
+    }
+  }
+
+  Future<dynamic> delete(String endpoint, {bool skipAuth = false}) async {
+    final url = '$baseUrl$endpoint';
+    _logRequest('DELETE', url);
+
+    try {
+      var response = await http.delete(
+        Uri.parse(url),
+        headers: await _getHeaders(skipAuth: skipAuth),
+      );
+
+      if (!skipAuth && response.statusCode == 401 && _refreshToken != null) {
+        debugPrint('401 Unauthorized. Attempting token refresh for DELETE...');
+        final success = await _refreshAccessToken();
+        if (success) {
+          response = await http.delete(
+            Uri.parse(url),
+            headers: await _getHeaders(skipAuth: skipAuth),
+          );
+        }
+      }
+
+      _logResponse('DELETE', url, response);
+      return _handleResponse(response);
+    } catch (e) {
+      _logError('DELETE', url, e);
+      rethrow;
+    }
+  }
+
   // Override GET similarly for refresh (simplified for brevity, should apply to all methods)
   // ...
 

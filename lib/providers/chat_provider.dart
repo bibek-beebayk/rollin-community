@@ -474,6 +474,106 @@ class ChatProvider with ChangeNotifier {
         } catch (e) {
           debugPrint('WS Debug: Error parsing message: $e');
         }
+        return;
+      }
+
+      if (json['type'] == 'chat_message_update') {
+        final messageIdRaw = json['message_id'];
+        final int? messageId = messageIdRaw is int
+            ? messageIdRaw
+            : int.tryParse(messageIdRaw?.toString() ?? '');
+        if (messageId == null) return;
+
+        final roomMessages = _roomMessagesCache[roomId];
+        if (roomMessages == null) return;
+
+        final index = roomMessages.indexWhere((m) => m.id == messageId);
+        if (index == -1) return;
+        final old = roomMessages[index];
+        roomMessages[index] = Message(
+          id: old.id,
+          roomId: old.roomId,
+          sender: old.sender,
+          content: json['message']?.toString() ?? old.content,
+          timestamp: old.timestamp,
+          isRead: old.isRead,
+          isEdited: json['is_edited'] ?? true,
+          isPinned: old.isPinned,
+          isDeleted: old.isDeleted,
+          type: old.type,
+          replyToMessageId: old.replyToMessageId,
+          replyToContent: old.replyToContent,
+          replyToSenderUsername: old.replyToSenderUsername,
+          attachment: old.attachment,
+        );
+        notifyListeners();
+        return;
+      }
+
+      if (json['type'] == 'chat_message_delete') {
+        final messageIdRaw = json['message_id'];
+        final int? messageId = messageIdRaw is int
+            ? messageIdRaw
+            : int.tryParse(messageIdRaw?.toString() ?? '');
+        if (messageId == null) return;
+
+        final roomMessages = _roomMessagesCache[roomId];
+        if (roomMessages == null) return;
+
+        final index = roomMessages.indexWhere((m) => m.id == messageId);
+        if (index == -1) return;
+        final old = roomMessages[index];
+        roomMessages[index] = Message(
+          id: old.id,
+          roomId: old.roomId,
+          sender: old.sender,
+          content: 'This message was deleted.',
+          timestamp: old.timestamp,
+          isRead: old.isRead,
+          isEdited: old.isEdited,
+          isPinned: false,
+          isDeleted: json['is_deleted'] ?? true,
+          type: old.type,
+          replyToMessageId: old.replyToMessageId,
+          replyToContent: old.replyToContent,
+          replyToSenderUsername: old.replyToSenderUsername,
+          attachment: null,
+        );
+        notifyListeners();
+        return;
+      }
+
+      if (json['type'] == 'chat_message_pin') {
+        final messageIdRaw = json['message_id'];
+        final int? messageId = messageIdRaw is int
+            ? messageIdRaw
+            : int.tryParse(messageIdRaw?.toString() ?? '');
+        if (messageId == null) return;
+
+        final roomMessages = _roomMessagesCache[roomId];
+        if (roomMessages == null) return;
+
+        final index = roomMessages.indexWhere((m) => m.id == messageId);
+        if (index == -1) return;
+        final old = roomMessages[index];
+        roomMessages[index] = Message(
+          id: old.id,
+          roomId: old.roomId,
+          sender: old.sender,
+          content: old.content,
+          timestamp: old.timestamp,
+          isRead: old.isRead,
+          isEdited: old.isEdited,
+          isPinned: json['is_pinned'] ?? old.isPinned,
+          isDeleted: old.isDeleted,
+          type: old.type,
+          replyToMessageId: old.replyToMessageId,
+          replyToContent: old.replyToContent,
+          replyToSenderUsername: old.replyToSenderUsername,
+          attachment: old.attachment,
+        );
+        notifyListeners();
+        return;
       }
     } catch (e) {
       debugPrint('Error parsing message: $e');
@@ -527,10 +627,17 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  void sendMessage(int roomId, String content) {
+  void sendMessage(int roomId, String content, {int? replyToMessageId}) {
     if (_channels.containsKey(roomId) && _isConnected) {
+      final payload = <String, dynamic>{
+        'type': 'chat_message',
+        'message': content,
+      };
+      if (replyToMessageId != null) {
+        payload['reply_to'] = replyToMessageId;
+      }
       _channels[roomId]!.sink.add(
-            jsonEncode({'type': 'chat_message', 'message': content}),
+            jsonEncode(payload),
           );
     } else {
       debugPrint(
