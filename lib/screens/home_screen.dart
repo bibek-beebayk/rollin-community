@@ -23,6 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Post> _posts = [];
   bool _isLoadingPosts = true;
+  Map<String, dynamic>? _homeInfo;
+  bool _isLoadingHomeInfo = true;
 
   @override
   void initState() {
@@ -30,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchEvents();
       _fetchPosts();
+      _fetchHomeInfo();
     });
   }
 
@@ -86,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.wait([
       _fetchEvents(),
       _fetchPosts(),
+      _fetchHomeInfo(),
     ]);
   }
 
@@ -126,6 +130,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildProfileCard(context, user),
+                  const SizedBox(height: 16),
+                  _buildRoleInfoSection(user),
                   const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -174,58 +180,33 @@ class _HomeScreenState extends State<HomeScreen> {
     final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primary.withValues(alpha: 0.15),
-            Colors.white.withValues(alpha: 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        color: AppTheme.surface.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Row(
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppTheme.primary, AppTheme.accent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: AppTheme.primary.withValues(alpha: 0.85),
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primary.withValues(alpha: 0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: Center(
               child: Text(
                 initial,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 28,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,36 +214,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Welcome back,',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 11,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   username,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         (user?.userType ?? 'Unknown').toString().toUpperCase(),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
+                          letterSpacing: 0.8,
                         ),
                       ),
                     ),
@@ -364,6 +345,171 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _fetchHomeInfo() async {
+    final authProvider = context.read<AuthProvider>();
+    try {
+      final response = await authProvider.apiClient.get('/api/auth/home-info/');
+      final data = (response is Map && response.containsKey('data'))
+          ? response['data']
+          : response;
+      if (mounted) {
+        setState(() {
+          _homeInfo = data is Map<String, dynamic> ? data : null;
+          _isLoadingHomeInfo = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading home info: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingHomeInfo = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildRoleInfoSection(dynamic user) {
+    final userType = (user?.userType ?? '').toString().toLowerCase();
+    final isAgent = userType == 'agent';
+    final title = (_homeInfo?['title']?.toString().trim().isNotEmpty ?? false)
+        ? _homeInfo!['title'].toString().trim()
+        : (isAgent ? 'Agent Info' : 'Player Info');
+    final subtitle =
+        (_homeInfo?['subtitle']?.toString().trim().isNotEmpty ?? false)
+            ? _homeInfo!['subtitle'].toString().trim()
+            : (isAgent
+                ? 'Key updates and support workflow for agents.'
+                : 'Important updates and quick guidance for players.');
+
+    final serverPoints = <Map<String, String>>[];
+    final dynamic pointsRaw = _homeInfo?['points'];
+    if (pointsRaw is List) {
+      for (final item in pointsRaw) {
+        if (item is Map) {
+          final content = (item['content'] ?? '').toString().trim();
+          if (content.isEmpty) continue;
+          final icon = (item['icon'] ?? 'info_outline').toString().trim();
+          serverPoints.add({
+            'icon': icon.isEmpty ? 'info_outline' : icon,
+            'content': content,
+          });
+        }
+      }
+    }
+
+    final fallback = isAgent
+        ? const [
+            {'icon': 'campaign_outlined', 'content': 'Keep your queue updates enabled for faster response handling.'},
+            {'icon': 'schedule_outlined', 'content': 'Watch your active support windows to avoid missed replies.'},
+            {'icon': 'support_agent_outlined', 'content': 'Use chat for escalations and attach files when needed.'},
+          ]
+        : const [
+            {'icon': 'verified_user_outlined', 'content': 'Complete verification to unlock full support flow.'},
+            {'icon': 'chat_bubble_outline', 'content': 'Use the chat tab to connect with support instantly.'},
+            {'icon': 'notifications_active_outlined', 'content': 'Keep notifications enabled for faster assistance updates.'},
+          ];
+    final displayPoints =
+        serverPoints.isNotEmpty ? serverPoints : fallback.cast<Map<String, String>>();
+
+    if (_isLoadingHomeInfo) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Loading info...',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surface.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.65),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...displayPoints.map((point) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                        _iconFromName((point['icon'] ?? 'info_outline').toString()),
+                        size: 16, color: AppTheme.accent.withValues(alpha: 0.9)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (point['content'] ?? '').toString(),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 12.5,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconFromName(String name) {
+    switch (name) {
+      case 'campaign_outlined':
+        return Icons.campaign_outlined;
+      case 'schedule_outlined':
+        return Icons.schedule_outlined;
+      case 'support_agent_outlined':
+        return Icons.support_agent_outlined;
+      case 'verified_user_outlined':
+        return Icons.verified_user_outlined;
+      case 'chat_bubble_outline':
+        return Icons.chat_bubble_outline;
+      case 'notifications_active_outlined':
+        return Icons.notifications_active_outlined;
+      case 'info_outline':
+      default:
+        return Icons.info_outline;
+    }
+  }
+
   Widget _buildEventsList() {
     if (_isLoadingEvents) {
       return const Center(child: CircularProgressIndicator());
@@ -371,17 +517,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (_events.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppTheme.surface.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.event_busy,
-                color: Colors.white.withValues(alpha: 0.2), size: 48),
-            const SizedBox(height: 12),
+                color: Colors.white.withValues(alpha: 0.2), size: 30),
+            const SizedBox(height: 6),
             Text(
               'No events currently active',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
