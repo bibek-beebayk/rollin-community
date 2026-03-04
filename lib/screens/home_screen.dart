@@ -446,7 +446,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surface.withValues(alpha: 0.65),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF2B1A47).withValues(alpha: 0.9),
+              const Color(0xFF1A102E).withValues(alpha: 0.95),
+            ],
+          ),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
@@ -470,7 +477,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.65),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF2B1A47).withValues(alpha: 0.9),
+            const Color(0xFF1A102E).withValues(alpha: 0.95),
+          ],
+        ),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
@@ -637,10 +651,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.8),
+                    Colors.black.withValues(alpha: 0.32),
+                    Colors.black.withValues(alpha: 0.95),
                   ],
-                  stops: const [0.4, 1.0],
+                  stops: const [0.2, 1.0],
                 ),
               ),
               child: Material(
@@ -656,7 +670,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (event.startDate != null)
+                        if (event.startDate != null || event.endDate != null)
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
@@ -665,7 +679,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              DateFormat('MMM d, y').format(event.startDate!),
+                              event.startDate != null && event.endDate != null
+                                  ? '${DateFormat('MMM d, y').format(event.startDate!)} - ${DateFormat('MMM d, y').format(event.endDate!)}'
+                                  : event.startDate != null
+                                      ? DateFormat('MMM d, y').format(event.startDate!)
+                                      : DateFormat('MMM d, y').format(event.endDate!),
                               style: const TextStyle(
                                 color: Colors.black,
                                 fontSize: 10,
@@ -921,20 +939,30 @@ class _PostVideoPreview extends StatefulWidget {
   State<_PostVideoPreview> createState() => _PostVideoPreviewState();
 }
 
-class _PostVideoPreviewState extends State<_PostVideoPreview> {
+class _PostVideoPreviewState extends State<_PostVideoPreview>
+    with AutomaticKeepAliveClientMixin {
+  static VideoPlayerController? _activePreviewController;
+  static _PostVideoPreviewState? _activePreviewState;
+
   VideoPlayerController? _controller;
   bool _ready = false;
   bool _failed = false;
+  bool _isInitializing = false;
   bool _isPlaying = false;
   bool _isMuted = true;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
-    _init();
   }
 
-  Future<void> _init() async {
+  Future<void> _initController() async {
+    if (_isInitializing || _ready) return;
+    _isInitializing = true;
+    if (mounted) setState(() {});
     try {
       final c = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
       _controller = c;
@@ -944,24 +972,85 @@ class _PostVideoPreviewState extends State<_PostVideoPreview> {
       if (!mounted) return;
       setState(() {
         _ready = true;
+        _isInitializing = false;
         _isMuted = true;
       });
-      await c.play();
-      if (mounted) setState(() => _isPlaying = true);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _failed = true);
+      setState(() {
+        _failed = true;
+        _isInitializing = false;
+      });
     }
+  }
+
+  Future<void> _togglePlayPause() async {
+    if (_failed) return;
+    if (!_ready || _controller == null) {
+      await _initController();
+      if (!_ready || _controller == null) return;
+    }
+    final controller = _controller!;
+    if (controller.value.isPlaying) {
+      await controller.pause();
+      if (mounted) setState(() => _isPlaying = false);
+      if (identical(_activePreviewState, this)) {
+        _activePreviewState = null;
+        _activePreviewController = null;
+      }
+      return;
+    }
+
+    if (_activePreviewController != null &&
+        !identical(_activePreviewController, controller)) {
+      await _activePreviewController!.pause();
+      if (_activePreviewState != null && _activePreviewState!.mounted) {
+        _activePreviewState!.setState(() => _activePreviewState!._isPlaying = false);
+      }
+    }
+
+    await controller.play();
+    _activePreviewController = controller;
+    _activePreviewState = this;
+    if (mounted) setState(() => _isPlaying = true);
+  }
+
+  Future<void> _openFullscreen() async {
+    if (_failed) return;
+    if (!_ready || _controller == null) {
+      await _initController();
+      if (!_ready || _controller == null) return;
+    }
+    final controller = _controller!;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullScreenPostVideoPlayer(
+          videoUrl: widget.videoUrl,
+          externalController: controller,
+          initialMuted: _isMuted,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isPlaying = controller.value.isPlaying;
+    });
   }
 
   @override
   void dispose() {
+    if (identical(_activePreviewState, this)) {
+      _activePreviewState = null;
+      _activePreviewController = null;
+    }
     _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final fallback = widget.fallbackImageUrl;
 
     if (_failed) {
@@ -981,14 +1070,60 @@ class _PostVideoPreviewState extends State<_PostVideoPreview> {
     }
 
     if (!_ready || _controller == null) {
-      return Container(
-        height: 180,
-        color: Colors.black26,
-        alignment: Alignment.center,
-        child: const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
+      if (fallback != null && fallback.isNotEmpty) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _togglePlayPause,
+          child: SizedBox(
+            height: 180,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  fallback,
+                  fit: BoxFit.cover,
+                ),
+                if (_isInitializing)
+                  Container(
+                    color: Colors.black26,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  const Center(
+                    child: Icon(
+                      Icons.play_circle_fill,
+                      color: Colors.white,
+                      size: 44,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _togglePlayPause,
+        child: Container(
+          height: 180,
+          color: Colors.black26,
+          alignment: Alignment.center,
+          child: _isInitializing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 44,
+                ),
         ),
       );
     }
@@ -997,17 +1132,7 @@ class _PostVideoPreviewState extends State<_PostVideoPreview> {
       height: 180,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () async {
-          final controller = _controller;
-          if (controller == null) return;
-          if (controller.value.isPlaying) {
-            await controller.pause();
-            if (mounted) setState(() => _isPlaying = false);
-          } else {
-            await controller.play();
-            if (mounted) setState(() => _isPlaying = true);
-          }
-        },
+        onTap: _togglePlayPause,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1038,15 +1163,7 @@ class _PostVideoPreviewState extends State<_PostVideoPreview> {
                 borderRadius: BorderRadius.circular(16),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => _FullScreenPostVideoPlayer(
-                          videoUrl: widget.videoUrl,
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: _openFullscreen,
                   child: const Padding(
                     padding: EdgeInsets.all(6),
                     child: Icon(
@@ -1095,8 +1212,14 @@ class _PostVideoPreviewState extends State<_PostVideoPreview> {
 
 class _FullScreenPostVideoPlayer extends StatefulWidget {
   final String videoUrl;
+  final VideoPlayerController? externalController;
+  final bool initialMuted;
 
-  const _FullScreenPostVideoPlayer({required this.videoUrl});
+  const _FullScreenPostVideoPlayer({
+    required this.videoUrl,
+    this.externalController,
+    this.initialMuted = true,
+  });
 
   @override
   State<_FullScreenPostVideoPlayer> createState() =>
@@ -1105,6 +1228,7 @@ class _FullScreenPostVideoPlayer extends StatefulWidget {
 
 class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> {
   VideoPlayerController? _controller;
+  bool _ownsController = true;
   bool _ready = false;
   bool _failed = false;
   bool _showControls = true;
@@ -1112,7 +1236,14 @@ class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> 
   @override
   void initState() {
     super.initState();
-    _init();
+    if (widget.externalController != null) {
+      _controller = widget.externalController;
+      _ownsController = false;
+      _ready = _controller!.value.isInitialized;
+      _controller!.setVolume(widget.initialMuted ? 0 : 1);
+    } else {
+      _init();
+    }
   }
 
   Future<void> _init() async {
@@ -1121,6 +1252,7 @@ class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> 
       _controller = c;
       await c.initialize();
       await c.setLooping(true);
+      await c.setVolume(widget.initialMuted ? 0 : 1);
       if (!mounted) return;
       setState(() => _ready = true);
       await c.play();
@@ -1132,7 +1264,9 @@ class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> 
 
   @override
   void dispose() {
-    _controller?.dispose();
+    if (_ownsController) {
+      _controller?.dispose();
+    }
     super.dispose();
   }
 
