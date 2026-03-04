@@ -8,7 +8,10 @@ import '../models/post.dart';
 import '../services/event_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
+import '../api/api_client.dart';
+import 'package:video_player/video_player.dart';
 import 'verify_user_screen.dart';
+import 'post_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -96,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final hasActiveEvents = _events.isNotEmpty;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -133,39 +137,75 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   _buildRoleInfoSection(user),
                   const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        'Live Events',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
+                  if (hasActiveEvents) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Live Events',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildEventsList(),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        'Latest Posts',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildEventsList(),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Pinned Posts',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildLatestPostsList(),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildLatestPostsList(),
+                  ] else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Pinned Posts',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildLatestPostsList(),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Live Events',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildEventsList(),
+                  ],
                 ],
               ),
             ),
@@ -180,17 +220,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: AppTheme.primary.withValues(alpha: 0.85),
               shape: BoxShape.circle,
@@ -200,57 +240,47 @@ class _HomeScreenState extends State<HomeScreen> {
                 initial,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  'Welcome back,',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
+                Expanded(
+                  child: Text(
                   username,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        (user?.userType ?? 'Unknown').toString().toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildVerificationBadge(context, user),
-                  ],
                 ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    (user?.userType ?? 'Unknown').toString().toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildVerificationBadge(context, user),
               ],
             ),
           ),
@@ -380,6 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : (isAgent
                 ? 'Key updates and support workflow for agents.'
                 : 'Important updates and quick guidance for players.');
+    final footer = (_homeInfo?['footer']?.toString().trim() ?? '');
 
     final serverPoints = <Map<String, String>>[];
     final dynamic pointsRaw = _homeInfo?['points'];
@@ -485,6 +516,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               )),
+          if (footer.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: Text(
+                footer,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  fontSize: 11.5,
+                  height: 1.3,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -492,6 +547,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   IconData _iconFromName(String name) {
     switch (name) {
+      case 'app_registration_outlined':
+        return Icons.app_registration_outlined;
+      case 'attach_money_outlined':
+        return Icons.attach_money_outlined;
+      case 'login_outlined':
+        return Icons.login_outlined;
       case 'campaign_outlined':
         return Icons.campaign_outlined;
       case 'schedule_outlined':
@@ -666,7 +727,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white.withValues(alpha: 0.2), size: 48),
               const SizedBox(height: 12),
               Text(
-                'No recent posts available',
+                'No pinned posts available',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               ),
             ],
@@ -702,18 +763,34 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                // TODO: Navigate to Post details
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PostDetailsScreen(post: post),
+                  ),
+                );
               },
               borderRadius: BorderRadius.circular(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (post.image != null)
+                  if (post.video != null && post.video!.trim().isNotEmpty)
+                    ClipRRect(
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(20)),
+                      child: _PostVideoPreview(
+                        videoUrl: _resolvePostMediaUrl(post.video!),
+                        fallbackImageUrl: post.image != null
+                            ? _resolvePostMediaUrl(post.image!)
+                            : null,
+                      ),
+                    )
+                  else if (post.image != null && post.image!.trim().isNotEmpty)
                     ClipRRect(
                       borderRadius:
                           const BorderRadius.vertical(top: Radius.circular(20)),
                       child: Image.network(
-                        post.image!,
+                        _resolvePostMediaUrl(post.image!),
                         height: 180,
                         fit: BoxFit.cover,
                       ),
@@ -750,8 +827,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const Spacer(),
                             Text(
-                              DateFormat('MMM d')
-                                  .format(post.createdAt.toLocal()),
+                              _getFriendlyTime(post.createdAt.toLocal()),
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.5),
                                 fontSize: 12,
@@ -791,6 +867,342 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  String _resolvePostMediaUrl(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.startsWith('/')) {
+      return '${ApiClient.baseUrl}$trimmed';
+    }
+    return '${ApiClient.baseUrl}/$trimmed';
+  }
+
+  String _getFriendlyTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inSeconds < 60) return 'now';
+    if (diff.inMinutes < 60) {
+      return diff.inMinutes == 1 ? '1 min ago' : '${diff.inMinutes} mins ago';
+    }
+    if (diff.inHours < 24) {
+      return diff.inHours == 1 ? '1 hour ago' : '${diff.inHours} hours ago';
+    }
+    if (diff.inDays < 7) {
+      return diff.inDays == 1 ? '1 day ago' : '${diff.inDays} days ago';
+    }
+    if (diff.inDays < 30) {
+      final weeks = (diff.inDays / 7).floor();
+      return weeks == 1 ? '1 week ago' : '$weeks weeks ago';
+    }
+    if (diff.inDays < 365) {
+      final months = (diff.inDays / 30).floor();
+      return months == 1 ? '1 month ago' : '$months months ago';
+    }
+    final years = (diff.inDays / 365).floor();
+    return years == 1 ? '1 year ago' : '$years years ago';
+  }
+}
+
+class _PostVideoPreview extends StatefulWidget {
+  final String videoUrl;
+  final String? fallbackImageUrl;
+
+  const _PostVideoPreview({
+    required this.videoUrl,
+    this.fallbackImageUrl,
+  });
+
+  @override
+  State<_PostVideoPreview> createState() => _PostVideoPreviewState();
+}
+
+class _PostVideoPreviewState extends State<_PostVideoPreview> {
+  VideoPlayerController? _controller;
+  bool _ready = false;
+  bool _failed = false;
+  bool _isPlaying = false;
+  bool _isMuted = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      final c = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      _controller = c;
+      await c.initialize();
+      await c.setLooping(true);
+      await c.setVolume(0);
+      if (!mounted) return;
+      setState(() {
+        _ready = true;
+        _isMuted = true;
+      });
+      await c.play();
+      if (mounted) setState(() => _isPlaying = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _failed = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = widget.fallbackImageUrl;
+
+    if (_failed) {
+      if (fallback != null && fallback.isNotEmpty) {
+        return Image.network(
+          fallback,
+          height: 180,
+          fit: BoxFit.cover,
+        );
+      }
+      return Container(
+        height: 180,
+        color: Colors.black26,
+        alignment: Alignment.center,
+        child: const Icon(Icons.videocam_off, color: Colors.white54),
+      );
+    }
+
+    if (!_ready || _controller == null) {
+      return Container(
+        height: 180,
+        color: Colors.black26,
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 180,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () async {
+          final controller = _controller;
+          if (controller == null) return;
+          if (controller.value.isPlaying) {
+            await controller.pause();
+            if (mounted) setState(() => _isPlaying = false);
+          } else {
+            await controller.play();
+            if (mounted) setState(() => _isPlaying = true);
+          }
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller!.value.size.width,
+                height: _controller!.value.size.height,
+                child: VideoPlayer(_controller!),
+              ),
+            ),
+            Center(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 160),
+                opacity: _isPlaying ? 0.0 : 1.0,
+                child: const Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 44,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: Material(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => _FullScreenPostVideoPlayer(
+                          videoUrl: widget.videoUrl,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.fullscreen,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Material(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () async {
+                    final controller = _controller;
+                    if (controller == null) return;
+                    final nextMuted = !_isMuted;
+                    await controller.setVolume(nextMuted ? 0 : 1);
+                    if (mounted) {
+                      setState(() => _isMuted = nextMuted);
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      _isMuted ? Icons.volume_off : Icons.volume_up,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FullScreenPostVideoPlayer extends StatefulWidget {
+  final String videoUrl;
+
+  const _FullScreenPostVideoPlayer({required this.videoUrl});
+
+  @override
+  State<_FullScreenPostVideoPlayer> createState() =>
+      _FullScreenPostVideoPlayerState();
+}
+
+class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> {
+  VideoPlayerController? _controller;
+  bool _ready = false;
+  bool _failed = false;
+  bool _showControls = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      final c = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      _controller = c;
+      await c.initialize();
+      await c.setLooping(true);
+      if (!mounted) return;
+      setState(() => _ready = true);
+      await c.play();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _failed = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black),
+        body: const Center(
+          child: Icon(Icons.videocam_off, color: Colors.white54, size: 42),
+        ),
+      );
+    }
+
+    if (!_ready || _controller == null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _showControls = !_showControls),
+        child: Stack(
+          children: [
+            Center(
+              child: AspectRatio(
+                aspectRatio: _controller!.value.aspectRatio,
+                child: VideoPlayer(_controller!),
+              ),
+            ),
+            if (_showControls)
+              Positioned(
+                top: 32,
+                left: 8,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            if (_showControls)
+              Center(
+                child: IconButton(
+                  iconSize: 56,
+                  color: Colors.white,
+                  icon: Icon(
+                    _controller!.value.isPlaying
+                        ? Icons.pause_circle_filled
+                        : Icons.play_circle_fill,
+                  ),
+                  onPressed: () async {
+                    if (_controller!.value.isPlaying) {
+                      await _controller!.pause();
+                    } else {
+                      await _controller!.play();
+                    }
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
