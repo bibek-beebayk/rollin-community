@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../providers/chat_provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
+import 'post_feed_screen.dart';
 import 'support_chat_tab.dart';
 import 'settings_screen.dart';
 
@@ -26,7 +27,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    if (_currentIndex == 1) {
+    if (_currentIndex == 2) {
       _chatTabLoaded = true;
     }
     WidgetsBinding.instance.addObserver(this);
@@ -68,7 +69,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     try {
       await authProvider.apiClient.loadTokens();
       await chatProvider.fetchActiveChats(authProvider.apiClient);
-      chatProvider.setChatTabActive(_currentIndex == 1);
+      chatProvider.setChatTabActive(_currentIndex == 2);
 
       final token = authProvider.apiClient.accessToken;
       if (token != null && token.isNotEmpty) {
@@ -131,17 +132,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _handleNavTap(int index, ChatProvider chatProvider) {
-    if (index == 1 && !_chatTabLoaded) {
+    if (index == 2 && !_chatTabLoaded) {
       _chatTabLoaded = true;
     }
     setState(() {
       _currentIndex = index;
     });
-    chatProvider.setChatTabActive(index == 1);
+    chatProvider.setChatTabActive(index == 2);
     if (index == 0) {
       _refreshUnreadCounts();
     }
-    if (index == 1) {
+    if (index == 2) {
       // User is now in Chat tab; do not keep stale unread badge visible.
       chatProvider.clearAllUnread();
       final userId = context.read<AuthProvider>().user?.id;
@@ -211,6 +212,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         index: _currentIndex,
         children: [
           const HomeScreen(),
+          const PostFeedScreen(),
           _chatTabLoaded ? const SupportChatTab() : const SizedBox.shrink(),
           const SettingsScreen(),
         ],
@@ -220,7 +222,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           final int totalUnreadCount = chatProvider.activeChats
               .fold<int>(0, (sum, room) => sum + room.unreadCount);
           final int unreadCountForBadge =
-              _currentIndex == 1 ? 0 : totalUnreadCount;
+              _currentIndex == 2 ? 0 : totalUnreadCount;
 
           return SafeArea(
             top: false,
@@ -248,17 +250,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       onTap: () => _handleNavTap(0, chatProvider),
                     ),
                     _buildNavItem(
+                      icon: Icons.article_outlined,
+                      activeIcon: Icons.article,
+                      selected: _currentIndex == 1,
+                      onTap: () => _handleNavTap(1, chatProvider),
+                    ),
+                    _buildNavItem(
                       icon: Icons.chat_bubble_outline,
                       activeIcon: Icons.chat_bubble,
-                      selected: _currentIndex == 1,
+                      selected: _currentIndex == 2,
                       unreadCount: unreadCountForBadge,
-                      onTap: () => _handleNavTap(1, chatProvider),
+                      onTap: () => _handleNavTap(2, chatProvider),
                     ),
                     _buildNavItem(
                       icon: Icons.settings_outlined,
                       activeIcon: Icons.settings,
-                      selected: _currentIndex == 2,
-                      onTap: () => _handleNavTap(2, chatProvider),
+                      selected: _currentIndex == 3,
+                      onTap: () => _handleNavTap(3, chatProvider),
                     ),
                   ],
                 ),

@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -23,6 +24,12 @@ android {
         jvmToolchain(17)
     }
 
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(keystorePropertiesFile.inputStream())
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.hirollin.community"
@@ -34,11 +41,46 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "dist"
+    productFlavors {
+        create("play") {
+            dimension = "dist"
+            // Keep package id same for Play/App Signing continuity.
+            resValue("string", "app_name", "Rollin Community")
+        }
+        create("direct") {
+            dimension = "dist"
+            resValue("string", "app_name", "Rollin Community")
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            val storeFilePath = keystoreProperties.getProperty("storeFile")
+            val storePasswordValue = keystoreProperties.getProperty("storePassword")
+            val keyAliasValue = keystoreProperties.getProperty("keyAlias")
+            val keyPasswordValue = keystoreProperties.getProperty("keyPassword")
+
+            if (storeFilePath.isNullOrBlank() ||
+                storePasswordValue.isNullOrBlank() ||
+                keyAliasValue.isNullOrBlank() ||
+                keyPasswordValue.isNullOrBlank()
+            ) {
+                throw GradleException(
+                    "Missing release signing config. Define storeFile, storePassword, keyAlias, and keyPassword in android/key.properties."
+                )
+            }
+
+            storeFile = file(storeFilePath)
+            storePassword = storePasswordValue
+            keyAlias = keyAliasValue
+            keyPassword = keyPasswordValue
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -56,29 +98,37 @@ android {
     val releaseVersionName = defaultConfig.versionName ?: "1.0.0"
     val releaseVersionCode = defaultConfig.versionCode ?: 1
     val normalizedEnv = environment.lowercase().ifBlank { "dev" }
-    val renamedReleaseApk =
-        "staff_chat_${normalizedEnv}_v${releaseVersionName}+${releaseVersionCode}_release.apk"
 
-    val syncFlutterExpectedReleaseApk by tasks.registering(Copy::class) {
-        from(layout.buildDirectory.dir("outputs/apk/release"))
-        include("app-release.apk")
-        into(layout.buildDirectory.dir("outputs/flutter-apk"))
-    }
+    val copyRenamedReleaseArtifacts by tasks.registering(Copy::class) {
+        from(layout.buildDirectory.dir("outputs/apk")) {
+            include("**/*-release.apk")
+        }
+        from(layout.buildDirectory.dir("outputs/bundle")) {
+            include("**/*-release.aab")
+        }
+        into(layout.buildDirectory.dir("outputs/renamed"))
+        includeEmptyDirs = false
 
-    val copyRenamedReleaseApk by tasks.registering(Copy::class) {
-        from(layout.buildDirectory.dir("outputs/apk/release"))
-        include("app-release.apk")
-        into(layout.buildDirectory.dir("outputs/flutter-apk"))
-        rename("app-release.apk", renamedReleaseApk)
+        eachFile {
+            val originalName = name
+            val extension = originalName.substringAfterLast('.')
+            val baseName = originalName.removeSuffix(".${extension}")
+            val flavor = baseName
+                .removePrefix("app-")
+                .removeSuffix("-release")
+                .ifBlank { "default" }
+
+            name =
+                "staff_chat_${flavor}_${normalizedEnv}_v${releaseVersionName}+${releaseVersionCode}_release.${extension}"
+        }
     }
 
     tasks.matching {
-        it.name == "assembleRelease" ||
-            it.name == "packageRelease" ||
+        (it.name.startsWith("assemble") && it.name.endsWith("Release")) ||
+            (it.name.startsWith("bundle") && it.name.endsWith("Release")) ||
             it.name == "flutterBuildRelease"
     }.configureEach {
-        finalizedBy(syncFlutterExpectedReleaseApk)
-        finalizedBy(copyRenamedReleaseApk)
+        finalizedBy(copyRenamedReleaseArtifacts)
     }
 }
 

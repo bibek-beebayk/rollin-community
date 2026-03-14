@@ -8,8 +8,16 @@ class PostService {
   PostService(this.apiClient);
 
   Future<List<Post>> getLatestPosts() async {
+    return _fetchPosts('/api/posts/');
+  }
+
+  Future<List<Post>> getFeedPosts() async {
+    return _fetchPosts('/api/posts/feed/');
+  }
+
+  Future<List<Post>> _fetchPosts(String endpoint) async {
     try {
-      final response = await apiClient.get('/api/posts/');
+      final response = await apiClient.get(endpoint);
 
       List<dynamic> results = [];
       if (response is Map<String, dynamic>) {

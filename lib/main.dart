@@ -15,6 +15,12 @@ import 'screens/dashboard_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/update_screen.dart';
 
+// Non-Play distribution should keep custom update flow by default.
+// Disable it for Play builds:
+// --dart-define=USE_CUSTOM_UPDATE=false
+const bool kUseCustomUpdate =
+    bool.fromEnvironment('USE_CUSTOM_UPDATE', defaultValue: true);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -71,7 +77,7 @@ class AuthWrapper extends StatelessWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (authProvider.needsUpdate) {
+    if (kUseCustomUpdate && authProvider.needsUpdate) {
       return const UpdateScreen();
     }
 

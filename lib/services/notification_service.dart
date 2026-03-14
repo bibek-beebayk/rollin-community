@@ -193,7 +193,7 @@ class NotificationService {
     // Player/Agent: open chat interface directly.
     navState.pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => const MainScreen(initialIndex: 1),
+        builder: (_) => const MainScreen(initialIndex: 2),
       ),
       (route) => false,
     );
