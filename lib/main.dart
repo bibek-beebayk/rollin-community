@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -15,11 +16,24 @@ import 'screens/dashboard_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/update_screen.dart';
 
-// Non-Play distribution should keep custom update flow by default.
-// Disable it for Play builds:
-// --dart-define=USE_CUSTOM_UPDATE=false
-const bool kUseCustomUpdate =
-    bool.fromEnvironment('USE_CUSTOM_UPDATE', defaultValue: true);
+class AppDistribution {
+  static const MethodChannel _channel =
+      MethodChannel('com.hirollin.community/app_distribution');
+
+  static Future<bool> shouldUseCustomUpdate() async {
+    try {
+      final flavor = await _channel.invokeMethod<String>('getFlavor');
+      final normalized = (flavor ?? '').toLowerCase().trim();
+      // Play flavor: no custom update screen.
+      if (normalized == 'play') return false;
+      // Direct flavor (or unknown): keep custom update behavior.
+      return true;
+    } catch (_) {
+      // Safe fallback for non-Android/any channel failure.
+      return true;
+    }
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +83,9 @@ class StaffChatApp extends StatelessWidget {
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
+  static final Future<bool> _shouldUseCustomUpdateFuture =
+      AppDistribution.shouldUseCustomUpdate();
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -77,18 +94,28 @@ class AuthWrapper extends StatelessWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (kUseCustomUpdate && authProvider.needsUpdate) {
-      return const UpdateScreen();
-    }
+    return FutureBuilder<bool>(
+      future: _shouldUseCustomUpdateFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
 
-    if (authProvider.isAuthenticated) {
-      if (authProvider.isStaff) {
-        return const DashboardScreen();
-      } else {
-        return const MainScreen();
-      }
-    }
+        final useCustomUpdate = snapshot.data ?? true;
+        if (useCustomUpdate && authProvider.needsUpdate) {
+          return const UpdateScreen();
+        }
 
-    return const LoginScreen();
+        if (authProvider.isAuthenticated) {
+          if (authProvider.isStaff) {
+            return const DashboardScreen();
+          } else {
+            return const MainScreen();
+          }
+        }
+
+        return const LoginScreen();
+      },
+    );
   }
 }

@@ -47,10 +47,12 @@ android {
             dimension = "dist"
             // Keep package id same for Play/App Signing continuity.
             resValue("string", "app_name", "Rollin Community")
+            resValue("string", "distribution_channel", "play")
         }
         create("direct") {
             dimension = "dist"
             resValue("string", "app_name", "Rollin Community")
+            resValue("string", "distribution_channel", "direct")
         }
     }
 

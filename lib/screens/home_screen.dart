@@ -100,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final hasActiveEvents = _events.isNotEmpty;
+    final showRoleInfo = !_isLoadingHomeInfo && _hasRenderableHomeInfo();
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -135,8 +136,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildProfileCard(context, user),
                   const SizedBox(height: 16),
-                  _buildRoleInfoSection(user),
-                  const SizedBox(height: 32),
+                  if (showRoleInfo) ...[
+                    _buildRoleInfoSection(user),
+                    const SizedBox(height: 32),
+                  ] else
+                    const SizedBox(height: 16),
                   if (hasActiveEvents) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -398,18 +402,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  bool _hasRenderableHomeInfo() {
+    final title = (_homeInfo?['title'] ?? '').toString().trim();
+    final subtitle = (_homeInfo?['subtitle'] ?? '').toString().trim();
+    final footer = (_homeInfo?['footer'] ?? '').toString().trim();
+
+    bool hasPoints = false;
+    final dynamic pointsRaw = _homeInfo?['points'];
+    if (pointsRaw is List) {
+      for (final item in pointsRaw) {
+        if (item is Map && (item['content'] ?? '').toString().trim().isNotEmpty) {
+          hasPoints = true;
+          break;
+        }
+      }
+    }
+
+    return title.isNotEmpty || subtitle.isNotEmpty || footer.isNotEmpty || hasPoints;
+  }
+
   Widget _buildRoleInfoSection(dynamic user) {
-    final userType = (user?.userType ?? '').toString().toLowerCase();
-    final isAgent = userType == 'agent';
-    final title = (_homeInfo?['title']?.toString().trim().isNotEmpty ?? false)
-        ? _homeInfo!['title'].toString().trim()
-        : (isAgent ? 'Agent Info' : 'Player Info');
-    final subtitle =
-        (_homeInfo?['subtitle']?.toString().trim().isNotEmpty ?? false)
-            ? _homeInfo!['subtitle'].toString().trim()
-            : (isAgent
-                ? 'Key updates and support workflow for agents.'
-                : 'Important updates and quick guidance for players.');
+    final title = (_homeInfo?['title']?.toString().trim() ?? '');
+    final subtitle = (_homeInfo?['subtitle']?.toString().trim() ?? '');
     final footer = (_homeInfo?['footer']?.toString().trim() ?? '');
 
     final serverPoints = <Map<String, String>>[];
@@ -428,50 +442,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    final fallback = isAgent
-        ? const [
-            {'icon': 'campaign_outlined', 'content': 'Keep your queue updates enabled for faster response handling.'},
-            {'icon': 'schedule_outlined', 'content': 'Watch your active support windows to avoid missed replies.'},
-            {'icon': 'support_agent_outlined', 'content': 'Use chat for escalations and attach files when needed.'},
-          ]
-        : const [
-            {'icon': 'verified_user_outlined', 'content': 'Complete verification to unlock full support flow.'},
-            {'icon': 'chat_bubble_outline', 'content': 'Use the chat tab to connect with support instantly.'},
-            {'icon': 'notifications_active_outlined', 'content': 'Keep notifications enabled for faster assistance updates.'},
-          ];
-    final displayPoints =
-        serverPoints.isNotEmpty ? serverPoints : fallback.cast<Map<String, String>>();
-
-    if (_isLoadingHomeInfo) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF2B1A47).withValues(alpha: 0.9),
-              const Color(0xFF1A102E).withValues(alpha: 0.95),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Loading info...',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-            ),
-          ],
-        ),
-      );
+    if (_isLoadingHomeInfo || !_hasRenderableHomeInfo()) {
+      return const SizedBox.shrink();
     }
 
     return Container(
@@ -491,24 +463,26 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+          if (title.isNotEmpty)
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.65),
-              fontSize: 12,
+          if (title.isNotEmpty && subtitle.isNotEmpty) const SizedBox(height: 4),
+          if (subtitle.isNotEmpty)
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.65),
+                fontSize: 12,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          ...displayPoints.map((point) => Padding(
+          if (serverPoints.isNotEmpty) const SizedBox(height: 12),
+          ...serverPoints.map((point) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
