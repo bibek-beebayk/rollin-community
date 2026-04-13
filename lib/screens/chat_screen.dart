@@ -346,6 +346,291 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _fetchQuickReplies() async {
+    final api = context.read<AuthProvider>().apiClient;
+    final response = await api.get('/api/quick-replies/');
+    final data = (response is Map && response.containsKey('data'))
+        ? response['data']
+        : response;
+    if (data is List) {
+      return data.whereType<Map<String, dynamic>>().toList();
+    }
+    return [];
+  }
+
+  Future<void> _addQuickReply() async {
+    final titleController = TextEditingController();
+    final contentController = TextEditingController();
+    final payload = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: const Text('New Quick Reply', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'Title',
+                hintStyle: TextStyle(color: Colors.white54),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: contentController,
+              maxLines: 4,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'Message content',
+                hintStyle: TextStyle(color: Colors.white54),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, {
+              'title': titleController.text.trim(),
+              'content': contentController.text.trim(),
+            }),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (payload == null) return;
+    final title = payload['title'] ?? '';
+    final content = payload['content'] ?? '';
+    if (title.isEmpty || content.isEmpty) return;
+    try {
+      await context.read<AuthProvider>().apiClient.post(
+        '/api/quick-replies/',
+        body: {'title': title, 'content': content},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quick reply saved')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _showQuickReplies() async {
+    try {
+      final replies = await _fetchQuickReplies();
+      if (!mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: AppTheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (ctx) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text(
+                    'Quick Replies',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.add, color: Colors.white),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _addQuickReply();
+                    },
+                  ),
+                ),
+                if (replies.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No quick replies yet.',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: replies.length,
+                      itemBuilder: (context, index) {
+                        final item = replies[index];
+                        return ListTile(
+                          title: Text(
+                            (item['title'] ?? '').toString(),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          subtitle: Text(
+                            (item['content'] ?? '').toString(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                            onPressed: () async {
+                              try {
+                                final id = item['id'];
+                                if (id != null) {
+                                  await context
+                                      .read<AuthProvider>()
+                                      .apiClient
+                                      .delete('/api/quick-replies/$id/');
+                                }
+                                if (!mounted) return;
+                                Navigator.pop(ctx);
+                                await _showQuickReplies();
+                              } catch (_) {}
+                            },
+                          ),
+                          onTap: () {
+                            _messageController.text =
+                                (item['content'] ?? '').toString();
+                            _messageController.selection = TextSelection.fromPosition(
+                              TextPosition(offset: _messageController.text.length),
+                            );
+                            _focusNode.requestFocus();
+                            Navigator.pop(ctx);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _openInternalNote() async {
+    if (_selectedChat == null) return;
+    final roomId = _selectedChat!.id;
+    final controller = TextEditingController();
+    try {
+      final response = await context
+          .read<AuthProvider>()
+          .apiClient
+          .get('/api/rooms/$roomId/internal-note/');
+      final data = (response is Map && response.containsKey('data'))
+          ? response['data']
+          : response;
+      controller.text = (data['content'] ?? '').toString();
+    } catch (_) {}
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: const Text('Internal Note', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          maxLines: 8,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Add private note...',
+            hintStyle: TextStyle(color: Colors.white54),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (shouldSave != true) return;
+    try {
+      await context.read<AuthProvider>().apiClient.patch(
+            '/api/rooms/$roomId/internal-note/',
+            body: {'content': controller.text.trim()},
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Internal note updated')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _resolveCurrentChat() async {
+    if (_selectedChat == null) return;
+    final controller = TextEditingController();
+    final shouldResolve = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: const Text('Resolve Chat', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          maxLength: 240,
+          maxLines: 3,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Resolution reason (optional)',
+            hintStyle: TextStyle(color: Colors.white54),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Resolve'),
+          ),
+        ],
+      ),
+    );
+    if (shouldResolve != true) return;
+
+    try {
+      await context.read<AuthProvider>().apiClient.post(
+            '/api/rooms/${_selectedChat!.id}/close/',
+            body: {'resolution_reason': controller.text.trim()},
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat resolved')),
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // With unified dashboard, ChatScreen always shows the thread
@@ -358,6 +643,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final chatProvider = context.watch<ChatProvider>();
     final currentUser = context.read<AuthProvider>().user;
     final isStaffUser = context.read<AuthProvider>().isStaff;
+    final canUseAgentTools =
+        currentUser != null &&
+        (currentUser.userType == 'agent' || currentUser.userType == 'staff');
     final messages = chatProvider.messages;
     final typingUsers = chatProvider
         .typingUsersForRoom(_selectedChat?.id)
@@ -382,12 +670,19 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ? 0
               : room.unreadCount),
     );
-    final titleText = isStaffUser
-        ? _getDisplayName(_selectedChat?.name ?? 'Chat')
-        : ((_selectedChat?.queueName != null &&
-                !_selectedChat!.queueName!.startsWith('chat__'))
-            ? _selectedChat!.queueName!
-            : 'Support Station');
+    final canSwitchConversation = chatProvider.activeChats.length > 1;
+    String titleText;
+    if (isStaffUser) {
+      titleText = _getDisplayName(_selectedChat?.name ?? 'Chat');
+    } else if (_selectedChat?.roomType == 'direct_agent' &&
+        _selectedChat?.counterpart != null) {
+      titleText = _selectedChat!.counterpart!.username;
+    } else if ((_selectedChat?.queueName != null &&
+        !_selectedChat!.queueName!.startsWith('chat__'))) {
+      titleText = _selectedChat!.queueName!;
+    } else {
+      titleText = 'Support Station';
+    }
     int? latestOwnMessageId;
     if (currentUser != null) {
       for (var i = messages.length - 1; i >= 0; i--) {
@@ -408,17 +703,21 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       }
     }
+    final canGoBack = Navigator.of(context).canPop();
+    final showBackButton = isStaffUser || canGoBack;
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: isStaffUser,
-        leading: isStaffUser
+        automaticallyImplyLeading: showBackButton,
+        leading: showBackButton
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
                   context.read<ChatProvider>().setRouteChatOpen(false);
                   context.read<ChatProvider>().setChatTabActive(false);
-                  Navigator.pop(context);
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.pop(context);
+                  }
                 },
               )
             : null,
@@ -505,7 +804,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ],
         ),
         actions: [
-          if (isStaffUser)
+          if (canSwitchConversation)
             IconButton(
               icon: Stack(
                 clipBehavior: Clip.none,
@@ -547,6 +846,38 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               icon: const Icon(Icons.swap_horiz, color: Colors.white),
               tooltip: 'Switch Station',
               onPressed: () => _confirmSwitchStation(context),
+            ),
+          if (canUseAgentTools)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              color: AppTheme.surface,
+              onSelected: (value) async {
+                if (value == 'quick_replies') {
+                  await _showQuickReplies();
+                  return;
+                }
+                if (value == 'internal_note') {
+                  await _openInternalNote();
+                  return;
+                }
+                if (value == 'resolve_chat') {
+                  await _resolveCurrentChat();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<String>(
+                  value: 'quick_replies',
+                  child: Text('Quick Replies'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'internal_note',
+                  child: Text('Internal Note'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'resolve_chat',
+                  child: Text('Resolve Chat'),
+                ),
+              ],
             ),
         ],
       ),
@@ -783,6 +1114,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     final chatProvider = context.read<ChatProvider>();
     final activeChats = chatProvider.activeChats;
+    String roomTitle(Room room) {
+      if (room.roomType == 'support') {
+        return 'Support Chat';
+      }
+      if (room.roomType == 'direct_agent' && room.counterpart != null) {
+        return room.counterpart!.username;
+      }
+      if ((room.queueName != null && !room.queueName!.startsWith('chat__'))) {
+        return room.queueName!;
+      }
+      return _getDisplayName(room.name);
+    }
+
+    String roomSubtitle(Room room) {
+      if (room.roomType == 'direct_agent') return 'Direct agent chat';
+      return room.queueName ?? 'ID: ${room.id}';
+    }
 
     await showModalBottomSheet(
       context: context,
@@ -846,8 +1194,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                             ? AppTheme.accent
                             : AppTheme.primary.withValues(alpha: 0.9),
                         child: Text(
-                          _getDisplayName(room.name).isNotEmpty
-                              ? _getDisplayName(room.name)[0].toUpperCase()
+                          roomTitle(room).isNotEmpty
+                              ? roomTitle(room)[0].toUpperCase()
                               : '?',
                           style: TextStyle(
                             color: isCurrent ? Colors.black : Colors.white,
@@ -856,7 +1204,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ),
                       ),
                       title: Text(
-                        _getDisplayName(room.name),
+                        roomTitle(room),
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight:
@@ -864,7 +1212,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ),
                       ),
                       subtitle: Text(
-                        room.queueName ?? 'ID: ${room.id}',
+                        roomSubtitle(room),
                         style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.6)),
                       ),

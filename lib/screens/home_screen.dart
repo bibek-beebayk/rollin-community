@@ -12,6 +12,7 @@ import '../api/api_client.dart';
 import 'package:video_player/video_player.dart';
 import 'verify_user_screen.dart';
 import 'post_details_screen.dart';
+import 'agent_search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -96,6 +97,101 @@ class _HomeScreenState extends State<HomeScreen> {
     ]);
   }
 
+  String? _resolveProfileImageUrl(dynamic user) {
+    final raw = (user?.profilePicture ?? user?.avatar)?.toString().trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final base = ApiClient.baseUrl.endsWith('/')
+        ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
+        : ApiClient.baseUrl;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$base$path';
+  }
+
+  Widget _buildProfileAvatar(String? profileImageUrl, String initial) {
+    if (profileImageUrl == null || profileImageUrl.isEmpty) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundColor: AppTheme.primary.withValues(alpha: 0.85),
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      key: ValueKey(profileImageUrl),
+      radius: 18,
+      backgroundColor: AppTheme.primary.withValues(alpha: 0.85),
+      child: ClipOval(
+        child: Image.network(
+          profileImageUrl,
+          width: 36,
+          height: 36,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            final expected = loadingProgress.expectedTotalBytes;
+            final loaded = loadingProgress.cumulativeBytesLoaded;
+            final progress = expected != null && expected > 0
+                ? loaded / expected
+                : null;
+            return Container(
+              width: 36,
+              height: 36,
+              color: AppTheme.primary.withValues(alpha: 0.85),
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      value: progress,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Loading',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 6,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 36,
+              height: 36,
+              color: AppTheme.primary.withValues(alpha: 0.85),
+              alignment: Alignment.center,
+              child: Text(
+                initial,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
@@ -136,6 +232,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildProfileCard(context, user),
                   const SizedBox(height: 16),
+                  if ((user?.userType ?? '').toString().toLowerCase() == 'player') ...[
+                    _buildFindAgentsCard(context),
+                    const SizedBox(height: 16),
+                  ],
                   if (showRoleInfo) ...[
                     _buildRoleInfoSection(user),
                     const SizedBox(height: 32),
@@ -222,6 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildProfileCard(BuildContext context, dynamic user) {
     final username = user?.username ?? 'Guest';
     final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
+    final profileImageUrl = _resolveProfileImageUrl(user);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
@@ -232,24 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.85),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
+          _buildProfileAvatar(profileImageUrl, initial),
           const SizedBox(width: 10),
           Expanded(
             child: Row(
@@ -529,6 +613,45 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildFindAgentsCard(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AgentSearchScreen()),
+          );
+        },
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.surface.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.person_search, color: AppTheme.accent),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Find Agents',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.white70),
+            ],
+          ),
+        ),
       ),
     );
   }

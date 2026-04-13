@@ -3,6 +3,7 @@ import 'user.dart';
 class Room {
   final int id;
   final String name;
+  final String roomType;
   final String slug;
   final String? description;
   final int onlineCount;
@@ -13,11 +14,15 @@ class Room {
   final int? queue; // ID of the support queue/room this chat belongs to
   final String? queueName;
   final bool canSwitchStation;
+  final User? counterpart;
+  final DateTime? lastActivity;
+  final int? lastMessageSenderId;
   int unreadCount;
 
   Room({
     required this.id,
     required this.name,
+    this.roomType = 'support',
     required this.slug,
     this.description,
     this.onlineCount = 0,
@@ -27,6 +32,9 @@ class Room {
     this.queue,
     this.queueName,
     this.canSwitchStation = false,
+    this.counterpart,
+    this.lastActivity,
+    this.lastMessageSenderId,
     this.unreadCount = 0,
   });
 
@@ -37,6 +45,7 @@ class Room {
     return Room(
       id: json['id'] ?? 0,
       name: json['name'] ?? 'Unknown Room',
+      roomType: json['room_type'] ?? 'support',
       slug: json['slug'] ?? '',
       description: json['description'],
       onlineCount: json['online_count'] ?? 0,
@@ -46,6 +55,13 @@ class Room {
       queue: json['queue'],
       queueName: json['queue_name'],
       canSwitchStation: json['can_switch_station'] ?? false,
+      counterpart: json['counterpart'] != null
+          ? User.fromJson(json['counterpart'])
+          : null,
+      lastActivity: json['last_activity'] != null
+          ? DateTime.tryParse(json['last_activity'])
+          : null,
+      lastMessageSenderId: json['last_message_sender_id'],
       unreadCount: json['unread_count'] ?? 0,
     );
   }
@@ -54,6 +70,7 @@ class Room {
     return {
       'id': id,
       'name': name,
+      'room_type': roomType,
       'slug': slug,
       'description': description,
       'online_count': onlineCount,
@@ -62,6 +79,9 @@ class Room {
       'is_active': isActive,
       'queue_name': queueName,
       'can_switch_station': canSwitchStation,
+      'counterpart': counterpart?.toJson(),
+      'last_activity': lastActivity?.toIso8601String(),
+      'last_message_sender_id': lastMessageSenderId,
     };
   }
 }

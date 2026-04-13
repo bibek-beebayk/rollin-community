@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'post_feed_screen.dart';
 import 'support_chat_tab.dart';
+import 'agent_chat_hub_tab.dart';
 import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -143,8 +144,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _refreshUnreadCounts();
     }
     if (index == 2) {
-      // User is now in Chat tab; do not keep stale unread badge visible.
-      chatProvider.clearAllUnread();
+      // User entered Chat tab: keep unread counts for other conversations.
+      // Only the currently opened room should be acknowledged as read.
       final userId = context.read<AuthProvider>().user?.id;
       final roomId = chatProvider.currentRoomId;
       if (userId != null && roomId != null) {
@@ -206,6 +207,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final userType = authProvider.user?.userType;
+    final useChatHubForUser = userType == 'agent' || userType == 'player';
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: IndexedStack(
@@ -213,7 +217,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         children: [
           const HomeScreen(),
           const PostFeedScreen(),
-          _chatTabLoaded ? const SupportChatTab() : const SizedBox.shrink(),
+          _chatTabLoaded
+              ? (useChatHubForUser
+                  ? const AgentChatHubTab()
+                  : const SupportChatTab())
+              : const SizedBox.shrink(),
           const SettingsScreen(),
         ],
       ),

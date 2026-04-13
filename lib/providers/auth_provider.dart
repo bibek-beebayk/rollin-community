@@ -253,6 +253,9 @@ class AuthProvider with ChangeNotifier {
         isVerified: true,
         verificationStatus: 'approved',
         avatar: _user!.avatar,
+        profilePicture: _user!.profilePicture,
+        agentAvailability: _user!.agentAvailability,
+        agentStatusNote: _user!.agentStatusNote,
       );
       notifyListeners();
     } else {
@@ -324,5 +327,59 @@ class AuthProvider with ChangeNotifier {
       }
       rethrow;
     }
+  }
+
+  Future<void> updateProfilePicture(String filePath) async {
+    final response = await _apiClient.postMultipart(
+      '/api/auth/profile/picture/',
+      filePath,
+      fieldName: 'profile_picture',
+    );
+    final data = response['data'] ?? response;
+    final userData = data['user'] ?? data;
+    _user = User.fromJson(userData);
+    notifyListeners();
+  }
+
+  Future<void> requestEmailChangeOTP(String newEmail, String currentPassword) async {
+    await _apiClient.post(
+      '/api/auth/email-change/request/',
+      body: {'new_email': newEmail, 'current_password': currentPassword},
+    );
+  }
+
+  Future<void> verifyCurrentPassword(String currentPassword) async {
+    await _apiClient.post(
+      '/api/auth/verify-current-password/',
+      body: {'current_password': currentPassword},
+    );
+  }
+
+  Future<void> verifyEmailChangeOTP(String newEmail, String otpCode) async {
+    final response = await _apiClient.post(
+      '/api/auth/email-change/verify/',
+      body: {'new_email': newEmail, 'otp_code': otpCode},
+    );
+    final data = response['data'] ?? response;
+    final userData = data['user'] ?? data;
+    _user = User.fromJson(userData);
+    notifyListeners();
+  }
+
+  Future<void> updateAgentAvailability(
+    String availability, {
+    String statusNote = '',
+  }) async {
+    final response = await _apiClient.patch(
+      '/api/auth/agent-availability/',
+      body: {
+        'agent_availability': availability,
+        'agent_status_note': statusNote,
+      },
+    );
+    final data = response['data'] ?? response;
+    final userData = data['user'] ?? data;
+    _user = User.fromJson(userData);
+    notifyListeners();
   }
 }

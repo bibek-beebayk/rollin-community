@@ -7,6 +7,9 @@ class User {
   final bool isVerified;
   final String verificationStatus;
   final String? avatar;
+  final String? profilePicture;
+  final String agentAvailability;
+  final String agentStatusNote;
 
   User({
     required this.id,
@@ -16,6 +19,9 @@ class User {
     required this.isVerified,
     required this.verificationStatus,
     this.avatar,
+    this.profilePicture,
+    this.agentAvailability = 'online',
+    this.agentStatusNote = '',
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -27,7 +33,10 @@ class User {
       userType: json['user_type'] ?? 'client',
       isVerified: json['is_verified'] ?? false,
       verificationStatus: json['verification_status'] ?? 'none',
-      avatar: json['avatar'],
+      avatar: json['avatar'] ?? json['profile_picture'],
+      profilePicture: json['profile_picture'] ?? json['avatar'],
+      agentAvailability: json['agent_availability'] ?? 'online',
+      agentStatusNote: json['agent_status_note'] ?? '',
     );
   }
 
@@ -47,6 +56,9 @@ class User {
       'is_verified': isVerified,
       'verification_status': verificationStatus,
       'avatar': avatar,
+      'profile_picture': profilePicture,
+      'agent_availability': agentAvailability,
+      'agent_status_note': agentStatusNote,
     };
   }
 

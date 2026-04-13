@@ -607,6 +607,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildChatCard(Room room) {
+    final title = room.roomType == 'support'
+        ? 'Support Chat'
+        : _getDisplayName(room.name);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -624,8 +627,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               CircleAvatar(
                 backgroundColor: AppTheme.primary,
                 child: Text(
-                  _getDisplayName(room.name).isNotEmpty
-                      ? _getDisplayName(room.name)[0].toUpperCase()
+                  title.isNotEmpty
+                      ? title[0].toUpperCase()
                       : '?',
                   style: const TextStyle(color: Colors.white),
                 ),
@@ -639,7 +642,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Flexible(
                           child: Text(
-                            _getDisplayName(room.name),
+                            title,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

@@ -226,13 +226,49 @@ class ChatProvider with ChangeNotifier {
       }
 
       if (data.isNotEmpty) {
-        return Room.fromJson(data[0]);
+        final rooms = data
+            .whereType<Map<String, dynamic>>()
+            .map(Room.fromJson)
+            .toList();
+        final support = rooms.where((r) => r.roomType == 'support');
+        if (support.isNotEmpty) return support.first;
+        return rooms.first;
       }
       return null;
     } catch (e) {
       debugPrint('ChatProvider: Error joining support room: $e');
       rethrow;
     }
+  }
+
+  Future<List<User>> searchAgents(ApiClient apiClient, String query) async {
+    final encoded = Uri.encodeQueryComponent(query.trim());
+    final response = await apiClient.get('/api/agents/search/?q=$encoded');
+    final List<dynamic> data =
+        (response is Map && response.containsKey('data'))
+            ? response['data']
+            : (response is List ? response : []);
+    final agents = <User>[];
+    for (final item in data) {
+      if (item is Map<String, dynamic>) {
+        agents.add(User.fromJson(item));
+      }
+    }
+    return agents;
+  }
+
+  Future<Room> startDirectAgentChat(ApiClient apiClient, int agentId) async {
+    final response = await apiClient.post(
+      '/api/rooms/direct/start/',
+      body: {'agent_id': agentId},
+    );
+    final data = (response is Map && response.containsKey('data'))
+        ? response['data']
+        : response;
+    if (data is Map<String, dynamic>) {
+      return Room.fromJson(data);
+    }
+    throw Exception('Invalid direct chat response');
   }
 
   Future<void> fetchMessages(int roomId) async {
@@ -515,13 +551,20 @@ class ChatProvider with ChangeNotifier {
 
       if (json['type'] == 'chat_message') {
         try {
-          final msg = Message.fromJson(json);
+          var msg = Message.fromJson(json);
           // Ensure room exists in cache
           _roomMessagesCache.putIfAbsent(roomId, () => []);
           final roomMessages = _roomMessagesCache[roomId]!;
           final clientTempId = msg.clientTempId;
+          Message? pendingMatchedMessage;
           if (clientTempId != null) {
-            roomMessages.removeWhere((m) => m.isPending && m.id == clientTempId);
+            final pendingIndex = roomMessages.indexWhere(
+              (m) => m.isPending && m.id == clientTempId,
+            );
+            if (pendingIndex != -1) {
+              pendingMatchedMessage = roomMessages[pendingIndex];
+              roomMessages.removeAt(pendingIndex);
+            }
           } else {
             final pendingIndex = roomMessages.indexWhere(
               (m) =>
@@ -532,6 +575,33 @@ class ChatProvider with ChangeNotifier {
             if (pendingIndex != -1) {
               roomMessages.removeAt(pendingIndex);
             }
+          }
+
+          // If this message is an echo of a locally pending message, trust the
+          // local sender identity to avoid occasional server-side sender mismatch
+          // in direct chat rendering.
+          if (pendingMatchedMessage != null &&
+              pendingMatchedMessage.sender.id > 0 &&
+              msg.sender.id != pendingMatchedMessage.sender.id) {
+            final old = msg;
+            msg = Message(
+              id: old.id,
+              roomId: old.roomId,
+              sender: pendingMatchedMessage.sender,
+              content: old.content,
+              timestamp: old.timestamp,
+              isRead: old.isRead,
+              isPending: old.isPending,
+              isEdited: old.isEdited,
+              isPinned: old.isPinned,
+              isDeleted: old.isDeleted,
+              type: old.type,
+              replyToMessageId: old.replyToMessageId,
+              replyToContent: old.replyToContent,
+              replyToSenderUsername: old.replyToSenderUsername,
+              clientTempId: old.clientTempId,
+              attachment: old.attachment,
+            );
           }
 
           // Deduplicate
