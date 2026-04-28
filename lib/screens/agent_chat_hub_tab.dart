@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
 import 'chat_screen.dart';
+import 'agent_search_screen.dart';
 
 class AgentChatHubTab extends StatefulWidget {
   const AgentChatHubTab({super.key});
@@ -17,6 +18,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
   bool _isLoading = true;
   String? _errorMessage;
   String _selectedFilter = 'all';
+  int _pendingGroupRequests = 0;
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
   Future<void> _loadChats() async {
     final chatProvider = context.read<ChatProvider>();
     final authProvider = context.read<AuthProvider>();
+    final isAgentUser = authProvider.user?.isAgent ?? false;
 
     setState(() {
       _isLoading = true;
@@ -44,6 +47,13 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
 
     try {
       await chatProvider.fetchActiveChats(authProvider.apiClient);
+      if (isAgentUser) {
+        final requests =
+            await chatProvider.fetchManagedGroupJoinRequests(authProvider.apiClient);
+        _pendingGroupRequests = requests.length;
+      } else {
+        _pendingGroupRequests = 0;
+      }
 
       final hasSupport = chatProvider.activeChats.any((r) => r.roomType == 'support');
       if (!hasSupport) {
@@ -75,6 +85,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     if (room.roomType == 'direct_agent') {
       return userType == 'agent' ? 'Direct player chat' : 'Direct agent chat';
     }
+    if (room.roomType == 'group') {
+      return '${room.groupMemberCount} members';
+    }
     return 'Room #${room.id}';
   }
 
@@ -88,6 +101,315 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     if (chatProvider.currentRoomId == room.id) {
       chatProvider.disconnectRoom(room.id);
     }
+    await _loadChats();
+  }
+
+  Future<void> _showCreateGroupDialog() async {
+    final authProvider = context.read<AuthProvider>();
+    final chatProvider = context.read<ChatProvider>();
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    final payload = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Create Group', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'Group name',
+                hintStyle: TextStyle(color: Colors.white54),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: descriptionController,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Description (optional)',
+                hintStyle: TextStyle(color: Colors.white54),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, {
+              'name': nameController.text.trim(),
+              'description': descriptionController.text.trim(),
+            }),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    if (payload == null || (payload['name'] ?? '').isEmpty) return;
+    try {
+      final room = await chatProvider.createGroup(
+        authProvider.apiClient,
+        name: payload['name']!,
+        description: payload['description'] ?? '',
+      );
+      if (!mounted) return;
+      await _loadChats();
+      await _openChat(room);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _showGroupDiscoveryDialog() async {
+    final authProvider = context.read<AuthProvider>();
+    final chatProvider = context.read<ChatProvider>();
+    final queryController = TextEditingController();
+    List<Map<String, dynamic>> groups = [];
+    bool loading = true;
+
+    Future<void> load({String query = ''}) async {
+      groups = await chatProvider.discoverGroups(authProvider.apiClient, query: query);
+    }
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          if (loading) {
+            loading = false;
+            load().then((_) {
+              if (context.mounted) setStateDialog(() {});
+            });
+          }
+          return AlertDialog(
+            backgroundColor: AppTheme.surface,
+            title: const Text('Discover Groups', style: TextStyle(color: Colors.white)),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: queryController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      hintText: 'Search groups',
+                      hintStyle: TextStyle(color: Colors.white54),
+                    ),
+                    onSubmitted: (v) async {
+                      await load(query: v.trim());
+                      if (context.mounted) setStateDialog(() {});
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  if (groups.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        'No groups found',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: groups.length,
+                        itemBuilder: (context, index) {
+                          final group = groups[index];
+                          final relation = (group['relation'] ?? 'none').toString();
+                          final id = (group['id'] as num?)?.toInt();
+                          return ListTile(
+                            title: Text(
+                              (group['name'] ?? '').toString(),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              '${group['member_count'] ?? 0} members',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                            ),
+                            trailing: relation == 'member' || relation == 'admin'
+                                ? const Text('Joined', style: TextStyle(color: Colors.greenAccent))
+                                : relation == 'pending'
+                                    ? const Text('Pending', style: TextStyle(color: Colors.orangeAccent))
+                                    : TextButton(
+                                        onPressed: id == null
+                                            ? null
+                                            : () async {
+                                                try {
+                                                  await chatProvider.requestJoinGroup(authProvider.apiClient, id);
+                                                  await load(query: queryController.text.trim());
+                                                  if (context.mounted) setStateDialog(() {});
+                                                } catch (e) {
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                                                  );
+                                                }
+                                              },
+                                        child: const Text('Join'),
+                                      ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted) return;
+    await _loadChats();
+  }
+
+  Future<void> _showJoinRequestsDialog() async {
+    final authProvider = context.read<AuthProvider>();
+    final chatProvider = context.read<ChatProvider>();
+    List<Map<String, dynamic>> requests = [];
+    bool loading = true;
+
+    Future<void> load() async {
+      requests = await chatProvider.fetchManagedGroupJoinRequests(authProvider.apiClient);
+    }
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          if (loading) {
+            loading = false;
+            load().then((_) {
+              if (context.mounted) setStateDialog(() {});
+            });
+          }
+          final screenSize = MediaQuery.of(context).size;
+          final dialogWidth = screenSize.width < 520 ? screenSize.width - 24 : 460.0;
+          final dialogMaxHeight = screenSize.height * 0.68;
+          return AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+            backgroundColor: AppTheme.surface,
+            title: const Text('Group Join Requests', style: TextStyle(color: Colors.white)),
+            content: SizedBox(
+              width: dialogWidth,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: dialogMaxHeight),
+                child: requests.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          'No pending requests',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: requests.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final request = requests[index];
+                          final requestId = (request['id'] as num?)?.toInt();
+                          final player =
+                              (request['player'] as Map?)?['username']?.toString() ??
+                                  'Player';
+                          final roomName = ((request['room'] as Map?)?['name'] ?? '')
+                              .toString();
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  player,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Wants to join $roomName',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.72),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: requestId == null
+                                            ? null
+                                            : () async {
+                                                await chatProvider.reviewGroupJoinRequest(
+                                                  authProvider.apiClient,
+                                                  requestId: requestId,
+                                                  action: 'approve',
+                                                );
+                                                await load();
+                                                if (context.mounted) {
+                                                  setStateDialog(() {});
+                                                }
+                                              },
+                                        child: const Text('Approve'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextButton(
+                                        onPressed: requestId == null
+                                            ? null
+                                            : () async {
+                                                await chatProvider.reviewGroupJoinRequest(
+                                                  authProvider.apiClient,
+                                                  requestId: requestId,
+                                                  action: 'reject',
+                                                );
+                                                await load();
+                                                if (context.mounted) {
+                                                  setStateDialog(() {});
+                                                }
+                                              },
+                                        child: const Text('Reject'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted) return;
     await _loadChats();
   }
 
@@ -107,6 +429,44 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    int badgeCount = 0,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        OutlinedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 16),
+          label: Text(label),
+        ),
+        if (badgeCount > 0)
+          Positioned(
+            right: -6,
+            top: -8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                badgeCount > 99 ? '99+' : '$badgeCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -171,6 +531,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
             builder: (context, chatProvider, _) {
               final auth = context.read<AuthProvider>();
               final userType = auth.user?.userType;
+              final isAgentUser = auth.user?.isAgent ?? false;
+              final isPlayerUser = auth.user?.isPlayer ?? false;
               final currentUserId = auth.user?.id;
               final rooms = chatProvider.activeChats;
               Room? supportRoom;
@@ -180,12 +542,19 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                   break;
                 }
               }
-              final otherRoomsRaw = rooms.where((r) => r.roomType != 'support').toList();
+              final directRoomsRaw =
+                  rooms.where((r) => r.roomType == 'direct_agent').toList();
+              final groupRoomsRaw = rooms.where((r) => r.roomType == 'group').toList();
               final otherRooms = _buildPrioritizedRooms(
-                otherRoomsRaw,
+                directRoomsRaw,
                 userType: userType,
                 currentUserId: currentUserId,
               );
+              groupRoomsRaw.sort((a, b) {
+                final unreadCompare = b.unreadCount.compareTo(a.unreadCount);
+                if (unreadCompare != 0) return unreadCompare;
+                return _compareNullableDateDesc(a.lastActivity, b.lastActivity);
+              });
 
               if (_isLoading) {
                 return const Center(
@@ -276,18 +645,60 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       ),
                     ),
                   const SizedBox(height: 16),
+                  if (isPlayerUser || isAgentUser) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (isPlayerUser)
+                          _actionButton(
+                            icon: Icons.person_search,
+                            label: 'Find Agents',
+                            onPressed: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const AgentSearchScreen(),
+                                ),
+                              );
+                              if (!mounted) return;
+                              await _loadChats();
+                            },
+                          ),
+                        if (isPlayerUser)
+                          _actionButton(
+                            icon: Icons.groups_2,
+                            label: 'Discover Groups',
+                            onPressed: _showGroupDiscoveryDialog,
+                          ),
+                        if (isAgentUser) ...[
+                          _actionButton(
+                            icon: Icons.group_add,
+                            label: 'Create Group',
+                            onPressed: _showCreateGroupDialog,
+                          ),
+                          _actionButton(
+                            icon: Icons.how_to_reg,
+                            label: 'Join Requests',
+                            onPressed: _showJoinRequestsDialog,
+                            badgeCount: _pendingGroupRequests,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        userType == 'agent' ? 'Prioritized Chats' : 'Other Chats',
+                        isAgentUser ? 'Direct Chats' : 'Chats',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      if (userType == 'agent')
+                      if (isAgentUser)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -308,7 +719,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                         ),
                     ],
                   ),
-                  if (userType == 'agent') ...[
+                  if (isAgentUser) ...[
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
@@ -427,6 +838,58 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             _needsReply(room, currentUserId)
                                 ? '${_subtitleForRoom(room, userType)} • Needs reply'
                                 : _subtitleForRoom(room, userType),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                          ),
+                          trailing: _unreadBadge(room.unreadCount),
+                          onTap: () => _openChat(room),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Groups',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (groupRoomsRaw.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      child: Text(
+                        'No groups available.',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                      ),
+                    )
+                  else
+                    ...groupRoomsRaw.map(
+                      (room) => Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: AppTheme.accent,
+                            child: Icon(Icons.group, color: Colors.black),
+                          ),
+                          title: Text(
+                            _titleForRoom(room),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          subtitle: Text(
+                            room.userIsGroupAdmin
+                                ? '${room.groupMemberCount} members • You are admin'
+                                : '${room.groupMemberCount} members',
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
                           ),
                           trailing: _unreadBadge(room.unreadCount),

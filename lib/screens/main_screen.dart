@@ -208,8 +208,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final userType = authProvider.user?.userType;
-    final useChatHubForUser = userType == 'agent' || userType == 'player';
+    final user = authProvider.user;
+    final useChatHubForUser = (user?.isAgent ?? false) || (user?.isPlayer ?? false);
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: IndexedStack(

@@ -15,6 +15,10 @@ class Room {
   final String? queueName;
   final bool canSwitchStation;
   final User? counterpart;
+  final User? groupAdmin;
+  final String? groupDescription;
+  final int groupMemberCount;
+  final bool userIsGroupAdmin;
   final DateTime? lastActivity;
   final int? lastMessageSenderId;
   int unreadCount;
@@ -33,6 +37,10 @@ class Room {
     this.queueName,
     this.canSwitchStation = false,
     this.counterpart,
+    this.groupAdmin,
+    this.groupDescription,
+    this.groupMemberCount = 0,
+    this.userIsGroupAdmin = false,
     this.lastActivity,
     this.lastMessageSenderId,
     this.unreadCount = 0,
@@ -58,6 +66,12 @@ class Room {
       counterpart: json['counterpart'] != null
           ? User.fromJson(json['counterpart'])
           : null,
+      groupAdmin: json['group_admin'] != null
+          ? User.fromJson(json['group_admin'])
+          : null,
+      groupDescription: json['group_description'],
+      groupMemberCount: json['group_member_count'] ?? 0,
+      userIsGroupAdmin: json['user_is_group_admin'] ?? false,
       lastActivity: json['last_activity'] != null
           ? DateTime.tryParse(json['last_activity'])
           : null,
@@ -80,6 +94,10 @@ class Room {
       'queue_name': queueName,
       'can_switch_station': canSwitchStation,
       'counterpart': counterpart?.toJson(),
+      'group_admin': groupAdmin?.toJson(),
+      'group_description': groupDescription,
+      'group_member_count': groupMemberCount,
+      'user_is_group_admin': userIsGroupAdmin,
       'last_activity': lastActivity?.toIso8601String(),
       'last_message_sender_id': lastMessageSenderId,
     };

@@ -26,11 +26,13 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     debugPrint('DEBUG parsing User fromJson: $json');
+    final normalizedUserType =
+        (json['user_type'] ?? 'client').toString().trim().toLowerCase();
     return User(
       id: _parseInt(json['id']) ?? 0,
       username: json['username'] ?? 'Unknown',
       email: json['email'] ?? '',
-      userType: json['user_type'] ?? 'client',
+      userType: normalizedUserType,
       isVerified: json['is_verified'] ?? false,
       verificationStatus: json['verification_status'] ?? 'none',
       avatar: json['avatar'] ?? json['profile_picture'],
@@ -62,6 +64,7 @@ class User {
     };
   }
 
-  bool get isStaff => userType == 'staff';
-  bool get isAgent => userType == 'agent';
+  bool get isStaff => userType.toLowerCase() == 'staff';
+  bool get isAgent => userType.toLowerCase() == 'agent';
+  bool get isPlayer => userType.toLowerCase() == 'player';
 }

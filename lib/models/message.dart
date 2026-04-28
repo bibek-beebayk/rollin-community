@@ -11,6 +11,7 @@ class Message {
   final bool isEdited;
   final bool isPinned;
   final bool isDeleted;
+  final bool isBroadcast;
   final String? type;
   final int? replyToMessageId;
   final String? replyToContent;
@@ -28,6 +29,7 @@ class Message {
     this.isEdited = false,
     this.isPinned = false,
     this.isDeleted = false,
+    this.isBroadcast = false,
     this.type,
     this.replyToMessageId,
     this.replyToContent,
@@ -113,6 +115,7 @@ class Message {
       isEdited: json['is_edited'] ?? false,
       isPinned: json['is_pinned'] ?? false,
       isDeleted: json['is_deleted'] ?? false,
+      isBroadcast: json['is_broadcast'] ?? false,
       type: json['type'],
       replyToMessageId: parsedReplyToMessageId,
       replyToContent: parsedReplyToContent,

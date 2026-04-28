@@ -631,6 +631,203 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _showGroupBroadcastDialog() async {
+    if (_selectedChat == null) return;
+    final controller = TextEditingController();
+    final content = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: const Text('Broadcast Message', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          maxLines: 5,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Type broadcast message',
+            hintStyle: TextStyle(color: Colors.white54),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+    if (content == null || content.isEmpty) return;
+    try {
+      await context.read<ChatProvider>().sendGroupBroadcast(
+            context.read<AuthProvider>().apiClient,
+            roomId: _selectedChat!.id,
+            content: content,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Broadcast sent')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _deleteCurrentGroup() async {
+    if (_selectedChat == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: const Text('Delete Group', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This will permanently delete this group and all chat history.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await context
+          .read<ChatProvider>()
+          .deleteGroup(context.read<AuthProvider>().apiClient, _selectedChat!.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Group deleted')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _leaveCurrentGroup() async {
+    if (_selectedChat == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: const Text('Leave Group', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to leave this group?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Leave')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await context
+          .read<ChatProvider>()
+          .leaveGroup(context.read<AuthProvider>().apiClient, _selectedChat!.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You left the group')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _showGroupMembers() async {
+    if (_selectedChat == null) return;
+    try {
+      final members = await context
+          .read<ChatProvider>()
+          .fetchGroupMembers(context.read<AuthProvider>().apiClient, _selectedChat!.id);
+      if (!mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: AppTheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                title: Text(
+                  'Group Members',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+              ),
+              if (members.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'No members found.',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: members.length,
+                    itemBuilder: (context, index) {
+                      final member = members[index];
+                      return ListTile(
+                        title: Text(member.username, style: const TextStyle(color: Colors.white)),
+                        subtitle: Text(
+                          member.userType,
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                        ),
+                        trailing: member.userType == 'player'
+                            ? TextButton(
+                                onPressed: () async {
+                                  try {
+                                    final room = await context.read<ChatProvider>().startDirectFromGroup(
+                                          context.read<AuthProvider>().apiClient,
+                                          roomId: _selectedChat!.id,
+                                          playerId: member.id,
+                                        );
+                                    if (!mounted) return;
+                                    Navigator.pop(ctx);
+                                    await _openChatThread(room);
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                                    );
+                                  }
+                                },
+                                child: const Text('Direct Chat'),
+                              )
+                            : null,
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // With unified dashboard, ChatScreen always shows the thread
@@ -643,9 +840,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final chatProvider = context.watch<ChatProvider>();
     final currentUser = context.read<AuthProvider>().user;
     final isStaffUser = context.read<AuthProvider>().isStaff;
-    final canUseAgentTools =
-        currentUser != null &&
-        (currentUser.userType == 'agent' || currentUser.userType == 'staff');
+    final isAgentUser = currentUser?.userType == 'agent';
+    final isPlayerUser = currentUser?.userType == 'player';
+    final isGroupChat = _selectedChat?.roomType == 'group';
+    final isDirectAgentChat = _selectedChat?.roomType == 'direct_agent';
+    final canUseAgentTools = currentUser != null &&
+        (currentUser.userType == 'agent' || currentUser.userType == 'staff') &&
+        isDirectAgentChat;
+    final canManageGroup = isAgentUser && (_selectedChat?.userIsGroupAdmin ?? false);
+    final canLeaveGroup = isPlayerUser && isGroupChat;
     final messages = chatProvider.messages;
     final typingUsers = chatProvider
         .typingUsersForRoom(_selectedChat?.id)
@@ -674,6 +877,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     String titleText;
     if (isStaffUser) {
       titleText = _getDisplayName(_selectedChat?.name ?? 'Chat');
+    } else if (_selectedChat?.roomType == 'group') {
+      titleText = _selectedChat?.name ?? 'Group Chat';
     } else if (_selectedChat?.roomType == 'direct_agent' &&
         _selectedChat?.counterpart != null) {
       titleText = _selectedChat!.counterpart!.username;
@@ -847,11 +1052,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               tooltip: 'Switch Station',
               onPressed: () => _confirmSwitchStation(context),
             ),
-          if (canUseAgentTools)
+          if (canUseAgentTools || canManageGroup || canLeaveGroup)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, color: Colors.white),
               color: AppTheme.surface,
               onSelected: (value) async {
+                if (value == 'group_members') {
+                  await _showGroupMembers();
+                  return;
+                }
+                if (value == 'group_broadcast') {
+                  await _showGroupBroadcastDialog();
+                  return;
+                }
+                if (value == 'delete_group') {
+                  await _deleteCurrentGroup();
+                  return;
+                }
+                if (value == 'leave_group') {
+                  await _leaveCurrentGroup();
+                  return;
+                }
                 if (value == 'quick_replies') {
                   await _showQuickReplies();
                   return;
@@ -864,20 +1085,51 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   await _resolveCurrentChat();
                 }
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem<String>(
-                  value: 'quick_replies',
-                  child: Text('Quick Replies'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'internal_note',
-                  child: Text('Internal Note'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'resolve_chat',
-                  child: Text('Resolve Chat'),
-                ),
-              ],
+              itemBuilder: (context) {
+                final items = <PopupMenuEntry<String>>[];
+                if (canUseAgentTools) {
+                  items.addAll(const [
+                    PopupMenuItem<String>(
+                      value: 'quick_replies',
+                      child: Text('Quick Replies'),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'internal_note',
+                      child: Text('Internal Note'),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'resolve_chat',
+                      child: Text('Resolve Chat'),
+                    ),
+                  ]);
+                }
+                if (canManageGroup) {
+                  items.addAll(const [
+                    PopupMenuDivider(),
+                    PopupMenuItem<String>(
+                      value: 'group_members',
+                      child: Text('Group Members'),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'group_broadcast',
+                      child: Text('Broadcast Message'),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'delete_group',
+                      child: Text('Delete Group'),
+                    ),
+                  ]);
+                } else if (canLeaveGroup) {
+                  items.addAll(const [
+                    PopupMenuDivider(),
+                    PopupMenuItem<String>(
+                      value: 'leave_group',
+                      child: Text('Leave Group'),
+                    ),
+                  ]);
+                }
+                return items;
+              },
             ),
         ],
       ),
@@ -1118,6 +1370,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (room.roomType == 'support') {
         return 'Support Chat';
       }
+      if (room.roomType == 'group') {
+        return room.name;
+      }
       if (room.roomType == 'direct_agent' && room.counterpart != null) {
         return room.counterpart!.username;
       }
@@ -1128,7 +1383,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
 
     String roomSubtitle(Room room) {
-      if (room.roomType == 'direct_agent') return 'Direct agent chat';
+      if (room.roomType == 'direct_agent') return 'Direct chat';
+      if (room.roomType == 'group') return '${room.groupMemberCount} members';
       return room.queueName ?? 'ID: ${room.id}';
     }
 
@@ -2308,6 +2564,25 @@ class _MessageBubble extends StatelessWidget {
             Icons.push_pin,
             size: 13,
             color: Colors.amber.withValues(alpha: 0.95),
+          ),
+        ),
+      if (message.isBroadcast)
+        Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.amber.withValues(alpha: 0.45)),
+          ),
+          child: const Text(
+            'BROADCAST',
+            style: TextStyle(
+              color: Colors.amber,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
           ),
         ),
       if (message.replyToMessageId != null ||

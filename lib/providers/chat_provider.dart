@@ -271,6 +271,119 @@ class ChatProvider with ChangeNotifier {
     throw Exception('Invalid direct chat response');
   }
 
+  Future<List<Map<String, dynamic>>> discoverGroups(
+    ApiClient apiClient, {
+    String query = '',
+  }) async {
+    final q = query.trim();
+    final endpoint = q.isEmpty
+        ? '/api/groups/discover/'
+        : '/api/groups/discover/?q=${Uri.encodeQueryComponent(q)}';
+    final response = await apiClient.get(endpoint);
+    final data = (response is Map && response.containsKey('data'))
+        ? response['data']
+        : (response is List ? response : []);
+    return data is List
+        ? data.whereType<Map<String, dynamic>>().toList()
+        : <Map<String, dynamic>>[];
+  }
+
+  Future<Room> createGroup(
+    ApiClient apiClient, {
+    required String name,
+    String description = '',
+  }) async {
+    final response = await apiClient.post(
+      '/api/groups/',
+      body: {
+        'name': name.trim(),
+        'group_description': description.trim(),
+      },
+    );
+    final data =
+        (response is Map && response.containsKey('data')) ? response['data'] : response;
+    if (data is Map<String, dynamic>) {
+      return Room.fromJson(data);
+    }
+    throw Exception('Invalid group create response');
+  }
+
+  Future<void> requestJoinGroup(ApiClient apiClient, int roomId) async {
+    await apiClient.post('/api/groups/$roomId/join-requests/');
+  }
+
+  Future<List<Map<String, dynamic>>> fetchManagedGroupJoinRequests(
+      ApiClient apiClient) async {
+    final response = await apiClient.get('/api/groups/managed/requests/');
+    final data = (response is Map && response.containsKey('data'))
+        ? response['data']
+        : (response is List ? response : []);
+    return data is List
+        ? data.whereType<Map<String, dynamic>>().toList()
+        : <Map<String, dynamic>>[];
+  }
+
+  Future<void> reviewGroupJoinRequest(
+    ApiClient apiClient, {
+    required int requestId,
+    required String action,
+  }) async {
+    await apiClient.post(
+      '/api/groups/join-requests/$requestId/review/',
+      body: {'action': action},
+    );
+  }
+
+  Future<List<User>> fetchGroupMembers(ApiClient apiClient, int roomId) async {
+    final response = await apiClient.get('/api/groups/$roomId/members/');
+    final data = (response is Map && response.containsKey('data'))
+        ? response['data']
+        : (response is List ? response : []);
+    final members = <User>[];
+    if (data is List) {
+      for (final item in data) {
+        if (item is Map<String, dynamic>) {
+          members.add(User.fromJson(item));
+        }
+      }
+    }
+    return members;
+  }
+
+  Future<Room> startDirectFromGroup(
+    ApiClient apiClient, {
+    required int roomId,
+    required int playerId,
+  }) async {
+    final response = await apiClient
+        .post('/api/groups/$roomId/direct/$playerId/start/', body: {});
+    final data =
+        (response is Map && response.containsKey('data')) ? response['data'] : response;
+    if (data is Map<String, dynamic>) {
+      return Room.fromJson(data);
+    }
+    throw Exception('Invalid direct-chat-from-group response');
+  }
+
+  Future<void> sendGroupBroadcast(
+    ApiClient apiClient, {
+    required int roomId,
+    required String content,
+  }) async {
+    await apiClient.post(
+      '/api/groups/$roomId/broadcast/',
+      body: {'content': content.trim()},
+    );
+  }
+
+  Future<void> deleteGroup(ApiClient apiClient, int roomId) async {
+    await apiClient.delete('/api/groups/$roomId/');
+  }
+
+  Future<void> leaveGroup(ApiClient apiClient, int roomId) async {
+    await apiClient.post('/api/groups/$roomId/leave/');
+  }
+
   Future<void> fetchMessages(int roomId) async {
     try {
       final response =
@@ -595,6 +708,7 @@ class ChatProvider with ChangeNotifier {
               isEdited: old.isEdited,
               isPinned: old.isPinned,
               isDeleted: old.isDeleted,
+              isBroadcast: old.isBroadcast,
               type: old.type,
               replyToMessageId: old.replyToMessageId,
               replyToContent: old.replyToContent,
@@ -678,6 +792,7 @@ class ChatProvider with ChangeNotifier {
               isEdited: old.isEdited,
               isPinned: old.isPinned,
               isDeleted: old.isDeleted,
+              isBroadcast: old.isBroadcast,
               type: old.type,
               replyToMessageId: old.replyToMessageId,
               replyToContent: old.replyToContent,
@@ -751,6 +866,7 @@ class ChatProvider with ChangeNotifier {
           isEdited: old.isEdited,
           isPinned: false,
           isDeleted: json['is_deleted'] ?? true,
+          isBroadcast: old.isBroadcast,
           type: old.type,
           replyToMessageId: old.replyToMessageId,
           replyToContent: old.replyToContent,
@@ -786,6 +902,7 @@ class ChatProvider with ChangeNotifier {
           isEdited: old.isEdited,
           isPinned: json['is_pinned'] ?? old.isPinned,
           isDeleted: old.isDeleted,
+          isBroadcast: old.isBroadcast,
           type: old.type,
           replyToMessageId: old.replyToMessageId,
           replyToContent: old.replyToContent,
@@ -1007,6 +1124,7 @@ class ChatProvider with ChangeNotifier {
         isEdited: old.isEdited,
         isPinned: old.isPinned,
         isDeleted: old.isDeleted,
+        isBroadcast: old.isBroadcast,
         type: old.type,
         replyToMessageId: old.replyToMessageId,
         replyToContent: old.replyToContent,
