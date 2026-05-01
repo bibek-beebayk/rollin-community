@@ -343,7 +343,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: ListTile(
         leading: CircleAvatar(
@@ -355,8 +355,8 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
           child: profileImageUrl == null
               ? Text(
                   user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 )
@@ -364,12 +364,12 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
         ),
         title: Text(
           _capitalizeUsername(user.username),
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w700),
         ),
         trailing: PopupMenuButton<String>(
           icon: Icon(
             Icons.more_vert,
-            color: Colors.white.withValues(alpha: 0.78),
+            color: AppTheme.textPrimary.withValues(alpha: 0.78),
           ),
           onSelected: (value) => _handleMenuAction(user, value),
           itemBuilder: (context) {
@@ -418,15 +418,15 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: AppTheme.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -435,7 +435,9 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
           if (users.isEmpty)
             Text(
               'No users found.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.62)),
+              style: TextStyle(
+                color: AppTheme.textSecondary.withValues(alpha: 0.9),
+              ),
             )
           else
             ...users.map(_buildConnectionTile),
@@ -475,26 +477,28 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
           child: TextField(
             onChanged: onSearchChanged,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: AppTheme.textPrimary),
             decoration: InputDecoration(
               hintText: searchHint,
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+              hintStyle: TextStyle(
+                color: AppTheme.textSecondary.withValues(alpha: 0.85),
+              ),
               filled: true,
               fillColor: AppTheme.surface.withValues(alpha: 0.72),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              prefixIcon: const Icon(Icons.search, color: Colors.white70, size: 18),
+              prefixIcon: Icon(Icons.search, color: AppTheme.textSecondary, size: 18),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                borderSide: BorderSide(color: AppTheme.cardBorder),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                borderSide: BorderSide(color: AppTheme.cardBorder),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppTheme.accent),
+                borderSide: BorderSide(color: AppTheme.accent),
               ),
             ),
           ),
@@ -517,7 +521,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                         color: AppTheme.surface.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: AppTheme.cardBorder,
                         ),
                       ),
                       child: Text(
@@ -525,7 +529,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                             ? emptyMessage
                             : 'No users match "$searchText".',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.62),
+                          color: AppTheme.textSecondary.withValues(alpha: 0.9),
                         ),
                       ),
                     ),
@@ -562,6 +566,13 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authUser = context.watch<AuthProvider>().user;
+    final menuAvatarUrl =
+        authUser != null ? _resolveProfileImageUrl(authUser) : null;
+    final menuInitial = (authUser?.username.isNotEmpty ?? false)
+        ? authUser!.username[0].toUpperCase()
+        : 'U';
+    final accentColor = Theme.of(context).colorScheme.primary;
     final isAgentUser = _isAgentUser;
     return Scaffold(
       appBar: AppBar(
@@ -593,8 +604,8 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                           ),
                           child: Text(
                             count > 99 ? '99+' : '$count',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -610,7 +621,26 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
           IconButton(
             tooltip: 'Menu',
             onPressed: widget.onOpenMenu,
-            icon: const Icon(Icons.menu),
+            icon: CircleAvatar(
+              radius: 14,
+              backgroundColor: accentColor.withValues(alpha: 0.95),
+              child: CircleAvatar(
+                radius: 12.6,
+                backgroundColor: AppTheme.surface.withValues(alpha: 0.92),
+                backgroundImage:
+                    menuAvatarUrl != null ? NetworkImage(menuAvatarUrl) : null,
+                child: menuAvatarUrl == null
+                    ? Text(
+                        menuInitial,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
           ),
           const SizedBox(width: 6),
         ],
@@ -631,7 +661,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                     ),
                     child: Text(
                       _error!,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppTheme.textPrimary),
                     ),
                   ),
                 )
@@ -716,7 +746,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                                 color: AppTheme.surface.withValues(alpha: 0.65),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.08),
+                                  color: AppTheme.cardBorder,
                                 ),
                               ),
                               child: TabBar(
@@ -725,9 +755,9 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                                   color: AppTheme.accent.withValues(alpha: 0.22),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                labelColor: Colors.white,
+                                labelColor: AppTheme.textPrimary,
                                 unselectedLabelColor:
-                                    Colors.white.withValues(alpha: 0.68),
+                                    AppTheme.textSecondary,
                                 tabs: [
                                   Tab(
                                     text:

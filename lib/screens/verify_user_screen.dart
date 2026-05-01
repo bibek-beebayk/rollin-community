@@ -108,12 +108,12 @@ class _VerifyUserScreenState extends State<VerifyUserScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               '🔐 Verify Your Game ID',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppTheme.textPrimary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -122,7 +122,7 @@ class _VerifyUserScreenState extends State<VerifyUserScreen> {
               _otpSent
                   ? 'Enter the 6-digit OTP sent to your email.'
                   : 'Enter your Hi-Rollin Game ID to link your account.',
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -169,8 +169,8 @@ class _VerifyUserScreenState extends State<VerifyUserScreen> {
       padding: const EdgeInsets.only(bottom: 8, left: 4),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: AppTheme.textPrimary,
           fontWeight: FontWeight.w500,
           fontSize: 14,
         ),

@@ -162,15 +162,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.white24,
+                        color: AppTheme.cardBorder,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Support Rooms',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -216,14 +216,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   // Section 3: Occupied by Others
                   if (occupied.isNotEmpty) ...[
-                    _sectionHeader('Occupied', Icons.lock, Colors.white38),
+                    _sectionHeader('Occupied', Icons.lock, AppTheme.textSecondary.withValues(alpha: 0.55)),
                     ...occupied.map((station) => _stationTile(
                           station: station,
                           subtitle:
                               'Occupied by ${station.staff?.username ?? 'unknown'}',
-                          trailing: const Icon(Icons.lock_outline,
-                              color: Colors.white24, size: 18),
-                          textColor: Colors.white38,
+                          trailing: Icon(Icons.lock_outline,
+                              color: AppTheme.cardBorder, size: 18),
+                          textColor: AppTheme.textSecondary.withValues(alpha: 0.55),
                         )),
                   ],
 
@@ -234,7 +234,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Text(
                           'No support rooms available',
                           style:
-                              TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                              TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                         ),
                       ),
                     ),
@@ -280,7 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: AppTheme.surface.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -434,19 +434,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.insights, size: 14, color: Colors.white70),
+              Icon(Icons.insights, size: 14, color: AppTheme.textSecondary),
               const SizedBox(width: 6),
               Text(
                 'Shift Overview',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: AppTheme.textPrimary.withValues(alpha: 0.95),
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),
@@ -494,7 +494,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: AppTheme.surface.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -504,8 +504,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 6),
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: AppTheme.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -514,7 +514,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: AppTheme.textSecondary,
               fontSize: 10,
             ),
           ),
@@ -528,8 +528,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: AppTheme.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
@@ -538,13 +538,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: AppTheme.cardBorder,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             '$count',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: AppTheme.textPrimary.withValues(alpha: 0.9),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -564,17 +564,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppTheme.surface.withValues(alpha: 0.35)),
       ),
       child: Column(
         children: [
           Icon(Icons.forum_outlined,
-              size: 44, color: Colors.white.withValues(alpha: 0.25)),
+              size: 44, color: AppTheme.textSecondary.withValues(alpha: 0.35)),
           const SizedBox(height: 12),
           Text(
             hasConnectedStation ? 'No active chats yet' : 'No active station selected',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
+              color: AppTheme.textPrimary.withValues(alpha: 0.9),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -585,7 +585,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 : 'Connect to a station to start receiving conversations.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.55),
+              color: AppTheme.textSecondary.withValues(alpha: 0.75),
               fontSize: 12,
             ),
           ),
@@ -597,7 +597,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               label: const Text('Select Station'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
+                side: BorderSide(color: AppTheme.textSecondary.withValues(alpha: 0.35)),
               ),
             ),
           ],
@@ -615,7 +615,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppTheme.surface.withValues(alpha: 0.35)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -643,8 +643,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Flexible(
                           child: Text(
                             title,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
                               fontWeight: FontWeight.bold,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -661,8 +661,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             child: Text(
                               _getUserTypeLabel(room)!,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -675,7 +675,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text(
                       room.queueName ?? 'ID: ${room.id}',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
+                        color: AppTheme.textPrimary.withValues(alpha: 0.65),
                         fontSize: 12,
                       ),
                     ),
@@ -692,14 +692,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: Text(
                     '${room.unreadCount}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-              const Icon(Icons.chevron_right, color: Colors.white54),
+              Icon(Icons.chevron_right, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
             ],
           ),
         ),
@@ -750,17 +750,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E), // Match app theme
-        title: const Text('Log Out', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        backgroundColor: AppTheme.surface,
+        title: Text('Log Out', style: TextStyle(color: AppTheme.textPrimary)),
+        content: Text(
           'Are you sure you want to log out?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child:
-                const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(
             onPressed: () async {

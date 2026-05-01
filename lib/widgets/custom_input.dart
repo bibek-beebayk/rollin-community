@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class CustomInput extends StatelessWidget {
   final String hintText;
@@ -22,9 +23,9 @@ class CustomInput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: AppTheme.surface.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: TextField(
         controller: controller,
@@ -35,9 +36,10 @@ class CustomInput extends StatelessWidget {
             : keyboardType,
         minLines: 1,
         maxLines: obscureText ? 1 : 5,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: AppTheme.textPrimary),
         decoration: InputDecoration(
           hintText: hintText,
+          hintStyle: TextStyle(color: AppTheme.textSecondary),
           prefixIcon: prefixIcon,
           border: InputBorder.none,
           focusedBorder: InputBorder.none,

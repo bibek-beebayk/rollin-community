@@ -49,17 +49,17 @@ class _SupportChatTabState extends State<SupportChatTab> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppTheme.background,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(color: AppTheme.accent),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Connecting to Support...',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
               ),
             ],
           ),
@@ -79,7 +79,7 @@ class _SupportChatTabState extends State<SupportChatTab> {
               const SizedBox(height: 16),
               Text(
                 _errorMessage ?? 'Failed to connect to support room.',
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: AppTheme.textPrimary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),

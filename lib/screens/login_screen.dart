@@ -172,9 +172,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
                       color:
-                          const Color(0xFF1E1E2E).withValues(alpha: 0.4), // Glass bg
+                          AppTheme.surface.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      border: Border.all(color: AppTheme.cardBorder),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.3),
@@ -191,12 +191,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           shaderCallback: (bounds) => const LinearGradient(
                             colors: [Color(0xFFD8B4FE), Color(0xFFEC4899)],
                           ).createShader(bounds),
-                          child: const Text(
+                          child: Text(
                             'Rollin Community',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              color: AppTheme.textPrimary,
                               letterSpacing: -0.5,
                             ),
                             textAlign: TextAlign.center,
@@ -207,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Welcome back! Please login to your account.',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: AppTheme.textSecondary,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -253,17 +253,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                       (states) => states
                                               .contains(WidgetState.selected)
                                           ? AppTheme.primary
-                                          : Colors.white.withValues(alpha: 0.1),
+                                          : AppTheme.cardBorder,
                                     ),
                                     checkColor: Colors.white,
                                     side: BorderSide(
-                                        color: Colors.white.withValues(alpha: 0.5)),
+                                        color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                                   ),
                                   Flexible(
                                     child: Text(
                                       'Remember me',
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.9),
+                                        color: AppTheme.textPrimary.withValues(alpha: 0.95),
                                         fontSize: 13,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -314,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Text(
                               "Don't have an account? ",
                               style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.7),
+                                  color: AppTheme.textSecondary,
                                   fontSize: 13),
                             ),
                             GestureDetector(
@@ -326,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           const RegisterScreen()),
                                 );
                               },
-                              child: const Text(
+                              child: Text(
                                 "Register here",
                                 style: TextStyle(
                                   color: AppTheme.primary,
@@ -356,8 +356,8 @@ class _LoginScreenState extends State<LoginScreen> {
         alignment: Alignment.centerLeft,
         child: Text(
           text,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: AppTheme.textPrimary,
             fontWeight: FontWeight.w500,
             fontSize: 14,
           ),

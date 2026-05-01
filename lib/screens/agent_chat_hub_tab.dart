@@ -97,7 +97,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     final fallbackColor = isCurrent
         ? AppTheme.accent
         : AppTheme.primary.withValues(alpha: 0.9);
-    final fallbackTextColor = isCurrent ? Colors.black : Colors.white;
+    final fallbackTextColor = isCurrent ? Colors.black : AppTheme.textPrimary;
     return CircleAvatar(
       backgroundColor: fallbackColor,
       backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
@@ -147,26 +147,26 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text('Create Group', style: TextStyle(color: Colors.white)),
+        title: Text('Create Group', style: TextStyle(color: AppTheme.textPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: AppTheme.textPrimary),
+              decoration: InputDecoration(
                 hintText: 'Group name',
-                hintStyle: TextStyle(color: Colors.white54),
+                hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: descriptionController,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppTheme.textPrimary),
               maxLines: 3,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Description (optional)',
-                hintStyle: TextStyle(color: Colors.white54),
+                hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
               ),
             ),
           ],
@@ -224,7 +224,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
           }
           return AlertDialog(
             backgroundColor: AppTheme.surface,
-            title: const Text('Discover Groups', style: TextStyle(color: Colors.white)),
+            title: Text('Discover Groups', style: TextStyle(color: AppTheme.textPrimary)),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -232,10 +232,10 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                 children: [
                   TextField(
                     controller: queryController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: AppTheme.textPrimary),
+                    decoration: InputDecoration(
                       hintText: 'Search groups',
-                      hintStyle: TextStyle(color: Colors.white54),
+                      hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
                     ),
                     onSubmitted: (v) async {
                       await load(query: v.trim());
@@ -248,7 +248,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Text(
                         'No groups found',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                        style: TextStyle(color: AppTheme.textSecondary),
                       ),
                     )
                   else
@@ -263,11 +263,11 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           return ListTile(
                             title: Text(
                               (group['name'] ?? '').toString(),
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: AppTheme.textPrimary),
                             ),
                             subtitle: Text(
                               '${group['member_count'] ?? 0} members',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                              style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
                             ),
                             trailing: relation == 'member' || relation == 'admin'
                                 ? const Text('Joined', style: TextStyle(color: Colors.greenAccent))
@@ -334,7 +334,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
           return AlertDialog(
             insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
             backgroundColor: AppTheme.surface,
-            title: const Text('Group Join Requests', style: TextStyle(color: Colors.white)),
+            title: Text('Group Join Requests', style: TextStyle(color: AppTheme.textPrimary)),
             content: SizedBox(
               width: dialogWidth,
               child: ConstrainedBox(
@@ -345,7 +345,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                         child: Text(
                           'No pending requests',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                          style: TextStyle(color: AppTheme.textSecondary),
                         ),
                       )
                     : ListView.separated(
@@ -363,10 +363,10 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           return Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.04),
+                              color: AppTheme.textPrimary.withValues(alpha: 0.04),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.1),
+                                color: AppTheme.cardBorder,
                               ),
                             ),
                             child: Column(
@@ -374,8 +374,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                               children: [
                                 Text(
                                   player,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -383,7 +383,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                                 Text(
                                   'Wants to join $roomName',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.72),
+                                    color: AppTheme.textPrimary.withValues(alpha: 0.72),
                                   ),
                                 ),
                                 const SizedBox(height: 10),
@@ -456,8 +456,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
       ),
       child: Text(
         count > 99 ? '99+' : '$count',
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: AppTheme.textPrimary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -491,8 +491,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               ),
               child: Text(
                 badgeCount > 99 ? '99+' : '$badgeCount',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -590,7 +590,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               });
 
               if (_isLoading) {
-                return const Center(
+                return Center(
                   child: CircularProgressIndicator(color: AppTheme.accent),
                 );
               }
@@ -606,7 +606,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                     Text(
                       _errorMessage!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70),
+                      style: TextStyle(color: AppTheme.textSecondary),
                     ),
                     const SizedBox(height: 16),
                     Center(
@@ -623,10 +623,10 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                 children: [
-                  const Text(
+                  Text(
                     'Chats',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                     ),
@@ -643,21 +643,21 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                         ),
                       ),
                       child: ListTile(
-                        leading: const CircleAvatar(
+                        leading: CircleAvatar(
                           backgroundColor: AppTheme.accent,
                           child: Icon(Icons.support_agent, color: Colors.black),
                         ),
                         title: Text(
                           _titleForRoom(supportRoom),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         subtitle: Text(
                           _subtitleForRoom(supportRoom, userType),
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                         trailing: _unreadBadge(supportRoom.unreadCount),
@@ -670,11 +670,11 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       decoration: BoxDecoration(
                         color: AppTheme.surface.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(color: AppTheme.cardBorder),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Support chat is not available right now.',
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: AppTheme.textSecondary),
                       ),
                     ),
                   const SizedBox(height: 16),
@@ -726,7 +726,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       Text(
                         isAgentUser ? 'Direct Chats' : 'Chats',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: AppTheme.textPrimary.withValues(alpha: 0.95),
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
@@ -762,7 +762,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           labelStyle: TextStyle(
                             color: _selectedFilter == 'all'
                                 ? Colors.black
-                                : Colors.white.withValues(alpha: 0.9),
+                                : AppTheme.textPrimary.withValues(alpha: 0.95),
                             fontWeight: FontWeight.w600,
                             fontSize: 11,
                           ),
@@ -773,9 +773,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           side: BorderSide(
                             color: _selectedFilter == 'all'
                                 ? AppTheme.accent.withValues(alpha: 0.9)
-                                : Colors.white.withValues(alpha: 0.2),
+                                : AppTheme.textSecondary.withValues(alpha: 0.3),
                           ),
-                          backgroundColor: Colors.white.withValues(alpha: 0.06),
+                          backgroundColor: AppTheme.surface.withValues(alpha: 0.35),
                           selectedColor: AppTheme.accent,
                           selected: _selectedFilter == 'all',
                           onSelected: (_) => setState(() => _selectedFilter = 'all'),
@@ -785,7 +785,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           labelStyle: TextStyle(
                             color: _selectedFilter == 'needs_reply'
                                 ? Colors.black
-                                : Colors.white.withValues(alpha: 0.9),
+                                : AppTheme.textPrimary.withValues(alpha: 0.95),
                             fontWeight: FontWeight.w600,
                             fontSize: 11,
                           ),
@@ -796,9 +796,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           side: BorderSide(
                             color: _selectedFilter == 'needs_reply'
                                 ? AppTheme.accent.withValues(alpha: 0.9)
-                                : Colors.white.withValues(alpha: 0.2),
+                                : AppTheme.textSecondary.withValues(alpha: 0.3),
                           ),
-                          backgroundColor: Colors.white.withValues(alpha: 0.06),
+                          backgroundColor: AppTheme.surface.withValues(alpha: 0.35),
                           selectedColor: AppTheme.accent,
                           selected: _selectedFilter == 'needs_reply',
                           onSelected: (_) =>
@@ -809,7 +809,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           labelStyle: TextStyle(
                             color: _selectedFilter == 'unread'
                                 ? Colors.black
-                                : Colors.white.withValues(alpha: 0.9),
+                                : AppTheme.textPrimary.withValues(alpha: 0.95),
                             fontWeight: FontWeight.w600,
                             fontSize: 11,
                           ),
@@ -820,9 +820,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           side: BorderSide(
                             color: _selectedFilter == 'unread'
                                 ? AppTheme.accent.withValues(alpha: 0.9)
-                                : Colors.white.withValues(alpha: 0.2),
+                                : AppTheme.textSecondary.withValues(alpha: 0.3),
                           ),
-                          backgroundColor: Colors.white.withValues(alpha: 0.06),
+                          backgroundColor: AppTheme.surface.withValues(alpha: 0.35),
                           selectedColor: AppTheme.accent,
                           selected: _selectedFilter == 'unread',
                           onSelected: (_) => setState(() => _selectedFilter = 'unread'),
@@ -837,11 +837,11 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       decoration: BoxDecoration(
                         color: AppTheme.surface.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(color: AppTheme.cardBorder),
                       ),
                       child: Text(
                         'No other chats available.',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                        style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
                       ),
                     )
                   else
@@ -851,19 +851,19 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                         decoration: BoxDecoration(
                           color: AppTheme.surface.withValues(alpha: 0.75),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                          border: Border.all(color: AppTheme.cardBorder),
                         ),
                         child: ListTile(
                           leading: _buildChatAvatar(room),
                           title: Text(
                             _titleForRoom(room),
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: AppTheme.textPrimary),
                           ),
                           subtitle: Text(
                             _needsReply(room, currentUserId)
                                 ? '${_subtitleForRoom(room, userType)} • Needs reply'
                                 : _subtitleForRoom(room, userType),
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                            style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
                           ),
                           trailing: _unreadBadge(room.unreadCount),
                           onTap: () => _openChat(room),
@@ -874,7 +874,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                   Text(
                     'Groups',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: AppTheme.textPrimary.withValues(alpha: 0.95),
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -886,11 +886,11 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       decoration: BoxDecoration(
                         color: AppTheme.surface.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(color: AppTheme.cardBorder),
                       ),
                       child: Text(
                         'No groups available.',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                        style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
                       ),
                     )
                   else
@@ -900,22 +900,22 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                         decoration: BoxDecoration(
                           color: AppTheme.surface.withValues(alpha: 0.75),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                          border: Border.all(color: AppTheme.cardBorder),
                         ),
                         child: ListTile(
-                          leading: const CircleAvatar(
+                          leading: CircleAvatar(
                             backgroundColor: AppTheme.accent,
                             child: Icon(Icons.group, color: Colors.black),
                           ),
                           title: Text(
                             _titleForRoom(room),
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: AppTheme.textPrimary),
                           ),
                           subtitle: Text(
                             room.userIsGroupAdmin
                                 ? '${room.groupMemberCount} members • You are admin'
                                 : '${room.groupMemberCount} members',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                            style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
                           ),
                           trailing: _unreadBadge(room.unreadCount),
                           onTap: () => _openChat(room),

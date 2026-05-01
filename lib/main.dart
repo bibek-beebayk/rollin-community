@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/social_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
@@ -70,13 +71,27 @@ class StaffChatApp extends StatelessWidget {
           create: (_) => ChatProvider(),
         ), // Added this line
         ChangeNotifierProvider(create: (_) => SocialProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        navigatorKey: NavigationService.navigatorKey,
-        title: 'Staff Chat',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.theme,
-        home: const AuthWrapper(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) => MaterialApp(
+          key: ValueKey(
+            'theme-${themeProvider.themeMode.name}-${themeProvider.accentColor.value}',
+          ),
+          navigatorKey: NavigationService.navigatorKey,
+          title: 'Staff Chat',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.buildTheme(
+            brightness: Brightness.light,
+            accentColor: themeProvider.accentColor,
+          ),
+          darkTheme: AppTheme.buildTheme(
+            brightness: Brightness.dark,
+            accentColor: themeProvider.accentColor,
+          ),
+          themeMode: themeProvider.themeMode,
+          home: const AuthWrapper(),
+        ),
       ),
     );
   }

@@ -163,7 +163,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: ListTile(
         leading: CircleAvatar(
@@ -175,8 +175,8 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
           child: profileImageUrl == null
               ? Text(
                   user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 )
@@ -184,11 +184,11 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
         ),
         title: Text(
           user.username,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.68)),
+          style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.68)),
         ),
         trailing: TextButton(
           onPressed: () => _openProfile(user),
@@ -214,11 +214,11 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
             decoration: BoxDecoration(
               color: AppTheme.surface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              border: Border.all(color: AppTheme.cardBorder),
             ),
             child: Text(
               emptyMessage,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.62)),
+              style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.62)),
             ),
           ),
         ],
@@ -309,7 +309,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
                         ),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: AppTheme.textPrimary),
                         ),
                       ),
                     ],
@@ -324,7 +324,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
                             color: AppTheme.surface.withValues(alpha: 0.65),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: AppTheme.cardBorder,
                             ),
                           ),
                           child: TabBar(
@@ -333,9 +333,9 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
                               color: AppTheme.accent.withValues(alpha: 0.22),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            labelColor: Colors.white,
+                            labelColor: AppTheme.textPrimary,
                             unselectedLabelColor:
-                                Colors.white.withValues(alpha: 0.68),
+                                AppTheme.textSecondary,
                             tabs: [
                               Tab(text: 'Incoming (${_incoming.length})'),
                               Tab(text: 'Outgoing (${_outgoing.length})'),

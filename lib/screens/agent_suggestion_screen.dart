@@ -191,7 +191,7 @@ class OnboardingHeader extends StatelessWidget {
           Text(
             stepLabel,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.72),
+              color: AppTheme.textPrimary.withValues(alpha: 0.72),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -200,14 +200,14 @@ class OnboardingHeader extends StatelessWidget {
             title,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: AppTheme.textPrimary,
                 ),
           ),
           const SizedBox(height: 10),
           Text(
             subtitle,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.82),
+              color: AppTheme.textPrimary.withValues(alpha: 0.82),
               height: 1.45,
             ),
           ),
@@ -236,7 +236,7 @@ class _SuggestionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -249,9 +249,9 @@ class _SuggestionCard extends StatelessWidget {
             child: profileImageUrl == null
                 ? Text(
                     user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                     ),
                   )
                 : null,
@@ -263,8 +263,8 @@ class _SuggestionCard extends StatelessWidget {
               children: [
                 Text(
                   user.username,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),
@@ -340,7 +340,7 @@ class EmptySuggestionState extends StatelessWidget {
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.62)),
+        style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.62)),
       ),
     );
   }

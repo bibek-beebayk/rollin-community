@@ -180,14 +180,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       value: progress,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
+                  Text(
                     'Loading',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: AppTheme.textSecondary,
                       fontSize: 6,
                       fontWeight: FontWeight.w600,
                     ),
@@ -204,8 +204,8 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.center,
               child: Text(
                 initial,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -266,11 +266,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (hasActiveEvents) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text(
                           'Live Events',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
@@ -283,11 +283,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 32),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text(
                           'Pinned Posts',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
@@ -300,11 +300,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ] else ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text(
                           'Pinned Posts',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
@@ -317,11 +317,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 32),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text(
                           'Live Events',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
@@ -351,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         children: [
@@ -365,8 +365,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   username,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
@@ -376,13 +376,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: AppTheme.cardBorder,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     (user?.userType ?? 'Unknown').toString().toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
                       fontSize: 8.5,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.8,
@@ -443,19 +443,44 @@ class _HomeScreenState extends State<HomeScreen> {
       return const SizedBox.shrink();
     }
 
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final titleColor = isLight ? const Color(0xFF1F2937) : AppTheme.textPrimary;
+    final subtitleColor = isLight
+        ? const Color(0xFF475569)
+        : AppTheme.textPrimary.withValues(alpha: 0.65);
+    final pointColor = isLight
+        ? const Color(0xFF334155)
+        : AppTheme.textPrimary.withValues(alpha: 0.9);
+    final footerColor = isLight
+        ? const Color(0xFF64748B)
+        : AppTheme.textSecondary.withValues(alpha: 0.9);
+    final dividerColor = isLight
+        ? const Color(0xFF94A3B8).withValues(alpha: 0.35)
+        : AppTheme.textPrimary.withValues(alpha: 0.14);
+    final sectionGradient = isLight
+        ? LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFE2E8F0).withValues(alpha: 0.95),
+              const Color(0xFFF1F5F9).withValues(alpha: 0.98),
+            ],
+          )
+        : LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF2B1A47).withValues(alpha: 0.9),
+              const Color(0xFF1A102E).withValues(alpha: 0.95),
+            ],
+          );
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF2B1A47).withValues(alpha: 0.9),
-            const Color(0xFF1A102E).withValues(alpha: 0.95),
-          ],
-        ),
+        gradient: sectionGradient,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,8 +488,8 @@ class _HomeScreenState extends State<HomeScreen> {
           if (title.isNotEmpty)
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: titleColor,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -474,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               subtitle,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
+                color: subtitleColor,
                 fontSize: 12,
               ),
             ),
@@ -492,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         (point['content'] ?? '').toString(),
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: pointColor,
                           fontSize: 12.5,
                           height: 1.3,
                         ),
@@ -507,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+                  top: BorderSide(color: dividerColor),
                 ),
               ),
             ),
@@ -517,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text(
                 footer,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.72),
+                  color: footerColor,
                   fontSize: 11.5,
                   height: 1.3,
                   fontStyle: FontStyle.italic,
@@ -545,9 +570,9 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: AppTheme.surface.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: AppTheme.cardBorder),
           ),
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.person_search, color: AppTheme.accent),
               SizedBox(width: 10),
@@ -555,13 +580,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text(
                   'Find Agents',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.white70),
+              Icon(Icons.chevron_right, color: AppTheme.textSecondary),
             ],
           ),
         ),
@@ -606,17 +631,17 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: AppTheme.surface.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: AppTheme.surface.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.event_busy,
-                color: Colors.white.withValues(alpha: 0.2), size: 30),
+                color: AppTheme.textSecondary.withValues(alpha: 0.3), size: 30),
             const SizedBox(height: 6),
             Text(
               'No events currently active',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+              style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -704,8 +729,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 8),
                         Text(
                           event.title,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                          color: AppTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             height: 1.2,
@@ -717,7 +742,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           event.description,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: AppTheme.textSecondary,
                             fontSize: 13,
                           ),
                           maxLines: 2,
@@ -746,17 +771,17 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: AppTheme.surface.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: AppTheme.surface.withValues(alpha: 0.3)),
         ),
         child: Center(
           child: Column(
             children: [
               Icon(Icons.article_outlined,
-                  color: Colors.white.withValues(alpha: 0.2), size: 48),
+                  color: AppTheme.textSecondary.withValues(alpha: 0.3), size: 48),
               const SizedBox(height: 12),
               Text(
                 'No pinned posts available',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
               ),
             ],
           ),
@@ -785,7 +810,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: AppTheme.surface.withValues(alpha: 0.3)),
           ),
           child: Material(
             color: Colors.transparent,
@@ -840,7 +865,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               _capitalizeUsername(post.author?.username ?? 'Unknown'),
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.8),
+                            color: AppTheme.textPrimary.withValues(alpha: 0.85),
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -849,7 +874,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               _getFriendlyTime(post.createdAt.toLocal()),
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
+                                color: AppTheme.textSecondary.withValues(alpha: 0.75),
                                 fontSize: 12,
                               ),
                             ),
@@ -858,8 +883,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 12),
                         Text(
                           post.title,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             height: 1.2,
@@ -870,7 +895,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Text(
                             cleanContent,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
+                              color: AppTheme.textSecondary.withValues(alpha: 0.9),
                               fontSize: 14,
                               height: 1.4,
                             ),
@@ -1074,7 +1099,7 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
         height: 180,
         color: Colors.black26,
         alignment: Alignment.center,
-        child: const Icon(Icons.videocam_off, color: Colors.white54),
+        child: Icon(Icons.videocam_off, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
       );
     }
 
@@ -1103,10 +1128,10 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
                     ),
                   )
                 else
-                  const Center(
+                  Center(
                     child: Icon(
                       Icons.play_circle_fill,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       size: 44,
                     ),
                   ),
@@ -1128,9 +1153,9 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(
+              : Icon(
                   Icons.play_circle_fill,
-                  color: Colors.white,
+                  color: AppTheme.textPrimary,
                   size: 44,
                 ),
         ),
@@ -1157,9 +1182,9 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 160),
                 opacity: _isPlaying ? 0.0 : 1.0,
-                child: const Icon(
+                child: Icon(
                   Icons.play_circle_fill,
-                  color: Colors.white,
+                  color: AppTheme.textPrimary,
                   size: 44,
                 ),
               ),
@@ -1173,11 +1198,11 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
                   onTap: _openFullscreen,
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.all(6),
                     child: Icon(
                       Icons.fullscreen,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       size: 18,
                     ),
                   ),
@@ -1205,7 +1230,7 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
                     padding: const EdgeInsets.all(6),
                     child: Icon(
                       _isMuted ? Icons.volume_off : Icons.volume_up,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       size: 18,
                     ),
                   ),
@@ -1285,8 +1310,8 @@ class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> 
       return Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(backgroundColor: Colors.black),
-        body: const Center(
-          child: Icon(Icons.videocam_off, color: Colors.white54, size: 42),
+        body: Center(
+          child: Icon(Icons.videocam_off, color: AppTheme.textSecondary.withValues(alpha: 0.75), size: 42),
         ),
       );
     }
@@ -1319,7 +1344,7 @@ class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> 
                 top: 32,
                 left: 8,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -1327,7 +1352,7 @@ class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> 
               Center(
                 child: IconButton(
                   iconSize: 56,
-                  color: Colors.white,
+                  color: AppTheme.textPrimary,
                   icon: Icon(
                     _controller!.value.isPlaying
                         ? Icons.pause_circle_filled

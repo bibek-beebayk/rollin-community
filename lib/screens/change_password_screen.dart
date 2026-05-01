@@ -82,15 +82,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
+                Icon(
                   Icons.lock_reset,
                   size: 64,
                   color: AppTheme.primary,
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Your password must be at least 6 characters and should include a combination of numbers, letters and special characters.',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
@@ -99,27 +99,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 TextFormField(
                   controller: _oldPasswordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Current Password',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                     prefixIcon:
-                        const Icon(Icons.lock_outline, color: Colors.white70),
+                        Icon(Icons.lock_outline, color: AppTheme.textSecondary),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: AppTheme.surface.withValues(alpha: 0.3),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:
-                          BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          BorderSide(color: AppTheme.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:
-                          BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          BorderSide(color: AppTheme.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.accent),
+                      borderSide: BorderSide(color: AppTheme.accent),
                     ),
                   ),
                   validator: (value) {
@@ -135,27 +135,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 TextFormField(
                   controller: _newPasswordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'New Password',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                     prefixIcon:
-                        const Icon(Icons.lock_outline, color: Colors.white70),
+                        Icon(Icons.lock_outline, color: AppTheme.textSecondary),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: AppTheme.surface.withValues(alpha: 0.3),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:
-                          BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          BorderSide(color: AppTheme.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:
-                          BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          BorderSide(color: AppTheme.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.accent),
+                      borderSide: BorderSide(color: AppTheme.accent),
                     ),
                   ),
                   validator: (value) {
@@ -177,27 +177,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Confirm New Password',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                     prefixIcon:
-                        const Icon(Icons.lock_outline, color: Colors.white70),
+                        Icon(Icons.lock_outline, color: AppTheme.textSecondary),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: AppTheme.surface.withValues(alpha: 0.3),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:
-                          BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          BorderSide(color: AppTheme.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:
-                          BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          BorderSide(color: AppTheme.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.accent),
+                      borderSide: BorderSide(color: AppTheme.accent),
                     ),
                   ),
                   validator: (value) {

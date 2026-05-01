@@ -202,16 +202,16 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.background,
-          image: DecorationImage(
+          image: const DecorationImage(
             image: AssetImage('assets/background_pattern.png'),
             fit: BoxFit.cover,
             opacity: 0.1,
@@ -225,7 +225,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.mark_email_read_outlined,
                     size: 64,
                     color: AppTheme.primary,
@@ -235,18 +235,18 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                     'Verify Email',
                     style: AppTheme.theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'We sent a 6-digit code to',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                    style: TextStyle(color: AppTheme.textSecondary),
                   ),
                   Text(
                     widget.email,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -269,22 +269,22 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                             keyboardType: TextInputType.number,
                             textAlign: TextAlign.center,
                             maxLength: 1,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white),
+                                color: AppTheme.textPrimary),
                             decoration: InputDecoration(
                               counterText: '',
                               filled: true,
-                              fillColor: Colors.white.withValues(alpha: 0.1),
+                              fillColor: AppTheme.cardBorder,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.2)),
+                                    color: AppTheme.textSecondary.withValues(alpha: 0.3)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
+                                borderSide: BorderSide(
                                     color: AppTheme.primary, width: 2),
                               ),
                               contentPadding: EdgeInsets.zero,
@@ -321,7 +321,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   if (_expiresIn > 0)
                     Text(
                       'Code expires in ${_formatTime(_expiresIn)}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                      style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                     )
                   else
                     const Text(
@@ -341,7 +341,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                           : 'Resend OTP',
                       style: TextStyle(
                           color: _resendCooldown > 0
-                              ? Colors.white38
+                              ? AppTheme.textSecondary.withValues(alpha: 0.55)
                               : AppTheme.primary,
                           fontWeight: FontWeight.bold),
                     ),

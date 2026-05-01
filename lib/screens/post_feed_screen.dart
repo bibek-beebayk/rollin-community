@@ -75,13 +75,13 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
               children: [
                 Icon(
                   Icons.feed_outlined,
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: AppTheme.textSecondary.withValues(alpha: 0.4),
                   size: 48,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'No posts available',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                  style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.8)),
                 ),
               ],
             ),
@@ -111,7 +111,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: AppTheme.surface.withValues(alpha: 0.3)),
           ),
           child: Material(
             color: Colors.transparent,
@@ -145,7 +145,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                               child: Text(
                                 _capitalizeUsername(post.author?.username ?? 'Unknown'),
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.82),
+                                  color: AppTheme.textPrimary.withValues(alpha: 0.82),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -154,7 +154,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                             Text(
                               _getFriendlyTime(post.createdAt.toLocal()),
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.52),
+                                color: AppTheme.textPrimary.withValues(alpha: 0.52),
                                 fontSize: 12,
                               ),
                             ),
@@ -163,8 +163,8 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                         const SizedBox(height: 10),
                         Text(
                           post.title,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
                           ),
@@ -176,7 +176,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
+                              color: AppTheme.textPrimary.withValues(alpha: 0.72),
                               fontSize: 13.5,
                               height: 1.4,
                             ),
@@ -207,8 +207,8 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
       child: profileImageUrl == null
           ? Text(
               initialChar,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
@@ -281,7 +281,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
               color: Colors.black.withValues(alpha: 0.55),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.play_arrow, color: Colors.white, size: 26),
+            child: Icon(Icons.play_arrow, color: AppTheme.textPrimary, size: 26),
           ),
         ],
       ),

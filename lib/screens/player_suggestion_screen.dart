@@ -185,7 +185,7 @@ class _PlayerSuggestionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         children: [
@@ -197,9 +197,9 @@ class _PlayerSuggestionCard extends StatelessWidget {
             child: profileImageUrl == null
                 ? Text(
                     user.username.isNotEmpty ? user.username[0].toUpperCase() : 'P',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                     ),
                   )
                 : null,
@@ -211,8 +211,8 @@ class _PlayerSuggestionCard extends StatelessWidget {
               children: [
                 Text(
                   user.username,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),

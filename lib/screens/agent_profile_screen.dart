@@ -364,7 +364,7 @@ class ProfileHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: AppTheme.textPrimary.withValues(alpha: 0.10)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,14 +383,14 @@ class ProfileHero extends StatelessWidget {
                 ),
                 child: CircleAvatar(
                   radius: 30,
-                  backgroundColor: Colors.white.withValues(alpha: 0.12),
+                  backgroundColor: AppTheme.cardBorder,
                   child: profileImageUrl == null
                       ? Text(
                           user.username.isNotEmpty
                               ? user.username[0].toUpperCase()
                               : 'U',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                           ),
@@ -414,8 +414,8 @@ class ProfileHero extends StatelessWidget {
                                 user.username.isNotEmpty
                                     ? user.username[0].toUpperCase()
                                     : 'U',
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
                                   fontSize: 22,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -433,14 +433,14 @@ class ProfileHero extends StatelessWidget {
                       child: Text(
                         user.username,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
+                              color: AppTheme.textPrimary,
                               fontWeight: FontWeight.w700,
                             ),
                       ),
                     ),
                     if (user.isVerified) ...[
                       const SizedBox(width: 8),
-                      const Icon(Icons.verified, color: AppTheme.accent, size: 18),
+                      Icon(Icons.verified, color: AppTheme.accent, size: 18),
                     ],
                   ],
                 ),
@@ -452,7 +452,7 @@ class ProfileHero extends StatelessWidget {
             Text(
               user.headline!.trim(),
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.74),
+                color: AppTheme.textPrimary.withValues(alpha: 0.74),
                 fontSize: 13.5,
                 height: 1.25,
               ),
@@ -463,7 +463,7 @@ class ProfileHero extends StatelessWidget {
           Container(
             height: 1,
             width: double.infinity,
-            color: Colors.white.withValues(alpha: 0.08),
+            color: AppTheme.cardBorder,
           ),
         ],
       ),
@@ -499,7 +499,7 @@ class ProfileInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -507,7 +507,7 @@ class ProfileInfoCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
+              color: AppTheme.textPrimary.withValues(alpha: 0.78),
               fontWeight: FontWeight.w600,
               fontSize: 13,
               letterSpacing: 0.2,
@@ -517,8 +517,8 @@ class ProfileInfoCard extends StatelessWidget {
           for (var i = 0; i < lines.length; i++) ...[
             Text(
               lines[i],
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),

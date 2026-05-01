@@ -143,8 +143,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               child: Center(
                 child: Text(
                   badgeText,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     height: 1.0,
@@ -205,7 +205,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
             color: selected
-                ? Colors.white.withValues(alpha: 0.08)
+                ? AppTheme.cardBorder
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
@@ -297,8 +297,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                             username.isNotEmpty
                                 ? username[0].toUpperCase()
                                 : 'U',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
                               fontWeight: FontWeight.w700,
                             ),
                           )
@@ -308,8 +308,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   Expanded(
                     child: Text(
                       username,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -318,19 +318,25 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-            const Divider(height: 1, color: Colors.white24),
+            Divider(
+              height: 1,
+              color: AppTheme.textSecondary.withValues(alpha: 0.55),
+            ),
             ListTile(
-              leading: const Icon(Icons.person_outline, color: Colors.white),
-              title: const Text('Profile', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.person_outline, color: AppTheme.textPrimary),
+              title: Text('Profile', style: TextStyle(color: AppTheme.textPrimary)),
               onTap: _openProfile,
             ),
             ListTile(
-              leading: const Icon(Icons.settings_outlined, color: Colors.white),
-              title: const Text('Settings', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.settings_outlined, color: AppTheme.textPrimary),
+              title: Text('Appearance', style: TextStyle(color: AppTheme.textPrimary)),
               onTap: _openSettings,
             ),
             const Spacer(),
-            const Divider(height: 1, color: Colors.white24),
+            Divider(
+              height: 1,
+              color: AppTheme.textSecondary.withValues(alpha: 0.55),
+            ),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
               title: const Text(
@@ -349,6 +355,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final username = user?.username ?? 'User';
     final initial = username.isNotEmpty ? username[0].toUpperCase() : 'U';
     final profileImageUrl = _resolveProfileImageUrl(user);
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     return SafeArea(
       child: Padding(
@@ -363,19 +370,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.all(2),
               child: CircleAvatar(
                 radius: 18,
-                backgroundColor: AppTheme.surface.withValues(alpha: 0.92),
-                backgroundImage: profileImageUrl != null
-                    ? NetworkImage(profileImageUrl)
-                    : null,
-                child: profileImageUrl == null
-                    ? Text(
-                        initial,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      )
-                    : null,
+                backgroundColor: accentColor.withValues(alpha: 0.95),
+                child: CircleAvatar(
+                  radius: 16.6,
+                  backgroundColor: AppTheme.surface.withValues(alpha: 0.92),
+                  backgroundImage: profileImageUrl != null
+                      ? NetworkImage(profileImageUrl)
+                      : null,
+                  child: profileImageUrl == null
+                      ? Text(
+                          initial,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : null,
+                ),
               ),
             ),
           ),

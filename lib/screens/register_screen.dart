@@ -85,9 +85,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.background,
-          image: DecorationImage(
+          image: const DecorationImage(
             image: AssetImage('assets/background_pattern.png'),
             fit: BoxFit.cover,
             opacity: 0.1,
@@ -103,7 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo or Title
-                  const Icon(
+                  Icon(
                     Icons.person_add_outlined,
                     size: 64,
                     color: AppTheme.primary,
@@ -114,7 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     textAlign: TextAlign.center,
                     style: AppTheme.theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -122,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     'Join Rollin Community today!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: AppTheme.textSecondary,
                       fontSize: 16,
                     ),
                   ),
@@ -132,7 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Text(
                     'I AM A...',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: AppTheme.textSecondary.withValues(alpha: 0.7),
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                       letterSpacing: 1.0,
@@ -165,7 +165,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     hintText: 'Username',
                     controller: _usernameController,
                     prefixIcon:
-                        const Icon(Icons.person_outline, color: Colors.white54),
+                        Icon(Icons.person_outline, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 16),
                   CustomInput(
@@ -173,7 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     prefixIcon:
-                        const Icon(Icons.email_outlined, color: Colors.white54),
+                        Icon(Icons.email_outlined, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 16),
                   CustomInput(
@@ -181,7 +181,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _passwordController,
                     obscureText: true,
                     prefixIcon:
-                        const Icon(Icons.lock_outline, color: Colors.white54),
+                        Icon(Icons.lock_outline, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 16),
                   CustomInput(
@@ -189,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _confirmPasswordController,
                     obscureText: true,
                     prefixIcon:
-                        const Icon(Icons.lock_outline, color: Colors.white54),
+                        Icon(Icons.lock_outline, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 32),
 
@@ -205,11 +205,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                        style: TextStyle(color: AppTheme.textSecondary),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: const Text(
+                        child: Text(
                           'Sign In',
                           style: TextStyle(
                             color: AppTheme.primary,
@@ -249,10 +249,10 @@ class _UserTypeButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.primary.withValues(alpha: 0.2)
-              : Colors.white.withValues(alpha: 0.05),
+              : AppTheme.surface.withValues(alpha: 0.3),
           border: Border.all(
             color:
-                isSelected ? AppTheme.primary : Colors.white.withValues(alpha: 0.1),
+                isSelected ? AppTheme.primary : AppTheme.cardBorder,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
@@ -262,7 +262,7 @@ class _UserTypeButton extends StatelessWidget {
             label,
             style: TextStyle(
               color:
-                  isSelected ? AppTheme.primary : Colors.white.withValues(alpha: 0.7),
+                  isSelected ? AppTheme.primary : AppTheme.textSecondary,
               fontWeight: FontWeight.bold,
             ),
           ),

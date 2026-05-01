@@ -34,7 +34,7 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
       case 'offline':
         return Colors.redAccent;
       default:
-        return Colors.white54;
+        return AppTheme.textSecondary.withValues(alpha: 0.75);
     }
   }
 
@@ -167,18 +167,18 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
                 hintText: 'Search agents by username',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.06),
+                fillColor: AppTheme.surface.withValues(alpha: 0.35),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: AppTheme.cardBorder,
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 12),
             if (_isLoading)
-              const LinearProgressIndicator(minHeight: 2, color: AppTheme.accent),
+              LinearProgressIndicator(minHeight: 2, color: AppTheme.accent),
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(
@@ -193,7 +193,7 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
                       child: Text(
                         'No agents found.',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: AppTheme.textSecondary.withValues(alpha: 0.8),
                         ),
                       ),
                     )
@@ -208,7 +208,7 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
                             color: AppTheme.surface.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: AppTheme.cardBorder,
                             ),
                           ),
                           child: ListTile(
@@ -256,7 +256,7 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
                                   ? agent.agentStatusNote
                                   : (agent.isVerified ? 'Verified agent' : 'Agent'),
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
+                                color: AppTheme.textSecondary.withValues(alpha: 0.8),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

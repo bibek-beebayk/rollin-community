@@ -36,7 +36,7 @@ class UpdateScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: AppTheme.primaryGradient.scale(0.2),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.system_update_rounded,
                   size: 80,
                   color: AppTheme.primary,
@@ -48,7 +48,7 @@ class UpdateScreen extends StatelessWidget {
                     ? 'Update Required'
                     : 'Update Available',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -58,18 +58,18 @@ class UpdateScreen extends StatelessWidget {
               Text(
                 'Version ${updateData?.versionCode}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.accent,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'A new version of the Rollin Community app is available. Please update to continue using the application.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: AppTheme.textSecondary,
                   fontSize: 16,
                   height: 1.5,
                 ),
@@ -80,10 +80,10 @@ class UpdateScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: AppTheme.surface.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: AppTheme.cardBorder,
                     ),
                   ),
                   child: Column(
@@ -91,8 +91,8 @@ class UpdateScreen extends StatelessWidget {
                     children: [
                       Text(
                         "What's New in v${updateData.versionCode}:",
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
@@ -100,8 +100,8 @@ class UpdateScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         updateData.releaseNotes,
-                        style: const TextStyle(
-                          color: Colors.white70,
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
                           fontSize: 14,
                           height: 1.4,
                         ),
@@ -146,10 +146,10 @@ class UpdateScreen extends StatelessWidget {
                   onPressed: () {
                     authProvider.skipUpdate();
                   },
-                  child: const Text(
+                  child: Text(
                     'Skip for now',
                     style: TextStyle(
-                      color: Colors.white54,
+                      color: AppTheme.textSecondary.withValues(alpha: 0.75),
                       fontSize: 16,
                     ),
                   ),

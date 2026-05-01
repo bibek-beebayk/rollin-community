@@ -65,18 +65,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return StatefulBuilder(
           builder: (ctx, setLocalState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E2E),
-              title: const Text('Availability', style: TextStyle(color: Colors.white)),
+              backgroundColor: AppTheme.surface,
+              title: Text('Availability', style: TextStyle(color: AppTheme.textPrimary)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
                     value: selected,
-                    dropdownColor: const Color(0xFF1E1E2E),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    dropdownColor: AppTheme.surface,
+                    style: TextStyle(color: AppTheme.textPrimary),
+                    decoration: InputDecoration(
                       labelText: 'Status',
-                      labelStyle: TextStyle(color: Colors.white70),
+                      labelStyle: TextStyle(color: AppTheme.textSecondary),
                     ),
                     items: const [
                       DropdownMenuItem(value: 'online', child: Text('Online')),
@@ -93,11 +93,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   TextField(
                     controller: noteController,
                     maxLength: 120,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: AppTheme.textPrimary),
+                    decoration: InputDecoration(
                       hintText: 'Optional status note',
-                      hintStyle: TextStyle(color: Colors.white54),
-                      counterStyle: TextStyle(color: Colors.white54),
+                      hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+                      counterStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
                     ),
                   ),
                 ],
@@ -105,14 +105,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                  child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, {
                     'availability': selected,
                     'note': noteController.text.trim(),
                   }),
-                  child: const Text('Save', style: TextStyle(color: Colors.white)),
+                  child: Text('Save', style: TextStyle(color: AppTheme.textPrimary)),
                 ),
               ],
             );
@@ -181,32 +181,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E2E),
-          title: const Text(
+          backgroundColor: AppTheme.surface,
+          title: Text(
             'Verify Password',
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: AppTheme.textPrimary),
           ),
           content: TextField(
             controller: passwordController,
             obscureText: true,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: AppTheme.textPrimary),
+            decoration: InputDecoration(
               hintText: 'Enter current password',
-              hintStyle: TextStyle(color: Colors.white54),
+              hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx, passwordController.text);
               },
-              child: const Text(
+              child: Text(
                 'Verify',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: AppTheme.textPrimary),
               ),
             ),
           ],
@@ -234,25 +234,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E2E),
-          title: const Text('Change Email', style: TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.surface,
+          title: Text('Change Email', style: TextStyle(color: AppTheme.textPrimary)),
           content: TextField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: AppTheme.textPrimary),
+            decoration: InputDecoration(
               hintText: 'Enter new email address',
-              hintStyle: TextStyle(color: Colors.white54),
+              hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, emailController.text.trim()),
-              child: const Text('Continue', style: TextStyle(color: Colors.white)),
+              child: Text('Continue', style: TextStyle(color: AppTheme.textPrimary)),
             ),
           ],
         );
@@ -294,25 +294,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return StatefulBuilder(
           builder: (context, setLocalState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E2E),
-              title: const Text('Verify OTP', style: TextStyle(color: Colors.white)),
+              backgroundColor: AppTheme.surface,
+              title: Text('Verify OTP', style: TextStyle(color: AppTheme.textPrimary)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Enter the OTP sent to $newEmail',
-                    style: const TextStyle(color: Colors.white70),
+                    style: TextStyle(color: AppTheme.textSecondary),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: otpController,
                     maxLength: 6,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: AppTheme.textPrimary),
+                    decoration: InputDecoration(
                       hintText: '6-digit OTP',
-                      hintStyle: TextStyle(color: Colors.white54),
+                      hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
                       counterText: '',
                     ),
                   ),
@@ -321,7 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               actions: [
                 TextButton(
                   onPressed: _isVerifyingEmailOtp ? null : () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                  child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
                 ),
                 TextButton(
                   onPressed: _isVerifyingEmailOtp
@@ -364,7 +364,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Verify', style: TextStyle(color: Colors.white)),
+                      : Text('Verify', style: TextStyle(color: AppTheme.textPrimary)),
                 ),
               ],
             );
@@ -384,9 +384,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Profile',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
         ),
       ),
       body: SafeArea(
@@ -422,8 +422,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   user?.username.isNotEmpty == true
                                       ? user!.username[0].toUpperCase()
                                       : '?',
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -465,8 +465,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Text(
                           user?.username ?? 'Unknown User',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -475,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           user?.email ?? '',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: AppTheme.textSecondary,
                             fontSize: 14,
                           ),
                         ),
@@ -497,11 +497,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(Icons.email_outlined, color: Colors.white),
-              title: const Text('Change Email', style: TextStyle(color: Colors.white)),
-              subtitle: const Text(
+              leading: Icon(Icons.email_outlined, color: AppTheme.textPrimary),
+              title: Text('Change Email', style: TextStyle(color: AppTheme.textPrimary)),
+              subtitle: Text(
                 'OTP verification required',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
+                style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75), fontSize: 12),
               ),
               trailing: _isRequestingEmailOtp
                   ? const SizedBox(
@@ -509,7 +509,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                  : Icon(Icons.arrow_forward_ios, color: AppTheme.textSecondary.withValues(alpha: 0.75), size: 16),
               tileColor: AppTheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onTap: _isRequestingEmailOtp ? null : _openEmailChangeFlow,
@@ -517,14 +517,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 8),
             if (user?.isAgent == true) ...[
               ListTile(
-                leading: const Icon(Icons.support_agent, color: Colors.white),
-                title: const Text(
+                leading: Icon(Icons.support_agent, color: AppTheme.textPrimary),
+                title: Text(
                   'Set Availability',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppTheme.textPrimary),
                 ),
                 subtitle: Text(
                   _availabilityLabel(user?.agentAvailability ?? 'online'),
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75), fontSize: 12),
                 ),
                 trailing: _isUpdatingAvailability
                     ? const SizedBox(
@@ -532,9 +532,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(
+                    : Icon(
                         Icons.arrow_forward_ios,
-                        color: Colors.white54,
+                        color: AppTheme.textSecondary.withValues(alpha: 0.75),
                         size: 16,
                       ),
                 tileColor: AppTheme.surface,
@@ -546,9 +546,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 8),
             ],
             ListTile(
-              leading: const Icon(Icons.lock_reset, color: Colors.white),
-              title: const Text('Change Password', style: TextStyle(color: Colors.white)),
-              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+              leading: Icon(Icons.lock_reset, color: AppTheme.textPrimary),
+              title: Text('Change Password', style: TextStyle(color: AppTheme.textPrimary)),
+              trailing: Icon(Icons.arrow_forward_ios, color: AppTheme.textSecondary.withValues(alpha: 0.75), size: 16),
               tileColor: AppTheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onTap: () {

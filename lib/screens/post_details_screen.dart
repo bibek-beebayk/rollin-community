@@ -38,8 +38,8 @@ class PostDetailsScreen extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               post.title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
                 height: 1.2,
@@ -54,7 +54,7 @@ class PostDetailsScreen extends StatelessWidget {
                   child: Text(
                     _capitalizeUsername(post.author?.username ?? 'Unknown'),
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: AppTheme.textPrimary.withValues(alpha: 0.9),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -63,7 +63,7 @@ class PostDetailsScreen extends StatelessWidget {
                 Text(
                   friendlyCreatedAt,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
+                    color: AppTheme.textSecondary.withValues(alpha: 0.75),
                     fontSize: 12,
                   ),
                 ),
@@ -73,7 +73,7 @@ class PostDetailsScreen extends StatelessWidget {
             Text(
               cleanContent,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.88),
+                color: AppTheme.textPrimary.withValues(alpha: 0.88),
                 fontSize: 15,
                 height: 1.45,
               ),
@@ -111,8 +111,8 @@ class PostDetailsScreen extends StatelessWidget {
       child: profileImageUrl == null
           ? Text(
               initial,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -292,7 +292,7 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
           borderRadius: BorderRadius.circular(14),
         ),
         alignment: Alignment.center,
-        child: const Icon(Icons.videocam_off, color: Colors.white54),
+        child: Icon(Icons.videocam_off, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
       );
     }
 
@@ -309,9 +309,9 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
           alignment: Alignment.center,
           child: _isInitializing
               ? const CircularProgressIndicator()
-              : const Icon(
+              : Icon(
                   Icons.play_circle_fill,
-                  color: Colors.white,
+                  color: AppTheme.textPrimary,
                   size: 56,
                 ),
         ),
@@ -333,9 +333,9 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 160),
                   opacity: _isPlaying ? 0.0 : 1.0,
-                  child: const Icon(
+                  child: Icon(
                     Icons.play_circle_fill,
-                    color: Colors.white,
+                    color: AppTheme.textPrimary,
                     size: 56,
                   ),
                 ),
@@ -349,11 +349,11 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: _openFullscreen,
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.all(6),
                       child: Icon(
                         Icons.fullscreen,
-                        color: Colors.white,
+                        color: AppTheme.textPrimary,
                         size: 18,
                       ),
                     ),
@@ -373,7 +373,7 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
                       padding: const EdgeInsets.all(6),
                       child: Icon(
                         _isMuted ? Icons.volume_off : Icons.volume_up,
-                        color: Colors.white,
+                        color: AppTheme.textPrimary,
                         size: 18,
                       ),
                     ),
@@ -455,8 +455,8 @@ class _DetailFullScreenVideoPlayerState
       return Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(backgroundColor: Colors.black),
-        body: const Center(
-          child: Icon(Icons.videocam_off, color: Colors.white54, size: 42),
+        body: Center(
+          child: Icon(Icons.videocam_off, color: AppTheme.textSecondary.withValues(alpha: 0.75), size: 42),
         ),
       );
     }
@@ -489,7 +489,7 @@ class _DetailFullScreenVideoPlayerState
                 top: 32,
                 left: 8,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -497,7 +497,7 @@ class _DetailFullScreenVideoPlayerState
               Center(
                 child: IconButton(
                   iconSize: 56,
-                  color: Colors.white,
+                  color: AppTheme.textPrimary,
                   icon: Icon(
                     _controller!.value.isPlaying
                         ? Icons.pause_circle_filled
