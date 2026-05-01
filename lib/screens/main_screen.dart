@@ -8,7 +8,11 @@ import 'home_screen.dart';
 import 'post_feed_screen.dart';
 import 'support_chat_tab.dart';
 import 'agent_chat_hub_tab.dart';
-import 'settings_screen.dart';
+import 'profile_screen.dart';
+import 'player_connections_screen.dart';
+import 'app_settings_screen.dart';
+import 'login_screen.dart';
+import '../config/app_config.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -20,9 +24,16 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentIndex = 0;
   bool _chatInitialized = false;
   bool _chatTabLoaded = false;
+
+  int _chatTabIndex(bool hasConnectionsTab) => hasConnectionsTab ? 2 : 2;
+  int _connectionsTabIndex(bool hasConnectionsTab) => hasConnectionsTab ? 3 : -1;
+  int _lastTabIndex(bool hasConnectionsTab) => hasConnectionsTab ? 3 : 2;
+  bool _hasConnectionsAccess(dynamic user) =>
+      (user?.isPlayer ?? false) || (user?.isAgent ?? false);
 
   @override
   void initState() {
@@ -57,6 +68,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (token != null && token.isNotEmpty) {
       chatProvider.handleAppResumed(token);
     }
+    final currentUser = authProvider.user;
+    if (_hasConnectionsAccess(currentUser)) {
+      await chatProvider.refreshPendingConnectionRequests(
+        authProvider.apiClient,
+        currentUserId: currentUser!.id,
+      );
+    }
   }
 
   Future<void> _initChatData() async {
@@ -70,6 +88,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     try {
       await authProvider.apiClient.loadTokens();
       await chatProvider.fetchActiveChats(authProvider.apiClient);
+      final currentUser = authProvider.user;
+      if (_hasConnectionsAccess(currentUser)) {
+        await chatProvider.refreshPendingConnectionRequests(
+          authProvider.apiClient,
+          currentUserId: currentUser!.id,
+        );
+      }
       chatProvider.setChatTabActive(_currentIndex == 2);
 
       final token = authProvider.apiClient.accessToken;
@@ -133,17 +158,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _handleNavTap(int index, ChatProvider chatProvider) {
-    if (index == 2 && !_chatTabLoaded) {
+    final authProvider = context.read<AuthProvider>();
+    final hasConnectionsTab = _hasConnectionsAccess(authProvider.user);
+    final chatIndex = _chatTabIndex(hasConnectionsTab);
+
+    if (index == chatIndex && !_chatTabLoaded) {
       _chatTabLoaded = true;
     }
     setState(() {
       _currentIndex = index;
     });
-    chatProvider.setChatTabActive(index == 2);
+    chatProvider.setChatTabActive(index == chatIndex);
     if (index == 0) {
       _refreshUnreadCounts();
     }
-    if (index == 2) {
+    if (index == chatIndex) {
       // User entered Chat tab: keep unread counts for other conversations.
       // Only the currently opened room should be acknowledged as read.
       final userId = context.read<AuthProvider>().user?.id;
@@ -205,15 +234,174 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openProfile() async {
+    Navigator.of(context).pop();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
+
+  Future<void> _openSettings() async {
+    Navigator.of(context).pop();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AppSettingsScreen()),
+    );
+  }
+
+  Future<void> _logout() async {
+    final authProvider = context.read<AuthProvider>();
+    Navigator.of(context).pop();
+    await authProvider.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  String? _resolveProfileImageUrl(dynamic user) {
+    final raw =
+        (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
+            ?.toString()
+            .trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final base = AppConfig.baseUrl.endsWith('/')
+        ? AppConfig.baseUrl.substring(0, AppConfig.baseUrl.length - 1)
+        : AppConfig.baseUrl;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$base$path';
+  }
+
+  Widget _buildMenuDrawer(dynamic user) {
+    final username = user?.username ?? 'User';
+    final profileImageUrl = _resolveProfileImageUrl(user);
+
+    return Drawer(
+      backgroundColor: AppTheme.surface,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.9),
+                    backgroundImage: profileImageUrl != null
+                        ? NetworkImage(profileImageUrl)
+                        : null,
+                    child: profileImageUrl == null
+                        ? Text(
+                            username.isNotEmpty
+                                ? username[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      username,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Colors.white24),
+            ListTile(
+              leading: const Icon(Icons.person_outline, color: Colors.white),
+              title: const Text('Profile', style: TextStyle(color: Colors.white)),
+              onTap: _openProfile,
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined, color: Colors.white),
+              title: const Text('Settings', style: TextStyle(color: Colors.white)),
+              onTap: _openSettings,
+            ),
+            const Spacer(),
+            const Divider(height: 1, color: Colors.white24),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                'Logout',
+                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700),
+              ),
+              onTap: _logout,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopMenuButton(dynamic user) {
+    final username = user?.username ?? 'User';
+    final initial = username.isNotEmpty ? username[0].toUpperCase() : 'U';
+    final profileImageUrl = _resolveProfileImageUrl(user);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8, right: 4),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: AppTheme.surface.withValues(alpha: 0.92),
+                backgroundImage: profileImageUrl != null
+                    ? NetworkImage(profileImageUrl)
+                    : null,
+                child: profileImageUrl == null
+                    ? Text(
+                        initial,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
+    final hasConnectionsTab = _hasConnectionsAccess(user);
+    final chatIndex = _chatTabIndex(hasConnectionsTab);
+    final connectionsIndex = _connectionsTabIndex(hasConnectionsTab);
+    final lastTabIndex = _lastTabIndex(hasConnectionsTab);
+    final effectiveIndex = _currentIndex.clamp(0, lastTabIndex).toInt();
     final useChatHubForUser = (user?.isAgent ?? false) || (user?.isPlayer ?? false);
+    final isOnConnectionsTab = hasConnectionsTab && effectiveIndex == connectionsIndex;
+
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppTheme.background,
+      endDrawer: _buildMenuDrawer(user),
       body: IndexedStack(
-        index: _currentIndex,
+        index: effectiveIndex,
         children: [
           const HomeScreen(),
           const PostFeedScreen(),
@@ -222,7 +410,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ? const AgentChatHubTab()
                   : const SupportChatTab())
               : const SizedBox.shrink(),
-          const SettingsScreen(),
+          if (hasConnectionsTab)
+            PlayerConnectionsScreen(
+              onOpenMenu: () => _scaffoldKey.currentState?.openEndDrawer(),
+            ),
         ],
       ),
       bottomNavigationBar: Consumer<ChatProvider>(
@@ -230,7 +421,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           final int totalUnreadCount = chatProvider.activeChats
               .fold<int>(0, (sum, room) => sum + room.unreadCount);
           final int unreadCountForBadge =
-              _currentIndex == 2 ? 0 : totalUnreadCount;
+              effectiveIndex == chatIndex ? 0 : totalUnreadCount;
 
           return SafeArea(
             top: false,
@@ -254,33 +445,47 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     _buildNavItem(
                       icon: Icons.home_outlined,
                       activeIcon: Icons.home,
-                      selected: _currentIndex == 0,
+                      selected: effectiveIndex == 0,
                       onTap: () => _handleNavTap(0, chatProvider),
                     ),
                     _buildNavItem(
                       icon: Icons.article_outlined,
                       activeIcon: Icons.article,
-                      selected: _currentIndex == 1,
+                      selected: effectiveIndex == 1,
                       onTap: () => _handleNavTap(1, chatProvider),
                     ),
                     _buildNavItem(
                       icon: Icons.chat_bubble_outline,
                       activeIcon: Icons.chat_bubble,
-                      selected: _currentIndex == 2,
+                      selected: effectiveIndex == chatIndex,
                       unreadCount: unreadCountForBadge,
-                      onTap: () => _handleNavTap(2, chatProvider),
+                      onTap: () => _handleNavTap(chatIndex, chatProvider),
                     ),
-                    _buildNavItem(
-                      icon: Icons.settings_outlined,
-                      activeIcon: Icons.settings,
-                      selected: _currentIndex == 3,
-                      onTap: () => _handleNavTap(3, chatProvider),
-                    ),
+                    if (hasConnectionsTab)
+                      _buildNavItem(
+                        icon: Icons.people_outline,
+                        activeIcon: Icons.people,
+                        selected: effectiveIndex == _connectionsTabIndex(hasConnectionsTab),
+                        unreadCount: chatProvider.pendingConnectionRequests,
+                        onTap: () => _handleNavTap(
+                          _connectionsTabIndex(hasConnectionsTab),
+                          chatProvider,
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
           );
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
+      floatingActionButton: Consumer<ChatProvider>(
+        builder: (context, chatProvider, _) {
+          if (isOnConnectionsTab) {
+            return const SizedBox.shrink();
+          }
+          return _buildTopMenuButton(user);
         },
       ),
     );

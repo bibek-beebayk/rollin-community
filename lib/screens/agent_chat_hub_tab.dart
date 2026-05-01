@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/room.dart';
+import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
+import '../config/app_config.dart';
 import 'chat_screen.dart';
 import 'agent_search_screen.dart';
 
@@ -78,6 +80,37 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
       return room.queueName!;
     }
     return room.name;
+  }
+
+  String? _resolveProfileImageUrl(User? user) {
+    if (user == null) return null;
+    final raw = (user.profileThumbnail ?? user.avatar ?? user.profilePicture)?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final normalizedPath = raw.startsWith('/') ? raw : '/$raw';
+    return '${AppConfig.baseUrl}$normalizedPath';
+  }
+
+  Widget _buildChatAvatar(Room room, {bool isCurrent = false}) {
+    final title = _titleForRoom(room);
+    final imageUrl = _resolveProfileImageUrl(room.counterpart);
+    final fallbackColor = isCurrent
+        ? AppTheme.accent
+        : AppTheme.primary.withValues(alpha: 0.9);
+    final fallbackTextColor = isCurrent ? Colors.black : Colors.white;
+    return CircleAvatar(
+      backgroundColor: fallbackColor,
+      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+      child: imageUrl == null
+          ? Text(
+              title.isNotEmpty ? title[0].toUpperCase() : '?',
+              style: TextStyle(
+                color: fallbackTextColor,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
+    );
   }
 
   String _subtitleForRoom(Room room, String? userType) {
@@ -821,15 +854,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                         ),
                         child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppTheme.primary.withValues(alpha: 0.9),
-                            child: Text(
-                              _titleForRoom(room).isNotEmpty
-                                  ? _titleForRoom(room)[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
+                          leading: _buildChatAvatar(room),
                           title: Text(
                             _titleForRoom(room),
                             style: const TextStyle(color: Colors.white),

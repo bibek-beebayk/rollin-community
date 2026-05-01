@@ -48,24 +48,11 @@ class PostDetailsScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                CircleAvatar(
-                  radius: 14,
-                  backgroundColor: AppTheme.primary,
-                  child: Text(
-                    post.author?.username.isNotEmpty == true
-                        ? post.author!.username[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                _buildAuthorAvatar(),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    post.author?.username ?? 'Unknown',
+                    _capitalizeUsername(post.author?.username ?? 'Unknown'),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 13,
@@ -110,6 +97,30 @@ class PostDetailsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildAuthorAvatar() {
+    final profileImageUrl = _resolveProfileImageUrl(post.author);
+    final initial = post.author?.username.isNotEmpty == true
+        ? post.author!.username[0].toUpperCase()
+        : '?';
+
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: AppTheme.primary,
+      backgroundImage:
+          profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
+      child: profileImageUrl == null
+          ? Text(
+              initial,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
+    );
+  }
+
   String _stripHtml(String input) {
     return input.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '').trim();
   }
@@ -123,6 +134,27 @@ class PostDetailsScreen extends StatelessWidget {
       return '${ApiClient.baseUrl}$trimmed';
     }
     return '${ApiClient.baseUrl}/$trimmed';
+  }
+
+  String? _resolveProfileImageUrl(dynamic user) {
+    final raw =
+        (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
+            ?.toString()
+            .trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final base = ApiClient.baseUrl.endsWith('/')
+        ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
+        : ApiClient.baseUrl;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$base$path';
+  }
+
+  String _capitalizeUsername(String input) {
+    if (input.isEmpty) return input;
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return input;
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
   }
 
   String _getFriendlyTime(DateTime time) {

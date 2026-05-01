@@ -11,7 +11,7 @@ class AppConfig {
         return 'https://chat-backend-staging.up.railway.app';
       case 'dev':
       default:
-        return 'https://betunnel.worldstories.net';
+        return 'https://5dn4bj2m-8000.inc1.devtunnels.ms';
     }
   }
 

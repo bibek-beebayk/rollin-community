@@ -37,6 +37,7 @@ class ChatProvider with ChangeNotifier {
   String? _notificationAccessToken;
   Timer? _notificationReconnectTimer;
   bool _manualNotificationDisconnect = false;
+  int _pendingConnectionRequests = 0;
 
   // ... (getters)
   List<Message> get messages => _roomMessagesCache[_currentRoomId] ?? [];
@@ -81,6 +82,7 @@ class ChatProvider with ChangeNotifier {
 
   List<Room> _activeChats = [];
   List<Room> get activeChats => _activeChats;
+  int get pendingConnectionRequests => _pendingConnectionRequests;
 
   // ... (active chats logic remains)
 
@@ -241,6 +243,42 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<void> refreshPendingConnectionRequests(
+    ApiClient apiClient, {
+    required int currentUserId,
+  }) async {
+    try {
+      final response = await apiClient.get('/api/social/connections/');
+      final dynamic data = (response is Map && response.containsKey('data'))
+          ? response['data']
+          : (response is List ? response : []);
+      if (data is! List) return;
+
+      var incomingPending = 0;
+      for (final item in data) {
+        if (item is! Map<String, dynamic>) continue;
+        final status = (item['status'] ?? '').toString();
+        if (status != 'pending') continue;
+        final receiver = item['receiver'];
+        final receiverId = receiver is Map<String, dynamic>
+            ? (receiver['id'] is int
+                ? receiver['id'] as int
+                : int.tryParse('${receiver['id']}'))
+            : null;
+        if (receiverId == currentUserId) {
+          incomingPending += 1;
+        }
+      }
+
+      if (_pendingConnectionRequests != incomingPending) {
+        _pendingConnectionRequests = incomingPending;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('ChatProvider: Error refreshing pending connections: $e');
+    }
+  }
+
   Future<List<User>> searchAgents(ApiClient apiClient, String query) async {
     final encoded = Uri.encodeQueryComponent(query.trim());
     final response = await apiClient.get('/api/agents/search/?q=$encoded');
@@ -269,6 +307,20 @@ class ChatProvider with ChangeNotifier {
       return Room.fromJson(data);
     }
     throw Exception('Invalid direct chat response');
+  }
+
+  Future<Room> startDirectPlayerChat(ApiClient apiClient, int playerId) async {
+    final response = await apiClient.post(
+      '/api/rooms/direct/player/start/',
+      body: {'player_id': playerId},
+    );
+    final data = (response is Map && response.containsKey('data'))
+        ? response['data']
+        : response;
+    if (data is Map<String, dynamic>) {
+      return Room.fromJson(data);
+    }
+    throw Exception('Invalid direct player chat response');
   }
 
   Future<List<Map<String, dynamic>>> discoverGroups(
@@ -644,6 +696,9 @@ class ChatProvider with ChangeNotifier {
           debugPrint(
               'DEBUG: Ignored notification because user is actively viewing this room.');
         }
+      } else if (json['type'] == 'connection_request_notification') {
+        _pendingConnectionRequests += 1;
+        notifyListeners();
       }
     } catch (e) {
       debugPrint('DEBUG: Error parsing notification: $e');

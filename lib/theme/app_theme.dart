@@ -3,16 +3,16 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Brand Colors
-  static const Color primary = Color.fromARGB(255, 102, 51, 153); // Deep Purple
-  static const Color secondary = Color.fromARGB(255, 219, 39, 119); // Pink
-  static const Color accent = Color.fromARGB(255, 255, 215, 0); // Gold
+  static const Color primary = Color(0xFFEF7D32);
+  static const Color secondary = Color(0xFFC2410C);
+  static const Color accent = Color(0xFFFACC15);
   static const Color background = Color.fromARGB(
     255,
-    16,
-    16,
-    26,
-  ); // Dark Background
-  static const Color surface = Color.fromARGB(255, 30, 30, 46); // Surface Color
+    10,
+    14,
+    18,
+  );
+  static const Color surface = Color(0xFF171E25);
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Colors.white70;
 

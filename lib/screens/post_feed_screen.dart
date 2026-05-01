@@ -139,24 +139,11 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                       children: [
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 13,
-                              backgroundColor: AppTheme.primary,
-                              child: Text(
-                                post.author?.username.isNotEmpty == true
-                                    ? post.author!.username[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                            _buildAuthorAvatar(post.author),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                post.author?.username ?? 'Unknown',
+                                _capitalizeUsername(post.author?.username ?? 'Unknown'),
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.82),
                                   fontSize: 13,
@@ -205,6 +192,50 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
         );
       },
     );
+  }
+
+  Widget _buildAuthorAvatar(dynamic author) {
+    final profileImageUrl = _resolveProfileImageUrl(author);
+    final initial = _capitalizeUsername(author?.username ?? '?');
+    final initialChar = initial.isNotEmpty ? initial[0] : '?';
+
+    return CircleAvatar(
+      radius: 13,
+      backgroundColor: AppTheme.primary,
+      backgroundImage:
+          profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
+      child: profileImageUrl == null
+          ? Text(
+              initialChar,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
+    );
+  }
+
+  String? _resolveProfileImageUrl(dynamic user) {
+    final raw =
+        (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
+            ?.toString()
+            .trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final base = ApiClient.baseUrl.endsWith('/')
+        ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
+        : ApiClient.baseUrl;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$base$path';
+  }
+
+  String _capitalizeUsername(String input) {
+    if (input.isEmpty) return input;
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return input;
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
   }
 
   Widget _buildImagePreview(String imageUrl) {

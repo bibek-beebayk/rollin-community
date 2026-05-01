@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
 import '../api/api_client.dart';
+import '../config/app_config.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -321,6 +322,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     _focusNode.requestFocus();
     Future.delayed(const Duration(milliseconds: 150), _scrollToBottom);
+  }
+
+  String? _resolveProfileImageUrl(User? user) {
+    if (user == null) return null;
+    final raw = (user.profileThumbnail ?? user.avatar ?? user.profilePicture)?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final normalizedPath = raw.startsWith('/') ? raw : '/$raw';
+    return '${AppConfig.baseUrl}$normalizedPath';
   }
 
   void _onScrollForHistory() {
@@ -910,6 +920,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     final canGoBack = Navigator.of(context).canPop();
     final showBackButton = isStaffUser || canGoBack;
+    final appBarAvatarUrl = _selectedChat?.roomType == 'direct_agent'
+        ? _resolveProfileImageUrl(_selectedChat?.counterpart)
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -932,8 +945,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             CircleAvatar(
               radius: 16,
               backgroundColor: AppTheme.primary.withValues(alpha: 0.9),
+              backgroundImage:
+                  appBarAvatarUrl != null ? NetworkImage(appBarAvatarUrl) : null,
               child: Text(
-                titleText.isNotEmpty ? titleText[0].toUpperCase() : '?',
+                appBarAvatarUrl == null
+                    ? (titleText.isNotEmpty ? titleText[0].toUpperCase() : '?')
+                    : '',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -1449,15 +1466,25 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         backgroundColor: isCurrent
                             ? AppTheme.accent
                             : AppTheme.primary.withValues(alpha: 0.9),
-                        child: Text(
-                          roomTitle(room).isNotEmpty
-                              ? roomTitle(room)[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(
-                            color: isCurrent ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        backgroundImage: room.roomType == 'direct_agent'
+                            ? (_resolveProfileImageUrl(room.counterpart) != null
+                                ? NetworkImage(
+                                    _resolveProfileImageUrl(room.counterpart)!,
+                                  )
+                                : null)
+                            : null,
+                        child: room.roomType != 'direct_agent' ||
+                                _resolveProfileImageUrl(room.counterpart) == null
+                            ? Text(
+                                roomTitle(room).isNotEmpty
+                                    ? roomTitle(room)[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                  color: isCurrent ? Colors.black : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
                       ),
                       title: Text(
                         roomTitle(room),

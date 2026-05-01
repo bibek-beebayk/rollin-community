@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/social_provider.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
@@ -13,7 +14,7 @@ import 'services/navigation_service.dart';
 
 // Placeholder for Dashboard (we'll create this next)
 import 'screens/dashboard_screen.dart';
-import 'screens/main_screen.dart';
+import 'screens/post_registration_router_screen.dart';
 import 'screens/update_screen.dart';
 
 class AppDistribution {
@@ -68,6 +69,7 @@ class StaffChatApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => ChatProvider(),
         ), // Added this line
+        ChangeNotifierProvider(create: (_) => SocialProvider()),
       ],
       child: MaterialApp(
         navigatorKey: NavigationService.navigatorKey,
@@ -110,7 +112,7 @@ class AuthWrapper extends StatelessWidget {
           if (authProvider.isStaff) {
             return const DashboardScreen();
           } else {
-            return const MainScreen();
+            return const PostRegistrationRouterScreen();
           }
         }
 

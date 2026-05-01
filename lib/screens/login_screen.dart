@@ -11,6 +11,8 @@ import '../theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import 'dashboard_screen.dart';
+import 'post_registration_router_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -71,6 +73,16 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.remove('saved_username');
         await prefs.remove('saved_password');
       }
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => authProvider.isStaff
+              ? const DashboardScreen()
+              : const PostRegistrationRouterScreen(),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

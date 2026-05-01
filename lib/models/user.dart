@@ -8,8 +8,17 @@ class User {
   final String verificationStatus;
   final String? avatar;
   final String? profilePicture;
+  final String? profileThumbnail;
   final String agentAvailability;
   final String agentStatusNote;
+  final DateTime? joinedAt;
+  final String? headline;
+  final String connectionStatus;
+  final bool canConnect;
+  final bool canDisconnect;
+  final bool canChat;
+  final String? primaryAction;
+  final String? secondaryAction;
 
   User({
     required this.id,
@@ -20,8 +29,17 @@ class User {
     required this.verificationStatus,
     this.avatar,
     this.profilePicture,
+    this.profileThumbnail,
     this.agentAvailability = 'online',
     this.agentStatusNote = '',
+    this.joinedAt,
+    this.headline,
+    this.connectionStatus = 'none',
+    this.canConnect = false,
+    this.canDisconnect = false,
+    this.canChat = false,
+    this.primaryAction,
+    this.secondaryAction,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -37,8 +55,19 @@ class User {
       verificationStatus: json['verification_status'] ?? 'none',
       avatar: json['avatar'] ?? json['profile_picture'],
       profilePicture: json['profile_picture'] ?? json['avatar'],
+      profileThumbnail: json['profile_thumbnail'],
       agentAvailability: json['agent_availability'] ?? 'online',
       agentStatusNote: json['agent_status_note'] ?? '',
+      joinedAt: json['joined_at'] != null
+          ? DateTime.tryParse(json['joined_at'].toString())
+          : null,
+      headline: json['headline']?.toString(),
+      connectionStatus: (json['connection_status'] ?? 'none').toString(),
+      canConnect: json['can_connect'] ?? false,
+      canDisconnect: json['can_disconnect'] ?? false,
+      canChat: json['can_chat'] ?? false,
+      primaryAction: json['primary_action']?.toString(),
+      secondaryAction: json['secondary_action']?.toString(),
     );
   }
 
@@ -59,8 +88,17 @@ class User {
       'verification_status': verificationStatus,
       'avatar': avatar,
       'profile_picture': profilePicture,
+      'profile_thumbnail': profileThumbnail,
       'agent_availability': agentAvailability,
       'agent_status_note': agentStatusNote,
+      'joined_at': joinedAt?.toIso8601String(),
+      'headline': headline,
+      'connection_status': connectionStatus,
+      'can_connect': canConnect,
+      'can_disconnect': canDisconnect,
+      'can_chat': canChat,
+      'primary_action': primaryAction,
+      'secondary_action': secondaryAction,
     };
   }
 

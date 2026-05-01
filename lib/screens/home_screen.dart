@@ -10,7 +10,6 @@ import '../services/post_service.dart';
 import '../services/notification_service.dart';
 import '../api/api_client.dart';
 import 'package:video_player/video_player.dart';
-import 'verify_user_screen.dart';
 import 'post_details_screen.dart';
 import 'agent_search_screen.dart';
 
@@ -97,8 +96,34 @@ class _HomeScreenState extends State<HomeScreen> {
     ]);
   }
 
+  String _homeInfoText(dynamic value) {
+    return (value ?? '').toString().trim();
+  }
+
+  List<Map<String, String>> _homeInfoPoints() {
+    final points = <Map<String, String>>[];
+    final dynamic pointsRaw = _homeInfo?['points'];
+    if (pointsRaw is! List) return points;
+
+    for (final item in pointsRaw) {
+      if (item is! Map) continue;
+      final content = _homeInfoText(item['content']);
+      if (content.isEmpty) continue;
+      final icon = (item['icon'] ?? 'info_outline').toString().trim();
+      points.add({
+        'icon': icon.isEmpty ? 'info_outline' : icon,
+        'content': content,
+      });
+    }
+
+    return points;
+  }
+
   String? _resolveProfileImageUrl(dynamic user) {
-    final raw = (user?.profilePicture ?? user?.avatar)?.toString().trim();
+    final raw =
+        (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
+            ?.toString()
+            .trim();
     if (raw == null || raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
     final base = ApiClient.baseUrl.endsWith('/')
@@ -230,8 +255,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildProfileCard(context, user),
-                  const SizedBox(height: 16),
                   if ((user?.userType ?? '').toString().toLowerCase() == 'player') ...[
                     _buildFindAgentsCard(context),
                     const SizedBox(height: 16),
@@ -239,8 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (showRoleInfo) ...[
                     _buildRoleInfoSection(user),
                     const SizedBox(height: 32),
-                  ] else
-                    const SizedBox(height: 16),
+                  ],
                   if (hasActiveEvents) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -368,99 +390,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _buildVerificationBadge(context, user),
               ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  Widget _buildVerificationBadge(BuildContext context, dynamic user) {
-    if (user == null) return const SizedBox.shrink();
-
-    if (user.isVerified) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.blueAccent.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.verified, color: Colors.blueAccent, size: 12),
-            const SizedBox(width: 4),
-            Text(
-              'VERIFIED',
-              style: TextStyle(
-                color: Colors.blueAccent.shade100,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (user.verificationStatus == 'pending') {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.orangeAccent.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.5)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.pending, color: Colors.orangeAccent, size: 12),
-            const SizedBox(width: 4),
-            Text(
-              'PENDING',
-              style: TextStyle(
-                color: Colors.orangeAccent.shade100,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const VerifyUserScreen()),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.redAccent.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.security, color: Colors.redAccent, size: 12),
-              const SizedBox(width: 4),
-              Text(
-                'VERIFY NOW',
-                style: TextStyle(
-                  color: Colors.redAccent.shade100,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
   }
 
   Future<void> _fetchHomeInfo() async {
@@ -487,44 +422,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool _hasRenderableHomeInfo() {
-    final title = (_homeInfo?['title'] ?? '').toString().trim();
-    final subtitle = (_homeInfo?['subtitle'] ?? '').toString().trim();
-    final footer = (_homeInfo?['footer'] ?? '').toString().trim();
+    final title = _homeInfoText(_homeInfo?['title']);
+    final subtitle = _homeInfoText(_homeInfo?['subtitle']);
+    final footer = _homeInfoText(_homeInfo?['footer']);
+    final hasPoints = _homeInfoPoints().isNotEmpty;
 
-    bool hasPoints = false;
-    final dynamic pointsRaw = _homeInfo?['points'];
-    if (pointsRaw is List) {
-      for (final item in pointsRaw) {
-        if (item is Map && (item['content'] ?? '').toString().trim().isNotEmpty) {
-          hasPoints = true;
-          break;
-        }
-      }
-    }
-
-    return title.isNotEmpty || subtitle.isNotEmpty || footer.isNotEmpty || hasPoints;
+    return title.isNotEmpty ||
+        subtitle.isNotEmpty ||
+        footer.isNotEmpty ||
+        hasPoints;
   }
 
   Widget _buildRoleInfoSection(dynamic user) {
-    final title = (_homeInfo?['title']?.toString().trim() ?? '');
-    final subtitle = (_homeInfo?['subtitle']?.toString().trim() ?? '');
-    final footer = (_homeInfo?['footer']?.toString().trim() ?? '');
-
-    final serverPoints = <Map<String, String>>[];
-    final dynamic pointsRaw = _homeInfo?['points'];
-    if (pointsRaw is List) {
-      for (final item in pointsRaw) {
-        if (item is Map) {
-          final content = (item['content'] ?? '').toString().trim();
-          if (content.isEmpty) continue;
-          final icon = (item['icon'] ?? 'info_outline').toString().trim();
-          serverPoints.add({
-            'icon': icon.isEmpty ? 'info_outline' : icon,
-            'content': content,
-          });
-        }
-      }
-    }
+    final title = _homeInfoText(_homeInfo?['title']);
+    final subtitle = _homeInfoText(_homeInfo?['subtitle']);
+    final footer = _homeInfoText(_homeInfo?['footer']);
+    final serverPoints = _homeInfoPoints();
 
     if (_isLoadingHomeInfo || !_hasRenderableHomeInfo()) {
       return const SizedBox.shrink();
@@ -917,23 +830,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: AppTheme.primary,
-                              child: Text(
-                                post.author?.username.isNotEmpty == true
-                                    ? post.author!.username[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                            _buildProfileAvatar(
+                              _resolveProfileImageUrl(post.author),
+                              post.author?.username.isNotEmpty == true
+                                  ? post.author!.username[0].toUpperCase()
+                                  : '?',
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              post.author?.username ?? 'Unknown',
+                              _capitalizeUsername(post.author?.username ?? 'Unknown'),
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 13,
@@ -983,6 +888,13 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  String _capitalizeUsername(String input) {
+    if (input.isEmpty) return input;
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return input;
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
   }
 
   String _resolvePostMediaUrl(String rawUrl) {

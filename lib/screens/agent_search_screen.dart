@@ -6,6 +6,8 @@ import '../providers/chat_provider.dart';
 import '../models/user.dart';
 import 'chat_screen.dart';
 import '../theme/app_theme.dart';
+import '../config/app_config.dart';
+import 'agent_profile_screen.dart';
 
 class AgentSearchScreen extends StatefulWidget {
   const AgentSearchScreen({super.key});
@@ -49,6 +51,18 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
       default:
         return 'Unknown';
     }
+  }
+
+  String? _resolveProfileImageUrl(User user) {
+    final raw =
+        (user.profileThumbnail ?? user.avatar ?? user.profilePicture)?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final base = AppConfig.baseUrl.endsWith('/')
+        ? AppConfig.baseUrl.substring(0, AppConfig.baseUrl.length - 1)
+        : AppConfig.baseUrl;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$base$path';
   }
 
   @override
@@ -128,6 +142,14 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
     }
   }
 
+  Future<void> _openAgentProfile(User agent) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AgentProfileScreen(userId: agent.id),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,6 +202,7 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final agent = _agents[index];
+                        final profileImageUrl = _resolveProfileImageUrl(agent);
                         return Container(
                           decoration: BoxDecoration(
                             color: AppTheme.surface.withValues(alpha: 0.7),
@@ -191,11 +214,16 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: AppTheme.primary.withValues(alpha: 0.85),
-                              child: Text(
-                                agent.username.isNotEmpty
-                                    ? agent.username[0].toUpperCase()
-                                    : 'A',
-                              ),
+                              backgroundImage: profileImageUrl != null
+                                  ? NetworkImage(profileImageUrl)
+                                  : null,
+                              child: profileImageUrl == null
+                                  ? Text(
+                                      agent.username.isNotEmpty
+                                          ? agent.username[0].toUpperCase()
+                                          : 'A',
+                                    )
+                                  : null,
                             ),
                             title: Row(
                               children: [
@@ -233,14 +261,20 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            trailing: TextButton(
-                              onPressed: _isLoading || agent.agentAvailability == 'offline'
-                                  ? null
-                                  : () => _startDirectChat(agent),
-                              child: Text(
-                                agent.agentAvailability == 'offline'
-                                    ? 'Offline'
-                                    : 'Chat',
+                            trailing: ElevatedButton(
+                              onPressed:
+                                  _isLoading ? null : () => _openAgentProfile(agent),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size(74, 34),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                'Profile',
+                                style: TextStyle(fontSize: 12),
                               ),
                             ),
                           ),

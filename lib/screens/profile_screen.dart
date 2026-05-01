@@ -6,14 +6,14 @@ import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'change_password_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUploadingPhoto = false;
   bool _isRequestingEmailOtp = false;
   bool _isVerifyingEmailOtp = false;
@@ -374,33 +374,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLogoutConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
-        title: const Text('Log Out', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Are you sure you want to log out?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AuthProvider>().logout();
-            },
-            child: const Text('Log Out', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
@@ -412,7 +385,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
-          'Settings',
+          'Profile',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
@@ -584,17 +557,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   MaterialPageRoute(builder: (context) => const ChangePasswordScreen()),
                 );
               },
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.redAccent),
-              title: const Text(
-                'Log Out',
-                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
-              ),
-              tileColor: AppTheme.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              onTap: () => _showLogoutConfirmation(context),
             ),
           ],
         ),
