@@ -540,14 +540,7 @@ class ChatProvider with ChangeNotifier {
       return;
     }
 
-    // WS URL formatting
-    final baseUrl = ApiClient.baseUrl;
-    final scheme = baseUrl.startsWith('https') ? 'wss' : 'ws';
-    final host = baseUrl
-        .replaceFirst(RegExp(r'https?://'), '')
-        .replaceAll(RegExp(r'/$'), '');
-
-    final url = '$scheme://$host/ws/chat/$roomId/?token=${accessToken.trim()}';
+    final url = _buildWsUrl('/ws/chat/$roomId/', accessToken);
 
     try {
       debugPrint('Connecting to WS: $url');
@@ -609,13 +602,7 @@ class ChatProvider with ChangeNotifier {
       return;
     }
 
-    final baseUrl = ApiClient.baseUrl;
-    final scheme = baseUrl.startsWith('https') ? 'wss' : 'ws';
-    final host = baseUrl
-        .replaceFirst(RegExp(r'https?://'), '')
-        .replaceAll(RegExp(r'/$'), '');
-
-    final url = '$scheme://$host/ws/notifications/?token=${accessToken.trim()}';
+    final url = _buildWsUrl('/ws/notifications/', accessToken);
 
     try {
       debugPrint('DEBUG: Connecting to Notification WS: $url');
@@ -971,6 +958,31 @@ class ChatProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error parsing message: $e');
     }
+  }
+
+  String _buildWsUrl(String path, String accessToken) {
+    final baseUri = Uri.parse(ApiClient.baseUrl);
+    final wsScheme = baseUri.scheme == 'https'
+        ? 'wss'
+        : baseUri.scheme == 'http'
+            ? 'ws'
+            : baseUri.scheme;
+    final basePath = baseUri.path.endsWith('/')
+        ? baseUri.path.substring(0, baseUri.path.length - 1)
+        : baseUri.path;
+    final normalizedPath = path.startsWith('/') ? path : '/$path';
+
+    // Avoid appending ":0" when no explicit port is provided by backend URL.
+    final hasValidPort = baseUri.hasPort && baseUri.port > 0;
+
+    final wsUri = Uri(
+      scheme: wsScheme,
+      host: baseUri.host,
+      port: hasValidPort ? baseUri.port : null,
+      path: '$basePath$normalizedPath',
+      queryParameters: {'token': accessToken.trim()},
+    );
+    return wsUri.toString();
   }
 
   // Method to clear unreads when entering a chat

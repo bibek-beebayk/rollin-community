@@ -69,53 +69,81 @@ class ApiClient {
 
   Future<dynamic> postMultipart(String endpoint, String filePath,
       {String? fieldName, bool skipAuth = false}) async {
+    return postMultipartWithFields(
+      endpoint,
+      fields: {},
+      filePaths: {fieldName ?? 'file': [filePath]},
+      skipAuth: skipAuth,
+    );
+  }
+
+  Future<dynamic> postMultipartWithFields(
+    String endpoint, {
+    required Map<String, String> fields,
+    required Map<String, List<String>> filePaths,
+    bool isPatch = false,
+    bool skipAuth = false,
+  }) async {
     final url = '$baseUrl$endpoint';
-    _logRequest('POST MULTIPART', url, body: 'File: $filePath');
+    _logRequest(isPatch ? 'PATCH MULTIPART' : 'POST MULTIPART', url,
+        body: 'Fields: $fields, Files: $filePaths');
 
     try {
-      final request = http.MultipartRequest('POST', Uri.parse(url));
+      final request =
+          http.MultipartRequest(isPatch ? 'PATCH' : 'POST', Uri.parse(url));
 
       // Headers
       final headers = await _getHeaders(skipAuth: skipAuth);
-      // Remove Content-Type to let MultipartRequest set boundary
       headers.remove('Content-Type');
       request.headers.addAll(headers);
 
-      // File
-      request.files.add(await http.MultipartFile.fromPath(
-        fieldName ?? 'file',
-        filePath,
-      ));
+      // Add text fields
+      request.fields.addAll(fields);
+
+      // Add files
+      for (final entry in filePaths.entries) {
+        final fieldName = entry.key;
+        for (final path in entry.value) {
+          request.files.add(await http.MultipartFile.fromPath(fieldName, path));
+        }
+      }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      // Token Refresh Logic (Duplicate from post - ideally refactor)
-      // Only if NOT skipping auth
+      // Token Refresh Logic
       if (!skipAuth && response.statusCode == 401 && _refreshToken != null) {
-        debugPrint('🔒 401 Unauthorized (Multipart). Attempting token refresh...');
+        debugPrint(
+            '🔒 401 Unauthorized (Multipart Fields). Attempting token refresh...');
         final success = await _refreshAccessToken();
         if (success) {
           debugPrint('🔓 Token refreshed. Retrying Multipart request...');
-          final retryRequest = http.MultipartRequest('POST', Uri.parse(url));
+          final retryRequest =
+              http.MultipartRequest(isPatch ? 'PATCH' : 'POST', Uri.parse(url));
           final newHeaders = await _getHeaders(skipAuth: skipAuth);
           newHeaders.remove('Content-Type');
           retryRequest.headers.addAll(newHeaders);
-          retryRequest.files.add(await http.MultipartFile.fromPath(
-            fieldName ?? 'file',
-            filePath,
-          ));
+          retryRequest.fields.addAll(fields);
+          for (final entry in filePaths.entries) {
+            final fieldName = entry.key;
+            for (final path in entry.value) {
+              retryRequest.files.add(
+                  await http.MultipartFile.fromPath(fieldName, path));
+            }
+          }
           final retryStreamed = await retryRequest.send();
           final retryResponse = await http.Response.fromStream(retryStreamed);
-          _logResponse('POST MULTIPART', url, retryResponse);
+          _logResponse(
+              isPatch ? 'PATCH MULTIPART' : 'POST MULTIPART', url, retryResponse);
           return _handleResponse(retryResponse);
         }
       }
 
-      _logResponse('POST MULTIPART', url, response);
+      _logResponse(
+          isPatch ? 'PATCH MULTIPART' : 'POST MULTIPART', url, response);
       return _handleResponse(response);
     } catch (e) {
-      _logError('POST MULTIPART', url, e);
+      _logError(isPatch ? 'PATCH MULTIPART' : 'POST MULTIPART', url, e);
       rethrow;
     }
   }
@@ -209,6 +237,11 @@ class ApiClient {
         }
       }
 
+      if (response.statusCode == 204) {
+        // Successful delete with no content.
+        return null;
+      }
+
       _logResponse('DELETE', url, response);
       return _handleResponse(response);
     } catch (e) {
@@ -216,9 +249,6 @@ class ApiClient {
       rethrow;
     }
   }
-
-  // Override GET similarly for refresh (simplified for brevity, should apply to all methods)
-  // ...
 
   Future<bool> _refreshAccessToken() async {
     try {
@@ -232,13 +262,9 @@ class ApiClient {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final newAccess = data['access'];
-        // Backend might cycle refresh token too
-        // final newRefresh = data['refresh'] ?? _refreshToken;
 
         if (newAccess != null) {
           await setTokens(newAccess, _refreshToken!);
-          // Note: If refresh token rotates, update it too.
-          // For now assuming only access rotates or both.
           return true;
         }
       }
@@ -251,10 +277,17 @@ class ApiClient {
 
   dynamic _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (response.body.isEmpty) return null;
-      return jsonDecode(response.body);
+      final body = response.body;
+      if (response.statusCode == 204 || body.trim().isEmpty) {
+        return null;
+      }
+      try {
+        return jsonDecode(body);
+      } catch (_) {
+        // Some successful endpoints can return non-JSON payloads.
+        return body;
+      }
     } else {
-      // Try to parse error message
       String errorMessage = 'API Error: ${response.statusCode}';
       try {
         final body = jsonDecode(response.body);
@@ -268,7 +301,6 @@ class ApiClient {
           }
         }
       } catch (_) {
-        // Fallback to raw body if JSON decode fails
         if (response.body.isNotEmpty) {
           errorMessage = 'API Error: ${response.statusCode} ${response.body}';
         }

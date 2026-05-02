@@ -49,6 +49,7 @@ dependencies:
   video_player: ^2.8.0
   chewie: ^1.8.0
   path_provider: ^2.1.4
+  wechat_assets_picker: ^9.2.0
 
 dev_dependencies:
   flutter_test:

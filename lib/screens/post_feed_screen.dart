@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 import 'post_details_screen.dart';
+import 'create_post_screen.dart';
 
 class PostFeedScreen extends StatefulWidget {
   const PostFeedScreen({super.key});
@@ -53,11 +54,24 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Posts Feed'),
+        title: const Text('Community Feed'),
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: _buildBody(),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+          );
+          if (result != null) {
+            _fetchPosts();
+          }
+        },
+        backgroundColor: AppTheme.accent,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -98,44 +112,68 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
       itemCount: _posts.length,
       itemBuilder: (context, index) {
         final post = _posts[index];
-        final cleanContent =
-            post.content.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
+        return _PostCard(
+          post: post,
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PostDetailsScreen(post: post),
+              ),
+            );
+            if (result != null) {
+              _fetchPosts();
+            }
+          },
+        );
+      },
+    );
+  }
+}
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: AppTheme.itemDecoration(
-            customRadius: BorderRadius.circular(AppTheme.radius + 4),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppTheme.radius + 4),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PostDetailsScreen(post: post),
-                  ),
-                );
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (post.video != null && post.video!.trim().isNotEmpty)
-                    _buildVideoPreview(post)
-                  else if (post.image != null && post.image!.trim().isNotEmpty)
-                    _buildImagePreview(post.image!),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+class _PostCard extends StatelessWidget {
+  final Post post;
+  final VoidCallback onTap;
+
+  const _PostCard({required this.post, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cleanContent = post.content.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: AppTheme.itemDecoration(
+        customRadius: BorderRadius.circular(AppTheme.radius + 4),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.radius + 4),
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Multi-Image Carousel
+              if (post.images.isNotEmpty)
+                _PostImageCarousel(images: post.images)
+              else if (post.video != null && post.video!.trim().isNotEmpty)
+                _VideoPreviewPlaceholder(post: post),
+
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            _buildAuthorAvatar(post.author),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
+                        _AuthorAvatar(author: post.author),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
                                 _capitalizeUsername(post.author?.username ?? 'Unknown'),
                                 style: TextStyle(
                                   color: AppTheme.textPrimary.withValues(alpha: 0.82),
@@ -143,70 +181,213 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
-                            Text(
-                              _getFriendlyTime(post.createdAt.toLocal()),
-                              style: TextStyle(
-                                color: AppTheme.textPrimary.withValues(alpha: 0.52),
-                                fontSize: 12,
+                              Row(
+                                children: [
+                                  _getVisibilityIcon(post.visibility),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _getFriendlyTime(post.createdAt.toLocal()),
+                                    style: TextStyle(
+                                      color: AppTheme.textPrimary.withValues(alpha: 0.52),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          post.title,
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
+                            ],
                           ),
                         ),
-                        if (cleanContent.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            cleanContent,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: AppTheme.textPrimary.withValues(alpha: 0.72),
-                              fontSize: 13.5,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
-                  ),
-                ],
+                    if (post.title.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        post.title,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                    if (cleanContent.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        cleanContent,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary.withValues(alpha: 0.72),
+                          fontSize: 13.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildAuthorAvatar(dynamic author) {
-    final profileImageUrl = _resolveProfileImageUrl(author);
-    final initial = _capitalizeUsername(author?.username ?? '?');
-    final initialChar = initial.isNotEmpty ? initial[0] : '?';
+  Widget _getVisibilityIcon(String visibility) {
+    IconData icon;
+    switch (visibility) {
+      case 'private':
+        icon = Icons.lock;
+        break;
+      case 'connections':
+        icon = Icons.people;
+        break;
+      default:
+        icon = Icons.public;
+    }
+    return Icon(icon, size: 10, color: AppTheme.textPrimary.withValues(alpha: 0.4));
+  }
+
+  String _capitalizeUsername(String input) {
+    if (input.isEmpty) return input;
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return input;
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
+  }
+
+  String _getFriendlyTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+    if (diff.inSeconds < 60) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${(diff.inDays / 7).floor()}w';
+  }
+}
+
+class _PostImageCarousel extends StatefulWidget {
+  final List<String> images;
+
+  const _PostImageCarousel({required this.images});
+
+  @override
+  State<_PostImageCarousel> createState() => _PostImageCarouselState();
+}
+
+class _PostImageCarouselState extends State<_PostImageCarousel> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 280,
+          child: Stack(
+            children: [
+              PageView.builder(
+                itemCount: widget.images.length,
+                onPageChanged: (index) => setState(() => _currentIndex = index),
+                itemBuilder: (context, index) {
+                  return Container(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    child: Image.network(
+                      _resolveUrl(widget.images[index]),
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(child: Icon(Icons.error_outline)),
+                    ),
+                  );
+                },
+              ),
+              if (widget.images.length > 1)
+                Positioned(
+                  bottom: 12,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: widget.images.asMap().entries.map((entry) {
+                      return Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(
+                            alpha: _currentIndex == entry.key ? 0.9 : 0.4,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _resolveUrl(String raw) {
+    if (raw.startsWith('http')) return raw;
+    final base = ApiClient.baseUrl.endsWith('/')
+        ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
+        : ApiClient.baseUrl;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$base$path';
+  }
+}
+
+class _AuthorAvatar extends StatelessWidget {
+  final dynamic author;
+  const _AuthorAvatar({required this.author});
+
+  @override
+  Widget build(BuildContext context) {
+    final username = (author?.username ?? '?').toString();
+    final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
+    final imageUrl = _resolveProfileImageUrl(author);
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return CircleAvatar(
+        radius: 14,
+        backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
+        child: Text(
+          initial,
+          style: TextStyle(
+            color: AppTheme.primary,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
 
     return CircleAvatar(
-      radius: 13,
-      backgroundColor: AppTheme.primary,
-      backgroundImage:
-          profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
-      child: profileImageUrl == null
-          ? Text(
-              initialChar,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            )
-          : null,
+      radius: 14,
+      backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
+      child: ClipOval(
+        child: Image.network(
+          imageUrl,
+          width: 28,
+          height: 28,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Text(
+            initial,
+            style: TextStyle(
+              color: AppTheme.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -217,104 +398,27 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
             .trim();
     if (raw == null || raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+
     final base = ApiClient.baseUrl.endsWith('/')
         ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
         : ApiClient.baseUrl;
     final path = raw.startsWith('/') ? raw : '/$raw';
     return '$base$path';
   }
+}
 
-  String _capitalizeUsername(String input) {
-    if (input.isEmpty) return input;
-    final trimmed = input.trim();
-    if (trimmed.isEmpty) return input;
-    return trimmed[0].toUpperCase() + trimmed.substring(1);
-  }
+class _VideoPreviewPlaceholder extends StatelessWidget {
+  final Post post;
+  const _VideoPreviewPlaceholder({required this.post});
 
-  Widget _buildImagePreview(String imageUrl) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-      child: Image.network(
-        _resolvePostMediaUrl(imageUrl),
-        height: 190,
-        fit: BoxFit.cover,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 180,
+      color: Colors.black12,
+      child: const Center(
+        child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white54),
       ),
     );
-  }
-
-  Widget _buildVideoPreview(Post post) {
-    final fallbackImage = post.image?.trim().isNotEmpty == true
-        ? _resolvePostMediaUrl(post.image!)
-        : null;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius + 4)),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (fallbackImage != null)
-            Image.network(
-              fallbackImage,
-              height: 190,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            )
-          else
-            Container(
-              height: 190,
-              color: Colors.black26,
-            ),
-          Container(
-            height: 190,
-            color: Colors.black.withValues(alpha: 0.2),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.55),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.play_arrow, color: AppTheme.textPrimary, size: 26),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _resolvePostMediaUrl(String rawUrl) {
-    final trimmed = rawUrl.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return trimmed;
-    }
-    if (trimmed.startsWith('/')) {
-      return '${ApiClient.baseUrl}$trimmed';
-    }
-    return '${ApiClient.baseUrl}/$trimmed';
-  }
-
-  String _getFriendlyTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-
-    if (diff.inSeconds < 60) return 'now';
-    if (diff.inMinutes < 60) {
-      return diff.inMinutes == 1 ? '1 min ago' : '${diff.inMinutes} mins ago';
-    }
-    if (diff.inHours < 24) {
-      return diff.inHours == 1 ? '1 hour ago' : '${diff.inHours} hours ago';
-    }
-    if (diff.inDays < 7) {
-      return diff.inDays == 1 ? '1 day ago' : '${diff.inDays} days ago';
-    }
-    if (diff.inDays < 30) {
-      final weeks = (diff.inDays / 7).floor();
-      return weeks == 1 ? '1 week ago' : '$weeks weeks ago';
-    }
-    if (diff.inDays < 365) {
-      final months = (diff.inDays / 30).floor();
-      return months == 1 ? '1 month ago' : '$months months ago';
-    }
-    final years = (diff.inDays / 365).floor();
-    return years == 1 ? '1 year ago' : '$years years ago';
   }
 }

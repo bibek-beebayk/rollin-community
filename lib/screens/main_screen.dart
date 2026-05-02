@@ -14,6 +14,7 @@ import 'profile_screen.dart';
 import 'player_connections_screen.dart';
 import 'app_settings_screen.dart';
 import 'login_screen.dart';
+import 'my_posts_screen.dart';
 import '../config/app_config.dart';
 
 class MainScreen extends StatefulWidget {
@@ -250,6 +251,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openMyPosts() async {
+    Navigator.of(context).pop();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MyPostsScreen()),
+    );
+  }
+
   Future<void> _logout() async {
     showDialog(
       context: context,
@@ -362,6 +370,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               leading: Icon(Icons.palette_outlined, color: AppTheme.textPrimary),
               title: Text('Appearance', style: TextStyle(color: AppTheme.textPrimary)),
               onTap: _openSettings,
+            ),
+            ListTile(
+              leading: Icon(Icons.edit_note_outlined, color: AppTheme.textPrimary),
+              title: Text('My Posts', style: TextStyle(color: AppTheme.textPrimary)),
+              onTap: _openMyPosts,
             ),
             const Spacer(),
             Divider(
