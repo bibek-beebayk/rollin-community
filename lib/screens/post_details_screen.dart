@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/post.dart';
@@ -12,6 +14,7 @@ class PostDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>();
     final cleanContent = _stripHtml(post.content);
     final friendlyCreatedAt = _getFriendlyTime(post.createdAt.toLocal());
 
@@ -29,7 +32,7 @@ class PostDetailsScreen extends StatelessWidget {
               _DetailVideoPlayer(videoUrl: _resolveMediaUrl(post.video!))
             else if (post.image != null && post.image!.trim().isNotEmpty)
               ClipRRect(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 child: Image.network(
                   _resolveMediaUrl(post.image!),
                   fit: BoxFit.cover,
@@ -289,7 +292,7 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
         height: 220,
         decoration: BoxDecoration(
           color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppTheme.radius),
         ),
         alignment: Alignment.center,
         child: Icon(Icons.videocam_off, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
@@ -304,7 +307,7 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
           height: 220,
           decoration: BoxDecoration(
             color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppTheme.radius),
           ),
           alignment: Alignment.center,
           child: _isInitializing
@@ -319,7 +322,7 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppTheme.radius),
       child: AspectRatio(
         aspectRatio: _controller!.value.aspectRatio,
         child: GestureDetector(

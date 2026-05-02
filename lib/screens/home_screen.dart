@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
+import '../providers/theme_provider.dart';
+
 import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
@@ -219,7 +222,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>();
     final user = context.watch<AuthProvider>().user;
+
     final hasActiveEvents = _events.isNotEmpty;
     final showRoleInfo = !_isLoadingHomeInfo && _hasRenderableHomeInfo();
 
@@ -350,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
         border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
@@ -477,10 +482,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: sectionGradient,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.cardBorder),
+      decoration: AppTheme.itemDecoration(
+        customRadius: BorderRadius.circular(AppTheme.radius + 4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,7 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const AgentSearchScreen()),
@@ -569,7 +572,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: AppTheme.surface.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppTheme.radius),
             border: Border.all(color: AppTheme.cardBorder),
           ),
           child: Row(
@@ -665,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               color: AppTheme.surface,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: [
+              boxShadow: AppTheme.visualStyle == VisualStyle.flat ? null : [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 15,
@@ -803,7 +806,7 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: AppTheme.surface,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
+            boxShadow: AppTheme.visualStyle == VisualStyle.flat ? null : [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 10,

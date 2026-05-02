@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+enum VisualStyle { card, flat }
+
 class AppTheme {
+  static VisualStyle visualStyle = VisualStyle.card;
+
   // Runtime palette used by legacy AppTheme.* consumers across the app.
   // These values are synchronized by ThemeProvider whenever mode/accent changes.
   static Color primary = const Color(0xFF2563EB);
@@ -27,7 +31,9 @@ class AppTheme {
   static ThemeData buildTheme({
     required Brightness brightness,
     required Color accentColor,
+    required VisualStyle style,
   }) {
+
     final isDark = brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final sf = isDark ? const Color(0xFF1E293B) : const Color(0xFFEEF2F7);
@@ -42,8 +48,9 @@ class AppTheme {
       brightness: brightness,
       scaffoldBackgroundColor: bg,
       primaryColor: primaryColor,
-      colorScheme: (isDark ? const ColorScheme.dark() : const ColorScheme.light())
-          .copyWith(
+      colorScheme:
+          (isDark ? const ColorScheme.dark() : const ColorScheme.light())
+              .copyWith(
         primary: primaryColor,
         secondary: secondaryColor,
         tertiary: tertiaryColor,
@@ -69,7 +76,7 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
@@ -79,11 +86,11 @@ class AppTheme {
         filled: true,
         fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           borderSide: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.12)
@@ -91,23 +98,27 @@ class AppTheme {
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           borderSide: BorderSide(color: primaryColor),
         ),
         hintStyle: TextStyle(color: ts),
         labelStyle: TextStyle(color: tp),
-        contentPadding: const EdgeInsets.symmetric(
+        contentPadding: EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 16,
+          vertical: style == VisualStyle.card ? 16 : 12,
         ),
       ),
     );
   }
 
+
   static void syncLegacyPalette({
     required Brightness brightness,
     required Color accentColor,
+    VisualStyle? style,
   }) {
+    if (style != null) visualStyle = style;
+
     final isDark = brightness == Brightness.dark;
     primary = accentColor;
     secondary = _shiftLightness(accentColor, isDark ? -0.18 : -0.12);
@@ -122,8 +133,10 @@ class AppTheme {
   }
 
   static ThemeData get theme => buildTheme(
-        brightness: textPrimary == Colors.white ? Brightness.dark : Brightness.light,
+        brightness:
+            textPrimary == Colors.white ? Brightness.dark : Brightness.light,
         accentColor: accent,
+        style: visualStyle,
       );
 
   static Color _shiftLightness(Color color, double amount) {
@@ -131,4 +144,37 @@ class AppTheme {
     final adjusted = (hsl.lightness + amount).clamp(0.0, 1.0);
     return hsl.withLightness(adjusted).toColor();
   }
+
+  // --- Design Helpers ---
+
+  static double get radius => visualStyle == VisualStyle.card ? 14.0 : 6.0;
+
+  static BorderRadius get borderRadius => BorderRadius.circular(radius);
+
+  static BoxDecoration itemDecoration({
+    Color? color,
+    double? alpha,
+    BorderRadius? customRadius,
+    bool hasBorder = true,
+  }) {
+    final isFlat = visualStyle == VisualStyle.flat;
+    final bgColor = color ?? surface;
+    final effectiveAlpha = alpha ?? (isFlat ? 0.28 : 0.45);
+
+    return BoxDecoration(
+      color: bgColor.withValues(alpha: effectiveAlpha),
+      borderRadius: customRadius ?? borderRadius,
+      border: hasBorder ? Border.all(color: cardBorder) : null,
+      boxShadow: isFlat
+          ? null
+          : [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+    );
+  }
 }
+

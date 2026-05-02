@@ -22,11 +22,7 @@ class CustomInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
+      decoration: AppTheme.itemDecoration(),
       child: TextField(
         controller: controller,
         focusNode: focusNode,

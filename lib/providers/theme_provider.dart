@@ -6,9 +6,12 @@ import '../theme/app_theme.dart';
 class ThemeProvider extends ChangeNotifier {
   static const String _themeModeKey = 'app_theme_mode';
   static const String _accentColorKey = 'app_accent_color';
+  static const String _visualStyleKey = 'app_visual_style';
 
   ThemeMode _themeMode = ThemeMode.dark;
   Color _accentColor = AppTheme.accent;
+  VisualStyle _visualStyle = VisualStyle.card;
+
   bool _isInitialized = false;
 
   ThemeProvider() {
@@ -18,7 +21,9 @@ class ThemeProvider extends ChangeNotifier {
 
   ThemeMode get themeMode => _themeMode;
   Color get accentColor => _accentColor;
+  VisualStyle get visualStyle => _visualStyle;
   bool get isInitialized => _isInitialized;
+
 
   static const List<Color> accentPresets = [
     Color(0xFF10B981), // Emerald
@@ -43,6 +48,8 @@ class ThemeProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final modeRaw = prefs.getString(_themeModeKey);
     final accentRaw = prefs.getInt(_accentColorKey);
+    final styleRaw = prefs.getString(_visualStyleKey);
+
 
     if (modeRaw != null) {
       _themeMode = _parseThemeMode(modeRaw);
@@ -50,6 +57,10 @@ class ThemeProvider extends ChangeNotifier {
     if (accentRaw != null) {
       _accentColor = Color(accentRaw);
     }
+    if (styleRaw != null) {
+      _visualStyle = styleRaw == 'flat' ? VisualStyle.flat : VisualStyle.card;
+    }
+
 
     _syncLegacyPalette();
     _isInitialized = true;
@@ -74,6 +85,16 @@ class ThemeProvider extends ChangeNotifier {
     await prefs.setInt(_accentColorKey, color.value);
   }
 
+  Future<void> setVisualStyle(VisualStyle style) async {
+    if (_visualStyle == style) return;
+    _visualStyle = style;
+    _syncLegacyPalette();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_visualStyleKey, style.name);
+  }
+
+
   static ThemeMode _parseThemeMode(String raw) {
     switch (raw) {
       case 'light':
@@ -91,7 +112,9 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.syncLegacyPalette(
       brightness: brightness,
       accentColor: _accentColor,
+      style: _visualStyle,
     );
+
   }
 
   Brightness _effectiveBrightness() {

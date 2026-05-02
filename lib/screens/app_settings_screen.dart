@@ -121,6 +121,52 @@ class AppSettingsScreen extends StatelessWidget {
               }).toList(),
             ),
             const SizedBox(height: 24),
+            Text(
+              'Visual Style',
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surface.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Column(
+                children: [
+                  RadioListTile<VisualStyle>(
+                    title: const Text('Card Design'),
+                    subtitle: const Text('Floating containers with depth'),
+                    value: VisualStyle.card,
+                    groupValue: themeProvider.visualStyle,
+                    activeColor: themeProvider.accentColor,
+                    onChanged: (value) {
+                      if (value != null) {
+                        themeProvider.setVisualStyle(value);
+                      }
+                    },
+                  ),
+                  RadioListTile<VisualStyle>(
+                    title: const Text('Flat Design'),
+                    subtitle: const Text('Integrated surfaces and minimal borders'),
+                    value: VisualStyle.flat,
+                    groupValue: themeProvider.visualStyle,
+                    activeColor: themeProvider.accentColor,
+                    onChanged: (value) {
+                      if (value != null) {
+                        themeProvider.setVisualStyle(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -129,10 +175,11 @@ class AppSettingsScreen extends StatelessWidget {
                 border: Border.all(color: AppTheme.cardBorder),
               ),
               child: const Text(
-                'Theme and accent choices are saved on this device.',
+                'Theme and appearance choices are saved on this device.',
                 style: TextStyle(fontSize: 13),
               ),
             ),
+
           ],
 
 

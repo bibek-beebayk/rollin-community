@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 
 import '../models/social_connection.dart';
 import '../models/user.dart';
@@ -160,11 +161,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
     final profileImageUrl = _resolveProfileImageUrl(user);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
+      decoration: AppTheme.itemDecoration(),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: user.isAgent
@@ -211,11 +208,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.surface.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.cardBorder),
-            ),
+            decoration: AppTheme.itemDecoration(),
             child: Text(
               emptyMessage,
               style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.62)),
@@ -279,6 +272,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>();
     return Scaffold(
       appBar: AppBar(title: const Text('Pending Connections')),
       backgroundColor: AppTheme.background,
@@ -303,7 +297,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(AppTheme.radius),
                           border:
                               Border.all(color: Colors.red.withValues(alpha: 0.45)),
                         ),
@@ -322,7 +316,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
                           margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
                           decoration: BoxDecoration(
                             color: AppTheme.surface.withValues(alpha: 0.65),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(AppTheme.radius),
                             border: Border.all(
                               color: AppTheme.cardBorder,
                             ),

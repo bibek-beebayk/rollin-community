@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
+
 import 'dart:async';
 import '../theme/app_theme.dart';
 import '../providers/chat_provider.dart';
@@ -249,8 +251,37 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _logout() async {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radius)),
+        title: Text('Logout', style: TextStyle(color: AppTheme.textPrimary)),
+        content: Text('Are you sure you want to logout?',
+            style: TextStyle(color: AppTheme.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _performLogout();
+            },
+            child: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performLogout() async {
     final authProvider = context.read<AuthProvider>();
-    Navigator.of(context).pop();
+    // Close drawer if open
+    if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+    }
     await authProvider.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -328,7 +359,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               onTap: _openProfile,
             ),
             ListTile(
-              leading: Icon(Icons.settings_outlined, color: AppTheme.textPrimary),
+              leading: Icon(Icons.palette_outlined, color: AppTheme.textPrimary),
               title: Text('Appearance', style: TextStyle(color: AppTheme.textPrimary)),
               onTap: _openSettings,
             ),
@@ -397,7 +428,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>(); // Watch for style changes
     final authProvider = context.watch<AuthProvider>();
+
     final user = authProvider.user;
     final hasConnectionsTab = _hasConnectionsAccess(user);
     final chatIndex = _chatTabIndex(hasConnectionsTab);
@@ -442,14 +475,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppTheme.surface.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(AppTheme.radius + 2),
+                  boxShadow: AppTheme.visualStyle == VisualStyle.card
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : null,
+
                 ),
                 child: Row(
                   children: [

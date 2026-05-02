@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
+
 import 'package:intl/intl.dart';
 import '../models/room.dart';
 import '../models/message.dart';
@@ -856,6 +858,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   // _buildQueueView removed
 
   Widget _buildChatThread(BuildContext context) {
+    context.watch<ThemeProvider>();
     final chatProvider = context.watch<ChatProvider>();
     final currentUser = context.read<AuthProvider>().user;
     final isStaffUser = context.read<AuthProvider>().isStaff;
@@ -2592,12 +2595,14 @@ class _MessageBubble extends StatelessWidget {
     // (on the screen background), so they must always be theme-aware.
     final metaTextColor = AppTheme.textSecondary;
     final senderTextColor = AppTheme.accent.withValues(alpha: 0.95);
+    final baseRadius = AppTheme.radius;
     final bubbleRadius = BorderRadius.only(
-      topLeft: Radius.circular(isAlignedRight ? 18 : 8),
-      topRight: Radius.circular(isAlignedRight ? 8 : 18),
-      bottomLeft: Radius.circular(compactBottom && !isAlignedRight ? 6 : 18),
-      bottomRight: Radius.circular(compactBottom && isAlignedRight ? 6 : 18),
+      topLeft: Radius.circular(isAlignedRight ? baseRadius + 4 : baseRadius / 2),
+      topRight: Radius.circular(isAlignedRight ? baseRadius / 2 : baseRadius + 4),
+      bottomLeft: Radius.circular(compactBottom && !isAlignedRight ? baseRadius / 4 : baseRadius + 4),
+      bottomRight: Radius.circular(compactBottom && isAlignedRight ? baseRadius / 4 : baseRadius + 4),
     );
+
     final attachmentType = message.attachment?.fileType ?? '';
     final isVisualAttachmentOnly = message.content.trim().isEmpty &&
         message.attachment != null &&
@@ -2692,41 +2697,48 @@ class _MessageBubble extends StatelessWidget {
                 decoration: isVisualAttachmentOnly
                     ? null
                     : BoxDecoration(
-                        gradient: isAlignedRight
-                            ? LinearGradient(
-                                colors: [
-                                  bubbleColor.withValues(alpha: 0.96),
-                                  bubbleColor.withValues(alpha: 0.82),
-                                ],
-                                begin: Alignment.topRight,
-                                end: Alignment.bottomRight,
-                              )
-                            : LinearGradient(
-                                colors: [
-                                  incomingBaseColor.withValues(alpha: 0.94),
-                                  incomingBaseColor.withValues(alpha: 0.86),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                        color: AppTheme.visualStyle == VisualStyle.flat
+                            ? (isAlignedRight ? bubbleColor.withValues(alpha: 0.85) : incomingBaseColor.withValues(alpha: 0.85))
+                            : null,
+                        gradient: (AppTheme.visualStyle == VisualStyle.card && !isVisualAttachmentOnly)
+                            ? (isAlignedRight
+                                ? LinearGradient(
+                                    colors: [
+                                      bubbleColor.withValues(alpha: 0.96),
+                                      bubbleColor.withValues(alpha: 0.82),
+                                    ],
+                                    begin: Alignment.topRight,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : LinearGradient(
+                                    colors: [
+                                      incomingBaseColor.withValues(alpha: 0.94),
+                                      incomingBaseColor.withValues(alpha: 0.86),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ))
+                            : null,
                         border: Border.all(
                           color: effectiveBorderColor,
                           width: isHighlighted ? 1.3 : 1,
                         ),
                         borderRadius: bubbleRadius,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.14),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                          if (isHighlighted)
-                            BoxShadow(
-                              color: AppTheme.accent.withValues(alpha: 0.22),
-                              blurRadius: 16,
-                              offset: const Offset(0, 2),
-                            ),
-                        ],
+                        boxShadow: AppTheme.visualStyle == VisualStyle.card
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.14),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                                if (isHighlighted)
+                                  BoxShadow(
+                                    color: AppTheme.accent.withValues(alpha: 0.22),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 2),
+                                  ),
+                              ]
+                            : null,
                       ),
                 child: Column(
                   crossAxisAlignment: isAlignedRight

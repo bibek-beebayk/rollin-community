@@ -15,19 +15,23 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isFlat = AppTheme.visualStyle == VisualStyle.flat;
+
     return Container(
       width: double.infinity,
       height: 50,
       decoration: BoxDecoration(
         gradient: AppTheme.primaryGradient,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primary.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: AppTheme.borderRadius,
+        boxShadow: isFlat
+            ? null
+            : [
+                BoxShadow(
+                  color: AppTheme.primary.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
@@ -35,7 +39,7 @@ class CustomButton extends StatelessWidget {
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: AppTheme.borderRadius,
           ),
         ),
         child: isLoading

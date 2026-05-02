@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/theme_provider.dart';
+
 import '../models/room.dart';
 import '../theme/app_theme.dart';
 import '../services/notification_service.dart';
@@ -190,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _toggleStation(station);
                             },
                           ),
-                          textColor: Colors.white,
+                          textColor: AppTheme.textPrimary,
                         )),
                     const SizedBox(height: 16),
                   ],
@@ -209,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _toggleStation(station);
                             },
                           ),
-                          textColor: Colors.white,
+                          textColor: AppTheme.textPrimary,
                         )),
                     const SizedBox(height: 16),
                   ],
@@ -326,7 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           foregroundColor: color,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: AppTheme.borderRadius),
           side: BorderSide(color: color.withValues(alpha: 0.3)),
         ),
         child: Text(label,
@@ -349,6 +351,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>();
     final chatProvider = context.watch<ChatProvider>();
     final currentUser = context.read<AuthProvider>().user;
     final activeChats = chatProvider.activeChats; // These are my chats
@@ -424,18 +427,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primary.withValues(alpha: 0.28),
-            AppTheme.surface,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
+      decoration: AppTheme.itemDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -493,10 +485,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       String label, String value, IconData icon, Color iconColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: AppTheme.itemDecoration(hasBorder: false),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -561,11 +550,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.surface.withValues(alpha: 0.35)),
-      ),
+      decoration: AppTheme.itemDecoration(),
       child: Column(
         children: [
           Icon(Icons.forum_outlined,
@@ -596,7 +581,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.hub),
               label: const Text('Select Station'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
+                foregroundColor: AppTheme.textPrimary,
                 side: BorderSide(color: AppTheme.textSecondary.withValues(alpha: 0.35)),
               ),
             ),
@@ -614,11 +599,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
         border: Border.all(color: AppTheme.surface.withValues(alpha: 0.35)),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
         onTap: () => _openChat(room),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

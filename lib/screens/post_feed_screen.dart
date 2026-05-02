@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import '../api/api_client.dart';
 import '../models/post.dart';
 import '../providers/auth_provider.dart';
@@ -48,6 +49,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>();
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -101,22 +103,13 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
 
         return Container(
           margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-            border: Border.all(color: AppTheme.surface.withValues(alpha: 0.3)),
+          decoration: AppTheme.itemDecoration(
+            customRadius: BorderRadius.circular(AppTheme.radius + 4),
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppTheme.radius + 4),
               onTap: () {
                 Navigator.push(
                   context,
@@ -255,7 +248,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
         : null;
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius + 4)),
       child: Stack(
         alignment: Alignment.center,
         children: [

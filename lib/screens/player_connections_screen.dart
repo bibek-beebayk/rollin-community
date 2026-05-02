@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
+
 
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
@@ -340,11 +342,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
     final connected = _isConnected(user);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
+      decoration: AppTheme.itemDecoration(),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: user.isAgent
@@ -417,7 +415,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
         border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Column(
@@ -489,15 +487,15 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               prefixIcon: Icon(Icons.search, color: AppTheme.textSecondary, size: 18),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 borderSide: BorderSide(color: AppTheme.cardBorder),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 borderSide: BorderSide(color: AppTheme.cardBorder),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
                 borderSide: BorderSide(color: AppTheme.accent),
               ),
             ),
@@ -519,7 +517,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: AppTheme.surface.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppTheme.radius),
                         border: Border.all(
                           color: AppTheme.cardBorder,
                         ),
@@ -566,6 +564,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>();
     final authUser = context.watch<AuthProvider>().user;
     final menuAvatarUrl =
         authUser != null ? _resolveProfileImageUrl(authUser) : null;
@@ -655,7 +654,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: Colors.red.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
                       border:
                           Border.all(color: Colors.red.withValues(alpha: 0.45)),
                     ),
@@ -744,7 +743,7 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: AppTheme.surface.withValues(alpha: 0.65),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(AppTheme.radius),
                                 border: Border.all(
                                   color: AppTheme.cardBorder,
                                 ),
