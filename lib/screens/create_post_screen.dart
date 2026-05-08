@@ -1,7 +1,9 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import '../api/api_client.dart';
 import '../models/post.dart';
@@ -62,6 +64,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           iosAccessLevel: IosAccessLevel.readWrite,
         ),
       );
+      if (!mounted) return;
       if (!permissionState.hasAccess) {
         _showImageLimitMessage('Photo permission is required to select images');
         return;
@@ -74,6 +77,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           requestType: RequestType.image,
         ),
       );
+      if (!mounted) return;
       if (assets == null || assets.isEmpty) return;
 
       if (assets.length > remainingSlots) {

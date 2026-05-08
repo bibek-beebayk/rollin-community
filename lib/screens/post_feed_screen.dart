@@ -48,6 +48,28 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
 
   Future<void> _onRefresh() => _fetchPosts();
 
+  Future<void> _toggleLike(Post post) async {
+    final authProvider = context.read<AuthProvider>();
+    final postService = PostService(authProvider.apiClient);
+    final result = await postService.toggleLike(post.id);
+    if (result == null || !mounted) return;
+
+    final liked = result['liked'] == true;
+    final likeCount = result['like_count'] is int
+        ? result['like_count'] as int
+        : int.tryParse('${result['like_count']}') ?? post.likeCount;
+
+    setState(() {
+      final index = _posts.indexWhere((p) => p.id == post.id);
+      if (index != -1) {
+        _posts[index] = _posts[index].copyWith(
+          isLiked: liked,
+          likeCount: likeCount,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeProvider>();
@@ -114,6 +136,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
         final post = _posts[index];
         return _PostCard(
           post: post,
+          onLikeTap: () => _toggleLike(post),
           onTap: () async {
             final result = await Navigator.push(
               context,
@@ -121,7 +144,14 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                 builder: (_) => PostDetailsScreen(post: post),
               ),
             );
-            if (result != null) {
+            if (result is Post) {
+              setState(() {
+                final idx = _posts.indexWhere((p) => p.id == result.id);
+                if (idx != -1) {
+                  _posts[idx] = result;
+                }
+              });
+            } else {
               _fetchPosts();
             }
           },
@@ -134,8 +164,13 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
 class _PostCard extends StatelessWidget {
   final Post post;
   final VoidCallback onTap;
+  final VoidCallback onLikeTap;
 
-  const _PostCard({required this.post, required this.onTap});
+  const _PostCard({
+    required this.post,
+    required this.onTap,
+    required this.onLikeTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +258,62 @@ class _PostCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: onLikeTap,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  post.isLiked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  size: 18,
+                                  color: post.isLiked
+                                      ? Colors.redAccent
+                                      : AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${post.likeCount}',
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.mode_comment_outlined,
+                              size: 16,
+                              color: AppTheme.textSecondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${post.commentCount}',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

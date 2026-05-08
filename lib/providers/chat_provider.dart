@@ -8,6 +8,7 @@ import '../models/message.dart';
 import '../models/user.dart';
 import '../models/room.dart';
 import '../api/api_client.dart';
+import '../services/navigation_service.dart';
 
 class ChatProvider with ChangeNotifier {
   // Notification Channel
@@ -686,6 +687,23 @@ class ChatProvider with ChangeNotifier {
       } else if (json['type'] == 'connection_request_notification') {
         _pendingConnectionRequests += 1;
         notifyListeners();
+      } else if (json['type'] == 'post_comment_notification' ||
+          json['type'] == 'post_reply_notification') {
+        final title = (json['title']?.toString().trim().isNotEmpty ?? false)
+            ? json['title'].toString()
+            : 'New notification';
+        final body = (json['body']?.toString().trim().isNotEmpty ?? false)
+            ? json['body'].toString()
+            : '';
+        final ctx = NavigationService.navigatorKey.currentContext;
+        if (ctx != null) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              content: Text(body.isEmpty ? title : '$title\n$body'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('DEBUG: Error parsing notification: $e');

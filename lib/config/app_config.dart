@@ -1,5 +1,5 @@
 /// App environment configuration.
-/// Environment is selected at build time via --dart-define=ENV=<env>
+/// Environment is selected at build time via `--dart-define=ENV=dev|staging|prod`.
 class AppConfig {
   static const String env = String.fromEnvironment('ENV', defaultValue: 'dev');
 

@@ -47,36 +47,17 @@ class AppSettingsScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Dark'),
-                    value: ThemeMode.dark,
-                    groupValue: themeProvider.themeMode,
-                    activeColor: themeProvider.accentColor,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setThemeMode(value);
-                      }
-                    },
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Light'),
-                    value: ThemeMode.light,
-                    groupValue: themeProvider.themeMode,
-                    activeColor: themeProvider.accentColor,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setThemeMode(value);
-                      }
-                    },
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('System'),
-                    value: ThemeMode.system,
-                    groupValue: themeProvider.themeMode,
-                    activeColor: themeProvider.accentColor,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setThemeMode(value);
+                  SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                      ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+                      ButtonSegment(value: ThemeMode.system, label: Text('System')),
+                    ],
+                    selected: <ThemeMode>{themeProvider.themeMode},
+                    onSelectionChanged: (selection) {
+                      if (selection.isNotEmpty) {
+                        final selected = selection.first;
+                        themeProvider.setThemeMode(selected);
                       }
                     },
                   ),
@@ -98,7 +79,7 @@ class AppSettingsScreen extends StatelessWidget {
               runSpacing: 12,
               children: ThemeProvider.accentPresets.map((color) {
                 final isSelected =
-                    color.value == themeProvider.accentColor.value;
+                    color.toARGB32() == themeProvider.accentColor.toARGB32();
                 return InkWell(
                   borderRadius: BorderRadius.circular(99),
                   onTap: () => themeProvider.setAccentColor(color),
@@ -139,29 +120,34 @@ class AppSettingsScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  RadioListTile<VisualStyle>(
-                    title: const Text('Card Design'),
-                    subtitle: const Text('Floating containers with depth'),
-                    value: VisualStyle.card,
-                    groupValue: themeProvider.visualStyle,
-                    activeColor: themeProvider.accentColor,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setVisualStyle(value);
+                  SegmentedButton<VisualStyle>(
+                    segments: const [
+                      ButtonSegment(
+                        value: VisualStyle.card,
+                        label: Text('Card Design'),
+                      ),
+                      ButtonSegment(
+                        value: VisualStyle.flat,
+                        label: Text('Flat Design'),
+                      ),
+                    ],
+                    selected: <VisualStyle>{themeProvider.visualStyle},
+                    onSelectionChanged: (selection) {
+                      if (selection.isNotEmpty) {
+                        final selected = selection.first;
+                        themeProvider.setVisualStyle(selected);
                       }
                     },
                   ),
-                  RadioListTile<VisualStyle>(
-                    title: const Text('Flat Design'),
-                    subtitle: const Text('Integrated surfaces and minimal borders'),
-                    value: VisualStyle.flat,
-                    groupValue: themeProvider.visualStyle,
-                    activeColor: themeProvider.accentColor,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setVisualStyle(value);
-                      }
-                    },
+                  const SizedBox(height: 8),
+                  Text(
+                    themeProvider.visualStyle == VisualStyle.card
+                        ? 'Floating containers with depth'
+                        : 'Integrated surfaces and minimal borders',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),

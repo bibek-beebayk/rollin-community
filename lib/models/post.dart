@@ -37,6 +37,9 @@ class Post {
   final User? author;
   final List<String> images;
   final List<PostImageItem> imageItems;
+  final int likeCount;
+  final int commentCount;
+  final bool isLiked;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -51,6 +54,9 @@ class Post {
     this.author,
     this.images = const [],
     this.imageItems = const [],
+    this.likeCount = 0,
+    this.commentCount = 0,
+    this.isLiked = false,
     required this.createdAt,
     this.updatedAt,
   });
@@ -77,7 +83,7 @@ class Post {
     }
 
     return Post(
-      id: json['id'],
+      id: _parseInt(json['id'], fallback: 0),
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       image: json['image'],
@@ -87,12 +93,45 @@ class Post {
       author: json['author'] != null ? User.fromJson(json['author']) : null,
       images: imageUrls,
       imageItems: imageItems,
+      likeCount: _parseInt(json['like_count'], fallback: 0),
+      commentCount: _parseInt(json['comment_count'], fallback: 0),
+      isLiked: json['is_liked'] == true,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'])
           : null,
+    );
+  }
+
+  static int _parseInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  Post copyWith({
+    int? likeCount,
+    int? commentCount,
+    bool? isLiked,
+  }) {
+    return Post(
+      id: id,
+      title: title,
+      content: content,
+      image: image,
+      video: video,
+      link: link,
+      visibility: visibility,
+      author: author,
+      images: images,
+      imageItems: imageItems,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
+      isLiked: isLiked ?? this.isLiked,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 

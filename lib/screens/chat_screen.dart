@@ -21,6 +21,8 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:async';
 
 class ChatScreen extends StatefulWidget {
@@ -980,10 +982,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         child: Text(
                           titleText,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
+                          style: Theme.of(context).appBarTheme.titleTextStyle,
                         ),
                       ),
                       if (isStaffUser &&
@@ -3029,13 +3028,11 @@ class _MessageBubble extends StatelessWidget {
           break;
         case 'open_attachment':
           if (attachmentUrl != null && attachmentFileType != null) {
-            // ignore: use_build_context_synchronously
             _openAttachment(context, attachmentUrl, attachmentFileType);
           }
           break;
         case 'download_attachment':
           if (attachmentUrl != null && attachmentFilename != null) {
-            // ignore: use_build_context_synchronously
             _downloadAttachment(context, attachmentUrl, attachmentFilename);
           }
           break;

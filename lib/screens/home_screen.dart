@@ -1,6 +1,7 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/theme_provider.dart';
 import '../providers/theme_provider.dart';
 
 import 'package:intl/intl.dart';
@@ -346,63 +347,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildProfileCard(BuildContext context, dynamic user) {
-    final username = user?.username ?? 'Guest';
-    final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
-    final profileImageUrl = _resolveProfileImageUrl(user);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
-      child: Row(
-        children: [
-          _buildProfileAvatar(profileImageUrl, initial),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                  username,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardBorder,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    (user?.userType ?? 'Unknown').toString().toUpperCase(),
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _fetchHomeInfo() async {
     final authProvider = context.read<AuthProvider>();
     try {
@@ -462,24 +406,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final dividerColor = isLight
         ? const Color(0xFF94A3B8).withValues(alpha: 0.35)
         : AppTheme.textPrimary.withValues(alpha: 0.14);
-    final sectionGradient = isLight
-        ? LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFFE2E8F0).withValues(alpha: 0.95),
-              const Color(0xFFF1F5F9).withValues(alpha: 0.98),
-            ],
-          )
-        : LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF2B1A47).withValues(alpha: 0.9),
-              const Color(0xFF1A102E).withValues(alpha: 0.95),
-            ],
-          );
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.itemDecoration(
@@ -990,11 +916,6 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
 
   @override
   bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   Future<void> _initController() async {
     if (_isInitializing || _ready) return;

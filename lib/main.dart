@@ -76,7 +76,7 @@ class StaffChatApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) => MaterialApp(
           key: ValueKey(
-            'theme-${themeProvider.themeMode.name}-${themeProvider.accentColor.value}-${themeProvider.visualStyle.name}',
+            'theme-${themeProvider.themeMode.name}-${themeProvider.accentColor.toARGB32()}-${themeProvider.visualStyle.name}',
           ),
           navigatorKey: NavigationService.navigatorKey,
           title: 'Staff Chat',

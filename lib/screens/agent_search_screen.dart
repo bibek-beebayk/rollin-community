@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/user.dart';
-import 'chat_screen.dart';
 import '../theme/app_theme.dart';
 import '../config/app_config.dart';
 import 'agent_profile_screen.dart';
@@ -110,35 +109,6 @@ class _AgentSearchScreenState extends State<AgentSearchScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  Future<void> _startDirectChat(User agent) async {
-    final authProvider = context.read<AuthProvider>();
-    final chatProvider = context.read<ChatProvider>();
-    setState(() => _isLoading = true);
-    try {
-      final room = await chatProvider.startDirectAgentChat(
-        authProvider.apiClient,
-        agent.id,
-      );
-      if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(room: room),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceAll('Exception: ', ''),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 

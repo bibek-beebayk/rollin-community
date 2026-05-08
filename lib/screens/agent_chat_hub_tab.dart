@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/room.dart';
@@ -34,38 +36,52 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     if (currentRoomId != null) {
       chatProvider.disconnectRoom(currentRoomId);
     }
-    _loadChats();
+    final hasCachedChats = chatProvider.activeChats.isNotEmpty;
+    _isLoading = !hasCachedChats;
+    _loadChats(showLoader: !hasCachedChats);
   }
 
-  Future<void> _loadChats() async {
+  Future<void> _loadChats({bool showLoader = true}) async {
     final chatProvider = context.read<ChatProvider>();
     final authProvider = context.read<AuthProvider>();
     final isAgentUser = authProvider.user?.isAgent ?? false;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (showLoader) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       await chatProvider.fetchActiveChats(authProvider.apiClient);
+      int pendingGroupRequests = 0;
       if (isAgentUser) {
         final requests =
             await chatProvider.fetchManagedGroupJoinRequests(authProvider.apiClient);
-        _pendingGroupRequests = requests.length;
-      } else {
-        _pendingGroupRequests = 0;
+        pendingGroupRequests = requests.length;
       }
+      _pendingGroupRequests = pendingGroupRequests;
 
       final hasSupport = chatProvider.activeChats.any((r) => r.roomType == 'support');
       if (!hasSupport) {
         await chatProvider.joinSupportRoom(authProvider.apiClient);
         await chatProvider.fetchActiveChats(authProvider.apiClient);
       }
+
+      if (mounted && !showLoader) {
+        setState(() {
+          _errorMessage = null;
+        });
+      }
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      // On background refresh, keep the existing list visible and avoid replacing
+      // the whole screen with an error state.
+      if (showLoader || chatProvider.activeChats.isEmpty) {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      }
     } finally {
-      if (mounted) {
+      if (mounted && showLoader) {
         setState(() => _isLoading = false);
       }
     }
@@ -134,7 +150,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     if (chatProvider.currentRoomId == room.id) {
       chatProvider.disconnectRoom(room.id);
     }
-    await _loadChats();
+    unawaited(_loadChats(showLoader: false));
   }
 
   Future<void> _showCreateGroupDialog() async {
@@ -625,11 +641,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                 children: [
                   Text(
                     'Chats',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).appBarTheme.titleTextStyle,
                   ),
                   const SizedBox(height: 12),
                   if (supportRoom != null)

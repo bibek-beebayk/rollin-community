@@ -77,12 +77,12 @@ class ThemeProvider extends ChangeNotifier {
   }
 
   Future<void> setAccentColor(Color color) async {
-    if (_accentColor.value == color.value) return;
+    if (_accentColor.toARGB32() == color.toARGB32()) return;
     _accentColor = color;
     _syncLegacyPalette();
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_accentColorKey, color.value);
+    await prefs.setInt(_accentColorKey, color.toARGB32());
   }
 
   Future<void> setVisualStyle(VisualStyle style) async {
