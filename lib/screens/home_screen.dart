@@ -16,6 +16,7 @@ import '../api/api_client.dart';
 import 'package:video_player/video_player.dart';
 import 'post_details_screen.dart';
 import 'agent_search_screen.dart';
+import '../widgets/share_post_to_chat_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -832,6 +833,42 @@ class _HomeScreenState extends State<HomeScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => showSharePostToChatDialog(
+                              context,
+                              post: post,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 4,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.send_outlined,
+                                    size: 17,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Share to Chat',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),

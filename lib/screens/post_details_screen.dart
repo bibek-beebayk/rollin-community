@@ -8,6 +8,7 @@ import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 import '../api/api_client.dart';
 import 'create_post_screen.dart';
+import '../widgets/share_post_to_chat_dialog.dart';
 
 class PostDetailsScreen extends StatefulWidget {
   final Post post;
@@ -324,6 +325,13 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     }
   }
 
+  Future<void> _sharePost() async {
+    await showSharePostToChatDialog(
+      context,
+      post: _currentPost,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeProvider>();
@@ -440,6 +448,27 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
               ),
             ),
           ],
+        ),
+        const SizedBox(width: 16),
+        InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: _sharePost,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(
+              children: [
+                Icon(Icons.send_outlined, color: AppTheme.textSecondary, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  'Share',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );

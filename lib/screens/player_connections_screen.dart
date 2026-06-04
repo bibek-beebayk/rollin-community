@@ -304,11 +304,11 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
 
   Future<void> _handleMenuAction(User user, String action) async {
     switch (action) {
-      case 'view_profile':
-        await _openProfile(user);
-        break;
       case 'connect':
         await _connectUser(user);
+        break;
+      case 'unsend_request':
+        await _unsendConnectionRequest(user);
         break;
       case 'chat':
         await _chatWithUser(user);
@@ -321,6 +321,28 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
 
   bool _isConnected(User user) {
     return user.connectionStatus == 'connected' || user.canDisconnect;
+  }
+
+  bool _isPendingOutgoing(User user) {
+    return user.connectionStatus == 'pending_outgoing';
+  }
+
+  Future<void> _unsendConnectionRequest(User user) async {
+    final auth = context.read<AuthProvider>();
+    final social = context.read<SocialProvider>();
+    try {
+      await social.disconnectConnection(auth.apiClient, targetUserId: user.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connection request canceled.')),
+      );
+      await _loadConnections();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
   }
 
   String _capitalizeUsername(String input) {
@@ -342,10 +364,12 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
   Widget _buildConnectionTile(User user) {
     final profileImageUrl = _resolveProfileImageUrl(user);
     final connected = _isConnected(user);
+    final pendingOutgoing = _isPendingOutgoing(user);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: AppTheme.itemDecoration(),
       child: ListTile(
+        onTap: () => _openProfile(user),
         leading: CircleAvatar(
           backgroundColor: user.isAgent
               ? AppTheme.primary.withValues(alpha: 0.75)
@@ -376,10 +400,6 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
             if (connected) {
               return const [
                 PopupMenuItem<String>(
-                  value: 'view_profile',
-                  child: Text('View Profile'),
-                ),
-                PopupMenuItem<String>(
                   value: 'chat',
                   child: Text('Chat'),
                 ),
@@ -389,14 +409,18 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
                 ),
               ];
             }
+            if (pendingOutgoing) {
+              return const [
+                PopupMenuItem<String>(
+                  value: 'unsend_request',
+                  child: Text('Unsend Connection Request'),
+                ),
+              ];
+            }
             return const [
               PopupMenuItem<String>(
                 value: 'connect',
                 child: Text('Connect'),
-              ),
-              PopupMenuItem<String>(
-                value: 'view_profile',
-                child: Text('View Profile'),
               ),
             ];
           },

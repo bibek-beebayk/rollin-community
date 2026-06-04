@@ -7,11 +7,13 @@ import 'package:intl/intl.dart';
 import '../models/room.dart';
 import '../models/message.dart';
 import '../models/user.dart';
+import '../models/post.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
 import '../api/api_client.dart';
 import '../config/app_config.dart';
+import 'post_details_screen.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -21,6 +23,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'dart:convert';
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
@@ -2642,7 +2645,8 @@ class _MessageBubble extends StatelessWidget {
           (message.replyToSenderUsername?.trim().isNotEmpty ?? false))
         _buildReplyReference(bodyTextColor),
       if (message.content.isNotEmpty)
-        _buildMessageContentText(
+        _buildMessageContent(
+          context,
           message.content,
           bodyTextColor,
           isDeleted: message.isDeleted,
@@ -2820,6 +2824,194 @@ class _MessageBubble extends StatelessWidget {
     );
 
     return bubbleBody;
+  }
+
+  static const String _postSharePrefix = 'POST_SHARE::';
+
+  Widget _buildMessageContent(
+    BuildContext context,
+    String content,
+    Color bodyTextColor, {
+    bool isDeleted = false,
+  }) {
+    final sharedPost = _parseSharedPostPayload(content);
+    if (sharedPost == null || isDeleted) {
+      return _buildMessageContentText(content, bodyTextColor, isDeleted: isDeleted);
+    }
+    return _buildSharedPostPreview(context, sharedPost, bodyTextColor);
+  }
+
+  Map<String, dynamic>? _parseSharedPostPayload(String content) {
+    if (!content.startsWith(_postSharePrefix)) return null;
+    final raw = content.substring(_postSharePrefix.length).trim();
+    if (raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  String _firstNonEmpty(List<dynamic> values, {String fallback = ''}) {
+    for (final value in values) {
+      final text = (value ?? '').toString().trim();
+      if (text.isNotEmpty) return text;
+    }
+    return fallback;
+  }
+
+  String? _resolveSharedPostImageUrl(String? raw) {
+    final value = raw?.trim();
+    if (value == null || value.isEmpty) return null;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    final base = ApiClient.baseUrl.endsWith('/')
+        ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
+        : ApiClient.baseUrl;
+    final path = value.startsWith('/') ? value : '/$value';
+    return '$base$path';
+  }
+
+  Future<void> _openSharedPost(
+    BuildContext context,
+    Map<String, dynamic> payload,
+  ) async {
+    final postIdRaw = payload['post_id'];
+    final postId = postIdRaw is int
+        ? postIdRaw
+        : int.tryParse(postIdRaw?.toString() ?? '');
+    if (postId == null) {
+      final postUrl = payload['post_url']?.toString().trim() ?? '';
+      if (postUrl.isNotEmpty) {
+        await _launchUrl(postUrl);
+      }
+      return;
+    }
+
+    try {
+      final auth = context.read<AuthProvider>();
+      final response = await auth.apiClient.get('/api/posts/$postId/');
+      Map<String, dynamic>? postJson;
+      if (response is Map<String, dynamic>) {
+        if (response['data'] is Map<String, dynamic>) {
+          postJson = response['data'] as Map<String, dynamic>;
+        } else {
+          postJson = response;
+        }
+      }
+      if (postJson == null) throw Exception('Unable to open shared post.');
+      final post = Post.fromJson(postJson);
+      if (!context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => PostDetailsScreen(post: post)),
+      );
+    } catch (_) {
+      final postUrl = payload['post_url']?.toString().trim() ?? '';
+      if (postUrl.isNotEmpty) {
+        await _launchUrl(postUrl);
+      }
+    }
+  }
+
+  Widget _buildSharedPostPreview(
+    BuildContext context,
+    Map<String, dynamic> payload,
+    Color bodyTextColor,
+  ) {
+    final title = _firstNonEmpty([
+      payload['title'],
+      payload['excerpt'],
+      'Shared post',
+    ]);
+    final excerpt = _firstNonEmpty([payload['excerpt']]);
+    final author = _firstNonEmpty([payload['author_username']]);
+    final imageUrl = _resolveSharedPostImageUrl(payload['image_url']?.toString());
+
+    return GestureDetector(
+      onTap: () => _openSharedPost(context, payload),
+      child: Container(
+        margin: const EdgeInsets.only(top: 2, bottom: 2),
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: bodyTextColor.withValues(alpha: 0.18)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.article_outlined,
+                  size: 14,
+                  color: bodyTextColor.withValues(alpha: 0.85),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Shared Post',
+                  style: TextStyle(
+                    color: bodyTextColor.withValues(alpha: 0.88),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (imageUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  imageUrl,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            if (imageUrl != null) const SizedBox(height: 8),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: bodyTextColor,
+                fontSize: 13.2,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+            if (excerpt.isNotEmpty && excerpt != title) ...[
+              const SizedBox(height: 4),
+              Text(
+                excerpt,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: bodyTextColor.withValues(alpha: 0.8),
+                  fontSize: 12.2,
+                  height: 1.3,
+                ),
+              ),
+            ],
+            if (author.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                'by $author',
+                style: TextStyle(
+                  color: bodyTextColor.withValues(alpha: 0.68),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildMessageContentText(

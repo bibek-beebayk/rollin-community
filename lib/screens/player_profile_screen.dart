@@ -144,6 +144,31 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
     }
   }
 
+  Future<void> _unsendConnectionRequest() async {
+    if (_profile == null || _isSubmitting) return;
+    final auth = context.read<AuthProvider>();
+    final social = context.read<SocialProvider>();
+    setState(() => _isSubmitting = true);
+    try {
+      await social.disconnectConnection(
+        auth.apiClient,
+        targetUserId: _profile!.id,
+      );
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connection request canceled.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   Future<void> _acceptConnection() async {
     final connectionId = _pendingIncomingConnectionId;
     if (connectionId == null || _isSubmitting) return;
@@ -228,7 +253,14 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
         auth.apiClient,
         _profile!.id,
       );
+      final createdRequest =
+          room.isMessageRequest && room.messageRequestDirection == 'outgoing';
       if (!mounted) return;
+      if (createdRequest) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message request sent.')),
+        );
+      }
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ChatScreen(room: room)),
       );
@@ -284,8 +316,10 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                         (!_isSubmitting && profile.canChat) ? _chatNow : null,
                     child: Text(
                       profile.canChat
-                          ? 'Chat Now'
-                          : 'Chat unlocks after connection',
+                          ? (profile.connectionStatus == 'connected'
+                              ? 'Chat Now'
+                              : 'Send Message Request')
+                          : 'Chat unavailable',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -311,7 +345,9 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                     OutlinedButton(
                       onPressed: _isSubmitting
                           ? null
-                          : profile.canDisconnect
+                          : profile.connectionStatus == 'pending_outgoing'
+                              ? _unsendConnectionRequest
+                              : profile.canDisconnect
                               ? _disconnect
                               : profile.canConnect
                                   ? _sendConnectionRequest
@@ -341,7 +377,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
     if (profile.canDisconnect) return 'Disconnect';
     switch (profile.connectionStatus) {
       case 'pending_outgoing':
-        return 'Request Sent';
+        return 'Unsend Connection Request';
       case 'pending_incoming':
         return 'Respond to Request';
       case 'connected':

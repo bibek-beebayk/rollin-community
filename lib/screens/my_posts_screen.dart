@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/share_post_to_chat_dialog.dart';
 import 'create_post_screen.dart';
 import 'post_details_screen.dart';
 
@@ -221,6 +222,10 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                         onTap: () => _openPostDetails(post),
                         onEdit: () => _openEditPost(post),
                         onDelete: () => _deletePost(post),
+                        onShare: () => showSharePostToChatDialog(
+                          context,
+                          post: post,
+                        ),
                       );
                     },
                   ),
@@ -234,12 +239,14 @@ class _MyPostCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onShare;
 
   const _MyPostCard({
     required this.post,
     required this.onTap,
     required this.onEdit,
     required this.onDelete,
+    required this.onShare,
   });
 
   @override
@@ -345,6 +352,16 @@ class _MyPostCard extends StatelessWidget {
                           label: const Text('Delete'),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.redAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: onShare,
+                          icon: const Icon(Icons.send_outlined, size: 16),
+                          label: const Text('Share'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.textSecondary,
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           ),
                         ),

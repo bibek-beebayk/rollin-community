@@ -21,6 +21,10 @@ class Room {
   final bool userIsGroupAdmin;
   final DateTime? lastActivity;
   final int? lastMessageSenderId;
+  final bool isMessageRequest;
+  final String messageRequestDirection;
+  final String directRequestStatus;
+  final User? directRequestInitiator;
   int unreadCount;
 
   Room({
@@ -43,6 +47,10 @@ class Room {
     this.userIsGroupAdmin = false,
     this.lastActivity,
     this.lastMessageSenderId,
+    this.isMessageRequest = false,
+    this.messageRequestDirection = 'none',
+    this.directRequestStatus = 'accepted',
+    this.directRequestInitiator,
     this.unreadCount = 0,
   });
 
@@ -76,6 +84,14 @@ class Room {
           ? DateTime.tryParse(json['last_activity'])
           : null,
       lastMessageSenderId: json['last_message_sender_id'],
+      isMessageRequest: json['is_message_request'] == true,
+      messageRequestDirection:
+          (json['message_request_direction'] ?? 'none').toString(),
+      directRequestStatus:
+          (json['direct_request_status'] ?? 'accepted').toString(),
+      directRequestInitiator: json['direct_request_initiator'] != null
+          ? User.fromJson(json['direct_request_initiator'])
+          : null,
       unreadCount: json['unread_count'] ?? 0,
     );
   }
@@ -100,6 +116,10 @@ class Room {
       'user_is_group_admin': userIsGroupAdmin,
       'last_activity': lastActivity?.toIso8601String(),
       'last_message_sender_id': lastMessageSenderId,
+      'is_message_request': isMessageRequest,
+      'message_request_direction': messageRequestDirection,
+      'direct_request_status': directRequestStatus,
+      'direct_request_initiator': directRequestInitiator?.toJson(),
     };
   }
 }

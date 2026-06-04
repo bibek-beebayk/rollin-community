@@ -7,6 +7,7 @@ class CustomInput extends StatelessWidget {
   final bool obscureText;
   final TextInputType keyboardType;
   final Widget? prefixIcon;
+  final Widget? suffixIcon;
   final FocusNode? focusNode;
 
   const CustomInput({
@@ -16,6 +17,7 @@ class CustomInput extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
     this.prefixIcon,
+    this.suffixIcon,
     this.focusNode,
   });
 
@@ -37,6 +39,7 @@ class CustomInput extends StatelessWidget {
           hintText: hintText,
           hintStyle: TextStyle(color: AppTheme.textSecondary),
           prefixIcon: prefixIcon,
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           focusedBorder: InputBorder.none,
           enabledBorder: InputBorder.none,

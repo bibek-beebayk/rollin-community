@@ -152,6 +152,45 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
     }
   }
 
+  Future<void> _handleOutgoingUnsendAction({
+    required SocialConnection connection,
+  }) async {
+    if (_isUpdating) return;
+    final auth = context.read<AuthProvider>();
+    final social = context.read<SocialProvider>();
+    final chat = context.read<ChatProvider>();
+    final targetUserId = connection.receiver.id;
+
+    setState(() => _isUpdating = true);
+    try {
+      await social.disconnectConnection(
+        auth.apiClient,
+        targetUserId: targetUserId,
+      );
+
+      await _load();
+      final currentUserId = auth.user?.id;
+      if (currentUserId != null) {
+        await chat.refreshPendingConnectionRequests(
+          auth.apiClient,
+          currentUserId: currentUserId,
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connection request canceled.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
   Widget _tile(
     SocialConnection connection, {
     required String subtitle,
@@ -163,6 +202,7 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: AppTheme.itemDecoration(),
       child: ListTile(
+        onTap: () => _openProfile(user),
         leading: CircleAvatar(
           backgroundColor: user.isAgent
               ? AppTheme.primary.withValues(alpha: 0.8)
@@ -187,10 +227,16 @@ class _PendingConnectionsScreenState extends State<PendingConnectionsScreen> {
           subtitle,
           style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.68)),
         ),
-        trailing: TextButton(
-          onPressed: () => _openProfile(user),
-          child: const Text('View Profile'),
-        ),
+        trailing: incoming
+            ? null
+            : TextButton(
+                onPressed: _isUpdating
+                    ? null
+                    : () => _handleOutgoingUnsendAction(
+                          connection: connection,
+                        ),
+                child: const Text('Unsend'),
+              ),
       ),
     );
   }

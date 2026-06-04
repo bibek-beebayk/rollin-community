@@ -245,6 +245,30 @@ class PostService {
     }
   }
 
+  Future<Map<String, dynamic>?> sharePostToChats(
+    int postId, {
+    required List<int> roomIds,
+  }) async {
+    if (roomIds.isEmpty) {
+      throw Exception('Select at least one chat.');
+    }
+    try {
+      final response = await apiClient.post(
+        '/api/posts/$postId/share-to-chats/',
+        body: {'room_ids': roomIds},
+      );
+      if (response is Map<String, dynamic>) {
+        final data = response['data'];
+        if (data is Map<String, dynamic>) return data;
+        return response;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error sharing post $postId to chats: $e');
+      rethrow;
+    }
+  }
+
   List<PostComment>? getCachedComments(int postId) {
     final updatedAt = _commentsCacheUpdatedAt[postId];
     final cached = _commentsCache[postId];

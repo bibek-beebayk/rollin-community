@@ -21,6 +21,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   String _userType = 'player'; // Default to player
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   Future<void> _handleRegister() async {
     final username = _usernameController.text.trim();
@@ -179,17 +181,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   CustomInput(
                     hintText: 'Password',
                     controller: _passwordController,
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible,
                     prefixIcon:
                         Icon(Icons.lock_outline, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
                   const SizedBox(height: 16),
                   CustomInput(
                     hintText: 'Confirm Password',
                     controller: _confirmPasswordController,
-                    obscureText: true,
+                    obscureText: !_isConfirmPasswordVisible,
                     prefixIcon:
                         Icon(Icons.lock_outline, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isConfirmPasswordVisible
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
                   const SizedBox(height: 32),
 

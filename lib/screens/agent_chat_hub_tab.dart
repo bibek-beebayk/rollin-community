@@ -55,6 +55,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
 
     try {
       await chatProvider.fetchActiveChats(authProvider.apiClient);
+      await chatProvider.fetchMessageRequests(authProvider.apiClient);
       int pendingGroupRequests = 0;
       if (isAgentUser) {
         final requests =
@@ -151,6 +152,25 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
       chatProvider.disconnectRoom(room.id);
     }
     unawaited(_loadChats(showLoader: false));
+  }
+
+  Future<void> _respondToMessageRequest(Room room, String action) async {
+    final authProvider = context.read<AuthProvider>();
+    final chatProvider = context.read<ChatProvider>();
+    try {
+      await chatProvider.respondToMessageRequest(
+        authProvider.apiClient,
+        roomId: room.id,
+        action: action,
+      );
+      if (!mounted) return;
+      await _loadChats(showLoader: false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
   }
 
   Future<void> _showCreateGroupDialog() async {
@@ -593,6 +613,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               }
               final directRoomsRaw =
                   rooms.where((r) => r.roomType == 'direct_agent').toList();
+              final messageRequestRooms = chatProvider.messageRequests;
               final groupRoomsRaw = rooms.where((r) => r.roomType == 'group').toList();
               final otherRooms = _buildPrioritizedRooms(
                 directRoomsRaw,
@@ -687,6 +708,84 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       child: Text(
                         'Support chat is not available right now.',
                         style: TextStyle(color: AppTheme.textSecondary),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Message Requests',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary.withValues(alpha: 0.95),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (messageRequestRooms.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.cardBorder),
+                      ),
+                      child: Text(
+                        'No message requests.',
+                        style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
+                      ),
+                    )
+                  else
+                    ...messageRequestRooms.map(
+                      (room) => Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.cardBorder,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              leading: _buildChatAvatar(room),
+                              title: Text(
+                                _titleForRoom(room),
+                                style: TextStyle(color: AppTheme.textPrimary),
+                              ),
+                              subtitle: Text(
+                                room.messageRequestDirection == 'incoming'
+                                    ? 'Incoming message request'
+                                    : 'Pending request (outgoing)',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary.withValues(alpha: 0.65),
+                                ),
+                              ),
+                              trailing: _unreadBadge(room.unreadCount),
+                              onTap: () => _openChat(room),
+                            ),
+                            if (room.messageRequestDirection == 'incoming')
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () => _respondToMessageRequest(room, 'reject'),
+                                        child: const Text('Reject'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () => _respondToMessageRequest(room, 'accept'),
+                                        child: const Text('Accept'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   const SizedBox(height: 16),

@@ -91,6 +91,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     try {
       await authProvider.apiClient.loadTokens();
       await chatProvider.fetchActiveChats(authProvider.apiClient);
+      await chatProvider.fetchMessageRequests(authProvider.apiClient);
       final currentUser = authProvider.user;
       if (_hasConnectionsAccess(currentUser)) {
         await chatProvider.refreshPendingConnectionRequests(
@@ -116,6 +117,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final chatProvider = context.read<ChatProvider>();
     try {
       await chatProvider.fetchActiveChats(authProvider.apiClient);
+      await chatProvider.fetchMessageRequests(authProvider.apiClient);
     } catch (e) {
       debugPrint('MainScreen: Failed to refresh unread counts: $e');
     }
@@ -475,8 +477,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
       bottomNavigationBar: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
-          final int totalUnreadCount = chatProvider.activeChats
-              .fold<int>(0, (sum, room) => sum + room.unreadCount);
+          final int totalUnreadCount =
+              chatProvider.activeChats.fold<int>(0, (sum, room) => sum + room.unreadCount) +
+                  chatProvider.messageRequests.fold<int>(0, (sum, room) => sum + room.unreadCount);
           final int unreadCountForBadge =
               effectiveIndex == chatIndex ? 0 : totalUnreadCount;
 

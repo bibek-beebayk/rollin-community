@@ -8,6 +8,7 @@ import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 import 'post_details_screen.dart';
 import 'create_post_screen.dart';
+import '../widgets/share_post_to_chat_dialog.dart';
 
 class PostFeedScreen extends StatefulWidget {
   const PostFeedScreen({super.key});
@@ -68,6 +69,13 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
         );
       }
     });
+  }
+
+  Future<void> _sharePost(Post post) async {
+    await showSharePostToChatDialog(
+      context,
+      post: post,
+    );
   }
 
   @override
@@ -137,6 +145,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
         return _PostCard(
           post: post,
           onLikeTap: () => _toggleLike(post),
+          onShareTap: () => _sharePost(post),
           onTap: () async {
             final result = await Navigator.push(
               context,
@@ -165,11 +174,13 @@ class _PostCard extends StatelessWidget {
   final Post post;
   final VoidCallback onTap;
   final VoidCallback onLikeTap;
+  final VoidCallback onShareTap;
 
   const _PostCard({
     required this.post,
     required this.onTap,
     required this.onLikeTap,
+    required this.onShareTap,
   });
 
   @override
@@ -311,6 +322,35 @@ class _PostCard extends StatelessWidget {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(width: 14),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: onShareTap,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.send_outlined,
+                                  size: 17,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Share',
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

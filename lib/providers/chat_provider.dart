@@ -83,6 +83,8 @@ class ChatProvider with ChangeNotifier {
 
   List<Room> _activeChats = [];
   List<Room> get activeChats => _activeChats;
+  List<Room> _messageRequests = [];
+  List<Room> get messageRequests => _messageRequests;
   int get pendingConnectionRequests => _pendingConnectionRequests;
 
   // ... (active chats logic remains)
@@ -242,6 +244,32 @@ class ChatProvider with ChangeNotifier {
       debugPrint('ChatProvider: Error joining support room: $e');
       rethrow;
     }
+  }
+
+  Future<void> fetchMessageRequests(ApiClient apiClient) async {
+    try {
+      final response = await apiClient.get('/api/rooms/message-requests/');
+      final List<dynamic> data =
+          (response is Map && response.containsKey('data'))
+              ? response['data']
+              : (response is List ? response : []);
+      _messageRequests = data.map((j) => Room.fromJson(j)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ChatProvider: Error fetching message requests: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> respondToMessageRequest(
+    ApiClient apiClient, {
+    required int roomId,
+    required String action,
+  }) async {
+    await apiClient.post(
+      '/api/rooms/$roomId/request/respond/',
+      body: {'action': action},
+    );
   }
 
   Future<void> refreshPendingConnectionRequests(
@@ -666,19 +694,26 @@ class ChatProvider with ChangeNotifier {
                 'DEBUG: Incremented unread count to ${_activeChats[roomIndex].unreadCount}');
             notifyListeners();
           } else {
-            debugPrint(
-                'DEBUG: Room $roomId not found in activeChats list. Refreshing active chats.');
-            // Keep local unread in sync immediately even before room list refresh.
-            _persistedUnread[roomId] = (_persistedUnread[roomId] ?? 0) + 1;
-            unawaited(_saveUnreadCounts());
-            notifyListeners();
+            final requestIndex = _messageRequests.indexWhere((r) => r.id == roomId);
+            if (requestIndex != -1) {
+              _messageRequests[requestIndex].unreadCount++;
+              notifyListeners();
+            } else {
+              debugPrint(
+                  'DEBUG: Room $roomId not found in active chats. Refreshing chats and requests.');
+              // Keep local unread in sync immediately even before room list refresh.
+              _persistedUnread[roomId] = (_persistedUnread[roomId] ?? 0) + 1;
+              unawaited(_saveUnreadCounts());
+              notifyListeners();
 
-            // Refresh active chats using an authenticated client.
-            unawaited(() async {
-              final api = ApiClient();
-              await api.loadTokens();
-              await fetchActiveChats(api);
-            }());
+              // Refresh chat lists using an authenticated client.
+              unawaited(() async {
+                final api = ApiClient();
+                await api.loadTokens();
+                await fetchActiveChats(api);
+                await fetchMessageRequests(api);
+              }());
+            }
           }
         } else {
           debugPrint(

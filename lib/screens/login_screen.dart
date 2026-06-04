@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
+  bool _isPasswordVisible = false;
 
   @override
   void initState() {
@@ -226,7 +227,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         CustomInput(
                           hintText: 'Enter your password',
                           controller: _passwordController,
-                          obscureText: true,
+                          obscureText: !_isPasswordVisible,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
+                          ),
                         ),
 
                         const SizedBox(height: 12),

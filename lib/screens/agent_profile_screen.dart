@@ -145,6 +145,31 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> {
     }
   }
 
+  Future<void> _unsendConnectionRequest() async {
+    if (_profile == null || _isSubmitting) return;
+    final auth = context.read<AuthProvider>();
+    final social = context.read<SocialProvider>();
+    setState(() => _isSubmitting = true);
+    try {
+      await social.disconnectConnection(
+        auth.apiClient,
+        targetUserId: _profile!.id,
+      );
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connection request canceled.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   Future<void> _acceptConnection() async {
     final connectionId = _pendingIncomingConnectionId;
     if (connectionId == null || _isSubmitting) return;
@@ -229,7 +254,14 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> {
         auth.apiClient,
         _profile!.id,
       );
+      final createdRequest =
+          room.isMessageRequest && room.messageRequestDirection == 'outgoing';
       if (!mounted) return;
+      if (createdRequest) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message request sent.')),
+        );
+      }
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ChatScreen(room: room)),
       );
@@ -272,8 +304,10 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> {
                         (!_isSubmitting && profile.canChat) ? _chatNow : null,
                     child: Text(
                       profile.canChat
-                          ? 'Chat Now'
-                          : 'Chat unlocks after connection',
+                          ? (profile.connectionStatus == 'connected'
+                              ? 'Chat Now'
+                              : 'Send Message Request')
+                          : 'Chat unavailable',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -299,7 +333,9 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> {
                     OutlinedButton(
                       onPressed: _isSubmitting
                           ? null
-                          : profile.canDisconnect
+                          : profile.connectionStatus == 'pending_outgoing'
+                              ? _unsendConnectionRequest
+                              : profile.canDisconnect
                               ? _disconnect
                               : profile.canConnect
                                   ? _sendConnectionRequest
@@ -335,7 +371,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> {
     if (profile.canDisconnect) return 'Disconnect';
     switch (profile.connectionStatus) {
       case 'pending_outgoing':
-        return 'Request Sent';
+        return 'Unsend Connection Request';
       case 'pending_incoming':
         return 'Respond to Request';
       case 'connected':
@@ -381,48 +417,53 @@ class ProfileHero extends StatelessWidget {
                     width: 1.5,
                   ),
                 ),
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppTheme.cardBorder,
-                  child: profileImageUrl == null
-                      ? Text(
-                          user.username.isNotEmpty
-                              ? user.username[0].toUpperCase()
-                              : 'U',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
+                child: GestureDetector(
+                  onTap: profileImageUrl == null
+                      ? null
+                      : () => _openProfileImagePreview(context, profileImageUrl!),
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppTheme.cardBorder,
+                    child: profileImageUrl == null
+                        ? Text(
+                            user.username.isNotEmpty
+                                ? user.username[0].toUpperCase()
+                                : 'U',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : ClipOval(
+                            child: Image.network(
+                              profileImageUrl,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Text(
+                                  user.username.isNotEmpty
+                                      ? user.username[0].toUpperCase()
+                                      : 'U',
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        )
-                      : ClipOval(
-                          child: Image.network(
-                            profileImageUrl,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) return child;
-                              return const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Text(
-                                user.username.isNotEmpty
-                                    ? user.username[0].toUpperCase()
-                                    : 'U',
-                                style: TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -479,6 +520,52 @@ class ProfileHero extends StatelessWidget {
       return '${AppConfig.baseUrl}$raw';
     }
     return raw;
+  }
+
+  void _openProfileImagePreview(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullScreenProfileImageView(imageUrl: imageUrl),
+      ),
+    );
+  }
+}
+
+class _FullScreenProfileImageView extends StatelessWidget {
+  final String imageUrl;
+
+  const _FullScreenProfileImageView({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final viewport = constraints.biggest;
+          return InteractiveViewer(
+            constrained: false,
+            boundaryMargin: const EdgeInsets.all(double.infinity),
+            minScale: 0.2,
+            maxScale: 4.0,
+            child: SizedBox(
+              width: viewport.width,
+              height: viewport.height,
+              child: Center(
+                child: Image.network(
+                  imageUrl,
+                  filterQuality: FilterQuality.high,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
