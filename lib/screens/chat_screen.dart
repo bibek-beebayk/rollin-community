@@ -903,7 +903,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final canSwitchConversation = chatProvider.activeChats.length > 1;
     String titleText;
     if (isStaffUser) {
-      titleText = _getDisplayName(_selectedChat?.name ?? 'Chat');
+      titleText = _selectedChat?.counterpart?.username ?? _getDisplayName(_selectedChat?.name ?? 'Chat');
     } else if (_selectedChat?.roomType == 'group') {
       titleText = _selectedChat?.name ?? 'Group Chat';
     } else if (_selectedChat?.roomType == 'direct_agent' &&
@@ -1399,6 +1399,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final activeChats = chatProvider.activeChats;
     String roomTitle(Room room) {
       if (room.roomType == 'support') {
+        final currentUser = context.read<AuthProvider>().user;
+        final isStaffUser = currentUser?.isStaff ?? false;
+        if (isStaffUser) {
+          return room.counterpart?.username ?? _getDisplayName(room.name);
+        }
         return 'Support Chat';
       }
       if (room.roomType == 'group') {

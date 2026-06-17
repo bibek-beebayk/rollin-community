@@ -593,7 +593,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildChatCard(Room room) {
     final title = room.roomType == 'support'
-        ? 'Support Chat'
+        ? (room.counterpart?.username ?? _getDisplayName(room.name))
         : _getDisplayName(room.name);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
