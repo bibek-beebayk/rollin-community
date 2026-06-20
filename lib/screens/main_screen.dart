@@ -15,6 +15,7 @@ import 'player_connections_screen.dart';
 import 'app_settings_screen.dart';
 import 'login_screen.dart';
 import 'my_posts_screen.dart';
+import 'announcements_screen.dart';
 import '../config/app_config.dart';
 
 class MainScreen extends StatefulWidget {
@@ -33,7 +34,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _chatTabLoaded = false;
 
   int _chatTabIndex(bool hasConnectionsTab) => hasConnectionsTab ? 2 : 2;
-  int _connectionsTabIndex(bool hasConnectionsTab) => hasConnectionsTab ? 3 : -1;
+  int _connectionsTabIndex(bool hasConnectionsTab) =>
+      hasConnectionsTab ? 3 : -1;
   int _lastTabIndex(bool hasConnectionsTab) => hasConnectionsTab ? 3 : 2;
   bool _hasConnectionsAccess(dynamic user) =>
       (user?.isPlayer ?? false) || (user?.isAgent ?? false);
@@ -195,6 +197,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Widget _buildNavItem({
     required IconData icon,
     required IconData activeIcon,
+    required String label,
     required bool selected,
     required VoidCallback onTap,
     int unreadCount = 0,
@@ -206,31 +209,36 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           decoration: BoxDecoration(
             color: selected
-                ? AppTheme.cardBorder
+                ? AppTheme.primary.withValues(alpha: 0.20)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
+            border: selected
+                ? Border.all(color: AppTheme.primary.withValues(alpha: 0.34))
+                : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                height: 2,
-                width: selected ? 18 : 0,
-                margin: const EdgeInsets.only(bottom: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.accent.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
               _buildChatTabIcon(
                 icon: selected ? activeIcon : icon,
                 unreadCount: unreadCount,
+              ),
+              const SizedBox(height: 4),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 180),
+                style: TextStyle(
+                  color:
+                      selected ? AppTheme.textPrimary : AppTheme.textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  height: 1,
+                ),
+                child:
+                    Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -260,26 +268,36 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openDrawerScreen(Widget screen) async {
+    Navigator.of(context).pop();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
   Future<void> _logout() async {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radius)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radius)),
         title: Text('Logout', style: TextStyle(color: AppTheme.textPrimary)),
         content: Text('Are you sure you want to logout?',
             style: TextStyle(color: AppTheme.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            child:
+                Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _performLogout();
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
+            child:
+                const Text('Logout', style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -301,10 +319,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   String? _resolveProfileImageUrl(dynamic user) {
-    final raw =
-        (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
-            ?.toString()
-            .trim();
+    final raw = (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
+        ?.toString()
+        .trim();
     if (raw == null || raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
     final base = AppConfig.baseUrl.endsWith('/')
@@ -316,46 +333,123 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Widget _buildMenuDrawer(dynamic user) {
     final username = user?.username ?? 'User';
+    final userType = _formatUserType(user?.userType);
     final profileImageUrl = _resolveProfileImageUrl(user);
 
     return Drawer(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppTheme.background,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
+            Container(
+              margin: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: AppTheme.primary.withValues(alpha: 0.9),
-                    backgroundImage: profileImageUrl != null
-                        ? NetworkImage(profileImageUrl)
-                        : null,
-                    child: profileImageUrl == null
-                        ? Text(
-                            username.isNotEmpty
-                                ? username[0].toUpperCase()
-                                : 'U',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      username,
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor:
+                            AppTheme.primary.withValues(alpha: 0.9),
+                        backgroundImage: profileImageUrl != null
+                            ? NetworkImage(profileImageUrl)
+                            : null,
+                        child: profileImageUrl == null
+                            ? Text(
+                                username.isNotEmpty
+                                    ? username[0].toUpperCase()
+                                    : 'U',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              )
+                            : null,
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              username,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              userType,
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _DrawerSectionTitle('Community'),
+                  
+                  _DrawerNavTile(
+                    icon: Icons.edit_note_outlined,
+                    label: 'My Posts',
+                    onTap: _openMyPosts,
+                  ),
+                  _DrawerNavTile(
+                    icon: Icons.campaign_outlined,
+                    label: 'Announcements',
+                    badge: 'New',
+                    onTap: () => _openDrawerScreen(const AnnouncementsScreen()),
+                  ),
+                  _DrawerSectionTitle('Support'),
+                  _DrawerNavTile(
+                    icon: Icons.help_outline,
+                    label: 'FAQ',
+                    onTap: () => _openDrawerScreen(const FAQScreen()),
+                  ),
+                  _DrawerNavTile(
+                    icon: Icons.shield_outlined,
+                    label: 'Guidelines',
+                    onTap: () => _openDrawerScreen(const GuidelinesScreen()),
+                  ),
+                  _DrawerSectionTitle('Settings'),
+                  _DrawerNavTile(
+                    icon: Icons.palette_outlined,
+                    label: 'Appearance',
+                    onTap: _openSettings,
+                  ),
+                  _DrawerNavTile(
+                    icon: Icons.person_outline,
+                    label: 'Profile',
+                    onTap: _openProfile,
+                  ),
+                  if (user?.isStaff ?? false)
+                    _DrawerNavTile(
+                      icon: Icons.card_giftcard_outlined,
+                      label: 'Redemptions',
+                      onTap: () =>
+                          _openDrawerScreen(const RewardRedemptionsScreen()),
+                    ),
                 ],
               ),
             ),
@@ -364,30 +458,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               color: AppTheme.textSecondary.withValues(alpha: 0.55),
             ),
             ListTile(
-              leading: Icon(Icons.person_outline, color: AppTheme.textPrimary),
-              title: Text('Profile', style: TextStyle(color: AppTheme.textPrimary)),
-              onTap: _openProfile,
-            ),
-            ListTile(
-              leading: Icon(Icons.palette_outlined, color: AppTheme.textPrimary),
-              title: Text('Appearance', style: TextStyle(color: AppTheme.textPrimary)),
-              onTap: _openSettings,
-            ),
-            ListTile(
-              leading: Icon(Icons.edit_note_outlined, color: AppTheme.textPrimary),
-              title: Text('My Posts', style: TextStyle(color: AppTheme.textPrimary)),
-              onTap: _openMyPosts,
-            ),
-            const Spacer(),
-            Divider(
-              height: 1,
-              color: AppTheme.textSecondary.withValues(alpha: 0.55),
-            ),
-            ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
               title: const Text(
                 'Logout',
-                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                    color: Colors.redAccent, fontWeight: FontWeight.w700),
               ),
               onTap: _logout,
             ),
@@ -403,38 +478,99 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final profileImageUrl = _resolveProfileImageUrl(user);
     final accentColor = Theme.of(context).colorScheme.primary;
 
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: accentColor.withValues(alpha: 0.95),
+            child: CircleAvatar(
+              radius: 16.6,
+              backgroundColor: AppTheme.surface.withValues(alpha: 0.92),
+              backgroundImage: profileImageUrl != null
+                  ? NetworkImage(profileImageUrl)
+                  : null,
+              child: profileImageUrl == null
+                  ? Text(
+                      initial,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(dynamic user) {
     return SafeArea(
+      bottom: false,
       child: Padding(
-        padding: const EdgeInsets.only(top: 8, right: 4),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: accentColor.withValues(alpha: 0.95),
-                child: CircleAvatar(
-                  radius: 16.6,
-                  backgroundColor: AppTheme.surface.withValues(alpha: 0.92),
-                  backgroundImage: profileImageUrl != null
-                      ? NetworkImage(profileImageUrl)
-                      : null,
-                  child: profileImageUrl == null
-                      ? Text(
-                          initial,
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        )
-                      : null,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: AppTheme.surface.withValues(alpha: 0.84),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.cardBorder),
+            boxShadow: AppTheme.visualStyle == VisualStyle.card
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/icon.png',
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Rollin Community',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    // const SizedBox(height: 1),
+                    // Text(
+                    //   'Hi-Rollin players hub',
+                    //   style: TextStyle(
+                    //     color: AppTheme.textSecondary,
+                    //     fontSize: 11,
+                    //     fontWeight: FontWeight.w600,
+                    //   ),
+                    // ),
+                  ],
+                ),
+              ),
+              _buildTopMenuButton(user),
+            ],
           ),
         ),
       ),
@@ -449,37 +585,48 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final user = authProvider.user;
     final hasConnectionsTab = _hasConnectionsAccess(user);
     final chatIndex = _chatTabIndex(hasConnectionsTab);
-    final connectionsIndex = _connectionsTabIndex(hasConnectionsTab);
     final lastTabIndex = _lastTabIndex(hasConnectionsTab);
     final effectiveIndex = _currentIndex.clamp(0, lastTabIndex).toInt();
-    final useChatHubForUser = (user?.isAgent ?? false) || (user?.isPlayer ?? false);
-    final isOnConnectionsTab = hasConnectionsTab && effectiveIndex == connectionsIndex;
+    final useChatHubForUser =
+        (user?.isAgent ?? false) || (user?.isPlayer ?? false);
 
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppTheme.background,
       endDrawer: _buildMenuDrawer(user),
-      body: IndexedStack(
-        index: effectiveIndex,
-        children: [
-          const HomeScreen(),
-          const PostFeedScreen(),
-          _chatTabLoaded
-              ? (useChatHubForUser
-                  ? const AgentChatHubTab()
-                  : const SupportChatTab())
-              : const SizedBox.shrink(),
-          if (hasConnectionsTab)
-            PlayerConnectionsScreen(
-              onOpenMenu: () => _scaffoldKey.currentState?.openEndDrawer(),
+      body: Container(
+        decoration: AppTheme.dashboardBackground(),
+        child: Column(
+          children: [
+            _buildTopBar(user),
+            Expanded(
+              child: IndexedStack(
+                index: effectiveIndex,
+                children: [
+                  const HomeScreen(showAppBar: false),
+                  const PostFeedScreen(),
+                  _chatTabLoaded
+                      ? (useChatHubForUser
+                          ? const AgentChatHubTab()
+                          : const SupportChatTab())
+                      : const SizedBox.shrink(),
+                  if (hasConnectionsTab)
+                    PlayerConnectionsScreen(
+                      onOpenMenu: () =>
+                          _scaffoldKey.currentState?.openEndDrawer(),
+                    ),
+                ],
+              ),
             ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
-          final int totalUnreadCount =
-              chatProvider.activeChats.fold<int>(0, (sum, room) => sum + room.unreadCount) +
-                  chatProvider.messageRequests.fold<int>(0, (sum, room) => sum + room.unreadCount);
+          final int totalUnreadCount = chatProvider.activeChats
+                  .fold<int>(0, (sum, room) => sum + room.unreadCount) +
+              chatProvider.messageRequests
+                  .fold<int>(0, (sum, room) => sum + room.unreadCount);
           final int unreadCountForBadge =
               effectiveIndex == chatIndex ? 0 : totalUnreadCount;
 
@@ -490,36 +637,39 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(AppTheme.radius + 2),
+                  color: AppTheme.surface.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.cardBorder),
                   boxShadow: AppTheme.visualStyle == VisualStyle.card
                       ? [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.18),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
+                            color: Colors.black.withValues(alpha: 0.28),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
                           ),
                         ]
                       : null,
-
                 ),
                 child: Row(
                   children: [
                     _buildNavItem(
                       icon: Icons.home_outlined,
                       activeIcon: Icons.home,
+                      label: 'Home',
                       selected: effectiveIndex == 0,
                       onTap: () => _handleNavTap(0, chatProvider),
                     ),
                     _buildNavItem(
                       icon: Icons.article_outlined,
                       activeIcon: Icons.article,
+                      label: 'Posts',
                       selected: effectiveIndex == 1,
                       onTap: () => _handleNavTap(1, chatProvider),
                     ),
                     _buildNavItem(
                       icon: Icons.chat_bubble_outline,
                       activeIcon: Icons.chat_bubble,
+                      label: 'Chats',
                       selected: effectiveIndex == chatIndex,
                       unreadCount: unreadCountForBadge,
                       onTap: () => _handleNavTap(chatIndex, chatProvider),
@@ -528,7 +678,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       _buildNavItem(
                         icon: Icons.people_outline,
                         activeIcon: Icons.people,
-                        selected: effectiveIndex == _connectionsTabIndex(hasConnectionsTab),
+                        label: 'People',
+                        selected: effectiveIndex ==
+                            _connectionsTabIndex(hasConnectionsTab),
                         unreadCount: chatProvider.pendingConnectionRequests,
                         onTap: () => _handleNavTap(
                           _connectionsTabIndex(hasConnectionsTab),
@@ -542,14 +694,106 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           );
         },
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
-      floatingActionButton: Consumer<ChatProvider>(
-        builder: (context, chatProvider, _) {
-          if (isOnConnectionsTab) {
-            return const SizedBox.shrink();
-          }
-          return _buildTopMenuButton(user);
-        },
+    );
+  }
+}
+
+String _formatUserType(dynamic value) {
+  final raw = value?.toString().trim();
+  if (raw == null || raw.isEmpty) return 'Member';
+  return raw
+      .split(RegExp(r'[_\s-]+'))
+      .where((part) => part.isNotEmpty)
+      .map((part) =>
+          '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+      .join(' ');
+}
+
+class _DrawerSectionTitle extends StatelessWidget {
+  final String text;
+
+  const _DrawerSectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          color: AppTheme.textSecondary.withValues(alpha: 0.72),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _DrawerNavTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? badge;
+  final VoidCallback onTap;
+
+  const _DrawerNavTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Icon(icon, color: AppTheme.textSecondary, size: 20),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                if (badge != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: AppTheme.primary.withValues(alpha: 0.30),
+                      ),
+                    ),
+                    child: Text(
+                      badge!,
+                      style: TextStyle(
+                        color: AppTheme.accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

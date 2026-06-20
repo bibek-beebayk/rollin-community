@@ -8,9 +8,11 @@ import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../models/event.dart';
+import '../models/login_streak.dart';
 import '../models/post.dart';
 import '../services/event_service.dart';
 import '../services/post_service.dart';
+import '../services/reward_service.dart';
 import '../services/notification_service.dart';
 import '../api/api_client.dart';
 import 'package:video_player/video_player.dart';
@@ -19,7 +21,9 @@ import 'agent_search_screen.dart';
 import '../widgets/share_post_to_chat_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool showAppBar;
+
+  const HomeScreen({super.key, this.showAppBar = true});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -33,6 +37,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingPosts = true;
   Map<String, dynamic>? _homeInfo;
   bool _isLoadingHomeInfo = true;
+  LoginStreakStatus? _streak;
+  bool _isLoadingStreak = true;
+  bool _isRedeemingStreak = false;
+  String? _streakError;
 
   @override
   void initState() {
@@ -41,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _fetchEvents();
       _fetchPosts();
       _fetchHomeInfo();
+      _loadStreak(recordVisit: true);
     });
   }
 
@@ -98,7 +107,84 @@ class _HomeScreenState extends State<HomeScreen> {
       _fetchEvents(),
       _fetchPosts(),
       _fetchHomeInfo(),
+      _loadStreak(recordVisit: false),
     ]);
+  }
+
+  bool _isPlayer(dynamic user) {
+    return (user?.userType ?? '').toString().toLowerCase() == 'player';
+  }
+
+  Future<void> _loadStreak({required bool recordVisit}) async {
+    final authProvider = context.read<AuthProvider>();
+    if (!_isPlayer(authProvider.user)) {
+      if (mounted) {
+        setState(() {
+          _isLoadingStreak = false;
+          _streak = null;
+          _streakError = null;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingStreak = true;
+        _streakError = null;
+      });
+    }
+
+    final rewardService = RewardService(authProvider.apiClient);
+    try {
+      final streak = recordVisit
+          ? await rewardService.recordVisit()
+          : await rewardService.getStreak();
+      if (!mounted) return;
+      setState(() {
+        _streak = streak;
+        _isLoadingStreak = false;
+      });
+    } catch (e) {
+      if (recordVisit) {
+        try {
+          final streak = await rewardService.getStreak();
+          if (!mounted) return;
+          setState(() {
+            _streak = streak;
+            _isLoadingStreak = false;
+          });
+          return;
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      setState(() {
+        _streakError = e.toString().replaceAll('Exception: ', '');
+        _isLoadingStreak = false;
+      });
+    }
+  }
+
+  Future<void> _requestStreakRedemption() async {
+    final authProvider = context.read<AuthProvider>();
+    setState(() {
+      _isRedeemingStreak = true;
+      _streakError = null;
+    });
+
+    try {
+      await RewardService(authProvider.apiClient).requestRedemption();
+      await _loadStreak(recordVisit: false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _streakError = e.toString().replaceAll('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isRedeemingStreak = false);
+      }
+    }
   }
 
   String _homeInfoText(dynamic value) {
@@ -125,10 +211,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String? _resolveProfileImageUrl(dynamic user) {
-    final raw =
-        (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
-            ?.toString()
-            .trim();
+    final raw = (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
+        ?.toString()
+        .trim();
     if (raw == null || raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
     final base = ApiClient.baseUrl.endsWith('/')
@@ -168,9 +253,8 @@ class _HomeScreenState extends State<HomeScreen> {
             if (loadingProgress == null) return child;
             final expected = loadingProgress.expectedTotalBytes;
             final loaded = loadingProgress.cumulativeBytesLoaded;
-            final progress = expected != null && expected > 0
-                ? loaded / expected
-                : null;
+            final progress =
+                expected != null && expected > 0 ? loaded / expected : null;
             return Container(
               width: 36,
               height: 36,
@@ -231,39 +315,34 @@ class _HomeScreenState extends State<HomeScreen> {
     final showRoleInfo = !_isLoadingHomeInfo && _hasRenderableHomeInfo();
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Rollin Community',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: widget.showAppBar,
+      appBar: widget.showAppBar
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('Rollin Community',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            )
+          : null,
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              AppTheme.surface,
-              AppTheme.background,
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
+        decoration: AppTheme.dashboardBackground(),
         child: SafeArea(
+          top: widget.showAppBar,
           child: RefreshIndicator(
             onRefresh: _onRefresh,
             color: AppTheme.accent,
             backgroundColor: AppTheme.surface,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if ((user?.userType ?? '').toString().toLowerCase() == 'player') ...[
-                    _buildFindAgentsCard(context),
+                  // _buildHeroCard(user),
+                  // const SizedBox(height: 16),
+                  if (_isPlayer(user)) ...[
+                    _buildPlayerQuickCards(context),
                     const SizedBox(height: 16),
                   ],
                   if (showRoleInfo) ...[
@@ -348,6 +427,90 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildHeroCard(dynamic user) {
+    final username = (user?.username ?? 'Player').toString();
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.28)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primary.withValues(alpha: 0.28),
+            AppTheme.surface.withValues(alpha: 0.92),
+            AppTheme.accent.withValues(alpha: 0.10),
+          ],
+        ),
+        boxShadow: AppTheme.visualStyle == VisualStyle.card
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.26),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+              ]
+            : null,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WELCOME BACK',
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _capitalizeUsername(username),
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Catch the latest pinned posts, live events, and community rewards.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              color: AppTheme.background.withValues(alpha: 0.34),
+              borderRadius: BorderRadius.circular(20),
+              border:
+                  Border.all(color: AppTheme.accent.withValues(alpha: 0.35)),
+            ),
+            padding: const EdgeInsets.all(8),
+            child: Image.asset('assets/icon.png', fit: BoxFit.contain),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _fetchHomeInfo() async {
     final authProvider = context.read<AuthProvider>();
     try {
@@ -424,7 +587,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-          if (title.isNotEmpty && subtitle.isNotEmpty) const SizedBox(height: 4),
+          if (title.isNotEmpty && subtitle.isNotEmpty)
+            const SizedBox(height: 4),
           if (subtitle.isNotEmpty)
             Text(
               subtitle,
@@ -440,8 +604,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                        _iconFromName((point['icon'] ?? 'info_outline').toString()),
-                        size: 16, color: AppTheme.accent.withValues(alpha: 0.9)),
+                        _iconFromName(
+                            (point['icon'] ?? 'info_outline').toString()),
+                        size: 16,
+                        color: AppTheme.accent.withValues(alpha: 0.9)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -485,7 +651,404 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFindAgentsCard(BuildContext context) {
+  // ignore: unused_element
+  Widget _buildLoginStreakCard() {
+    final streak = _streak;
+    final targetDays = streak?.targetDays ?? 7;
+    final currentStreak =
+        streak == null ? 0 : streak.currentStreak.clamp(0, targetDays).toInt();
+    final progress =
+        targetDays <= 0 ? 0.0 : (currentStreak / targetDays).clamp(0.0, 1.0);
+    final rewardAmount =
+        double.tryParse((streak?.rewardAmount ?? '5.00').toString()) ?? 5.0;
+    final receivableBonus =
+        double.tryParse((streak?.receivableBonus ?? '0.00').toString()) ?? 0.0;
+    final activeRequest = streak?.activeRedemptionRequest;
+    final rewardAvailable = streak?.rewardAvailable == true;
+    final title = rewardAvailable
+        ? 'Bonus unlocked'
+        : streak == null
+            ? 'Visit streak'
+            : '${streak.daysRemaining} days to unlock';
+    final body = rewardAvailable
+        ? '\$${receivableBonus.toStringAsFixed(2)} is ready to redeem.'
+        : 'Visit daily for $targetDays consecutive days to earn Hi-Rollin credit.';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.itemDecoration(
+        customRadius: BorderRadius.circular(AppTheme.radius + 6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Daily Login Streak',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: AppTheme.accent.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Text(
+                  '\$${rewardAmount.toStringAsFixed(0)} Credit',
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_isLoadingStreak && streak == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: AppTheme.accent,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            )
+          else ...[
+            Row(
+              children: [
+                SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 72,
+                        height: 72,
+                        child: CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 7,
+                          backgroundColor:
+                              AppTheme.cardBorder.withValues(alpha: 0.55),
+                          color: AppTheme.accent,
+                          strokeCap: StrokeCap.round,
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$currentStreak',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 21,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            ),
+                          ),
+                          Text(
+                            '/ $targetDays',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        body,
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12.5,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            // ClipRRect(
+            //   borderRadius: BorderRadius.circular(999),
+            //   child: LinearProgressIndicator(
+            //     value: progress,
+            //     minHeight: 7,
+            //     backgroundColor: AppTheme.cardBorder.withValues(alpha: 0.46),
+            //     color: AppTheme.accent,
+            //   ),
+            // ),
+            const SizedBox(height: 14),
+            if (activeRequest != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Redeem request: ${activeRequest.statusLabel ?? activeRequest.status}',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: 44,
+                child: FilledButton(
+                  onPressed: rewardAvailable && !_isRedeemingStreak
+                      ? _requestStreakRedemption
+                      : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        AppTheme.cardBorder.withValues(alpha: 0.70),
+                    disabledForegroundColor:
+                        AppTheme.textSecondary.withValues(alpha: 0.72),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isRedeemingStreak
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Request Redeem',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                ),
+              ),
+          ],
+          if (_streakError != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _streakError!,
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactLoginStreakCard() {
+    final streak = _streak;
+    final targetDays = streak?.targetDays ?? 7;
+    final currentStreak =
+        streak == null ? 0 : streak.currentStreak.clamp(0, targetDays).toInt();
+    final progress =
+        targetDays <= 0 ? 0.0 : (currentStreak / targetDays).clamp(0.0, 1.0);
+    final rewardAvailable = streak?.rewardAvailable == true;
+    final activeRequest = streak?.activeRedemptionRequest;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: AppTheme.itemDecoration(
+        customRadius: BorderRadius.circular(AppTheme.radius + 4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_fire_department_outlined,
+                  color: AppTheme.accent, size: 20),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Daily Streak',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_isLoadingStreak && streak == null)
+            SizedBox(
+              height: 58,
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.accent,
+                  ),
+                ),
+              ),
+            )
+          else ...[
+            Text(
+              '$currentStreak / $targetDays days',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              rewardAvailable ? 'Bonus unlocked' : '\$5 credit reward',
+              style: TextStyle(
+                color:
+                    rewardAvailable ? AppTheme.accent : AppTheme.textSecondary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: AppTheme.cardBorder.withValues(alpha: 0.46),
+                color: AppTheme.accent,
+              ),
+            ),
+            if (activeRequest != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  activeRequest.statusLabel ?? activeRequest.status,
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 34,
+                  child: FilledButton(
+                    onPressed: rewardAvailable && !_isRedeemingStreak
+                        ? _requestStreakRedemption
+                        : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          AppTheme.cardBorder.withValues(alpha: 0.70),
+                      disabledForegroundColor:
+                          AppTheme.textSecondary.withValues(alpha: 0.72),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: _isRedeemingStreak
+                        ? const SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Redeem',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+          ],
+          if (_streakError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _streakError!,
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerQuickCards(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _buildFindAgentsCard(context, compact: true)),
+          const SizedBox(width: 12),
+          Expanded(child: _buildCompactLoginStreakCard()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFindAgentsCard(BuildContext context, {bool compact = false}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -496,29 +1059,86 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: compact
+              ? const EdgeInsets.all(14)
+              : const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: AppTheme.surface.withValues(alpha: 0.7),
+            color: AppTheme.surface.withValues(alpha: 0.86),
             borderRadius: BorderRadius.circular(AppTheme.radius),
             border: Border.all(color: AppTheme.cardBorder),
           ),
-          child: Row(
-            children: [
-              Icon(Icons.person_search, color: AppTheme.accent),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Find Agents',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.person_search,
+                          color: AppTheme.accent, size: 20),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Find Agents',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Connect with verified support',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11.5,
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Text(
+                          'Browse',
+                          style: TextStyle(
+                            color: AppTheme.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Icon(Icons.chevron_right,
+                            color: AppTheme.accent, size: 16),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Icon(Icons.person_search, color: AppTheme.accent),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Find Agents',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+                  ],
                 ),
-              ),
-              Icon(Icons.chevron_right, color: AppTheme.textSecondary),
-            ],
-          ),
         ),
       ),
     );
@@ -560,8 +1180,8 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppTheme.surface.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.surface.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.cardBorder),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -571,7 +1191,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 6),
             Text(
               'No events currently active',
-              style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+              style: TextStyle(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -595,13 +1216,15 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               color: AppTheme.surface,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: AppTheme.visualStyle == VisualStyle.flat ? null : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              boxShadow: AppTheme.visualStyle == VisualStyle.flat
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
               image: event.bannerImage != null
                   ? DecorationImage(
                       image: NetworkImage(event.bannerImage!),
@@ -647,8 +1270,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               event.startDate != null && event.endDate != null
                                   ? '${DateFormat('MMM d, y').format(event.startDate!)} - ${DateFormat('MMM d, y').format(event.endDate!)}'
                                   : event.startDate != null
-                                      ? DateFormat('MMM d, y').format(event.startDate!)
-                                      : DateFormat('MMM d, y').format(event.endDate!),
+                                      ? DateFormat('MMM d, y')
+                                          .format(event.startDate!)
+                                      : DateFormat('MMM d, y')
+                                          .format(event.endDate!),
                               style: const TextStyle(
                                 color: Colors.black,
                                 fontSize: 10,
@@ -660,7 +1285,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           event.title,
                           style: TextStyle(
-                          color: AppTheme.textPrimary,
+                            color: AppTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             height: 1.2,
@@ -707,11 +1332,13 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               Icon(Icons.article_outlined,
-                  color: AppTheme.textSecondary.withValues(alpha: 0.3), size: 48),
+                  color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                  size: 48),
               const SizedBox(height: 12),
               Text(
                 'No pinned posts available',
-                style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+                style: TextStyle(
+                    color: AppTheme.textSecondary.withValues(alpha: 0.7)),
               ),
             ],
           ),
@@ -732,15 +1359,17 @@ class _HomeScreenState extends State<HomeScreen> {
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: AppTheme.visualStyle == VisualStyle.flat ? null : [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-            border: Border.all(color: AppTheme.surface.withValues(alpha: 0.3)),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: AppTheme.visualStyle == VisualStyle.flat
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+            border: Border.all(color: AppTheme.cardBorder),
           ),
           child: Material(
             color: Colors.transparent,
@@ -793,9 +1422,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _capitalizeUsername(post.author?.username ?? 'Unknown'),
+                              _capitalizeUsername(
+                                  post.author?.username ?? 'Unknown'),
                               style: TextStyle(
-                            color: AppTheme.textPrimary.withValues(alpha: 0.85),
+                                color: AppTheme.textPrimary
+                                    .withValues(alpha: 0.85),
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -804,7 +1435,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               _getFriendlyTime(post.createdAt.toLocal()),
                               style: TextStyle(
-                                color: AppTheme.textSecondary.withValues(alpha: 0.75),
+                                color: AppTheme.textSecondary
+                                    .withValues(alpha: 0.75),
                                 fontSize: 12,
                               ),
                             ),
@@ -825,7 +1457,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Text(
                             cleanContent,
                             style: TextStyle(
-                              color: AppTheme.textSecondary.withValues(alpha: 0.9),
+                              color:
+                                  AppTheme.textSecondary.withValues(alpha: 0.9),
                               fontSize: 14,
                               height: 1.4,
                             ),
@@ -1000,7 +1633,8 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
         !identical(_activePreviewController, controller)) {
       await _activePreviewController!.pause();
       if (_activePreviewState != null && _activePreviewState!.mounted) {
-        _activePreviewState!.setState(() => _activePreviewState!._isPlaying = false);
+        _activePreviewState!
+            .setState(() => _activePreviewState!._isPlaying = false);
       }
     }
 
@@ -1060,7 +1694,8 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
         height: 180,
         color: Colors.black26,
         alignment: Alignment.center,
-        child: Icon(Icons.videocam_off, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+        child: Icon(Icons.videocam_off,
+            color: AppTheme.textSecondary.withValues(alpha: 0.75)),
       );
     }
 
@@ -1221,7 +1856,8 @@ class _FullScreenPostVideoPlayer extends StatefulWidget {
       _FullScreenPostVideoPlayerState();
 }
 
-class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> {
+class _FullScreenPostVideoPlayerState
+    extends State<_FullScreenPostVideoPlayer> {
   VideoPlayerController? _controller;
   bool _ownsController = true;
   bool _ready = false;
@@ -1272,7 +1908,8 @@ class _FullScreenPostVideoPlayerState extends State<_FullScreenPostVideoPlayer> 
         backgroundColor: Colors.black,
         appBar: AppBar(backgroundColor: Colors.black),
         body: Center(
-          child: Icon(Icons.videocam_off, color: AppTheme.textSecondary.withValues(alpha: 0.75), size: 42),
+          child: Icon(Icons.videocam_off,
+              color: AppTheme.textSecondary.withValues(alpha: 0.75), size: 42),
         ),
       );
     }

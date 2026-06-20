@@ -6,13 +6,20 @@ enum VisualStyle { card, flat }
 class AppTheme {
   static VisualStyle visualStyle = VisualStyle.card;
 
+  static const Color rollinPurple = Color(0xFF8A2CFF);
+  static const Color rollinViolet = Color(0xFFB066FF);
+  static const Color rollinGold = Color(0xFFF7C94B);
+  static const Color rollinDeep = Color(0xFF07040F);
+  static const Color rollinPanel = Color(0xFF120A22);
+  static const Color rollinPanelSoft = Color(0xFF1A1030);
+
   // Runtime palette used by legacy AppTheme.* consumers across the app.
   // These values are synchronized by ThemeProvider whenever mode/accent changes.
-  static Color primary = const Color(0xFF2563EB);
-  static Color secondary = const Color(0xFF1D4ED8);
-  static Color accent = const Color(0xFF10B981);
-  static Color background = const Color(0xFF0F172A);
-  static Color surface = const Color(0xFF1E293B);
+  static Color primary = rollinPurple;
+  static Color secondary = const Color(0xFF5B21B6);
+  static Color accent = rollinGold;
+  static Color background = rollinDeep;
+  static Color surface = rollinPanel;
   static Color textPrimary = Colors.white;
   static Color textSecondary = const Color(0xFFCBD5E1);
   static Color cardBorder = Colors.white.withValues(alpha: 0.12);
@@ -33,12 +40,11 @@ class AppTheme {
     required Color accentColor,
     required VisualStyle style,
   }) {
-
     final isDark = brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
-    final sf = isDark ? const Color(0xFF1E293B) : const Color(0xFFEEF2F7);
-    final tp = isDark ? Colors.white : const Color(0xFF1E293B);
-    final ts = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B);
+    final bg = isDark ? rollinDeep : const Color(0xFFF8F7FC);
+    final sf = isDark ? rollinPanel : Colors.white;
+    final tp = isDark ? Colors.white : const Color(0xFF1C102C);
+    final ts = isDark ? const Color(0xFFD8CFE8) : const Color(0xFF6D617C);
     final primaryColor = accentColor;
     final secondaryColor = _shiftLightness(accentColor, isDark ? -0.18 : -0.12);
     final tertiaryColor = _shiftLightness(accentColor, isDark ? 0.12 : 0.08);
@@ -54,6 +60,7 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         tertiary: tertiaryColor,
+        error: const Color(0xFFFF5C7A),
         surface: sf,
         onSurface: tp,
         onPrimary: Colors.white,
@@ -62,7 +69,7 @@ class AppTheme {
         isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
       ).apply(bodyColor: tp, displayColor: tp),
       appBarTheme: AppBarTheme(
-        backgroundColor: bg.withValues(alpha: 0.96),
+        backgroundColor: bg.withValues(alpha: 0.92),
         elevation: 0,
         titleTextStyle: GoogleFonts.outfit(
           fontSize: 20,
@@ -76,7 +83,8 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
+            borderRadius:
+                BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
@@ -84,13 +92,15 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.07) : Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
+          borderRadius:
+              BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
+          borderRadius:
+              BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           borderSide: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.12)
@@ -98,7 +108,8 @@ class AppTheme {
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
+          borderRadius:
+              BorderRadius.circular(style == VisualStyle.card ? 12 : 6),
           borderSide: BorderSide(color: primaryColor),
         ),
         hintStyle: TextStyle(color: ts),
@@ -111,7 +122,6 @@ class AppTheme {
     );
   }
 
-
   static void syncLegacyPalette({
     required Brightness brightness,
     required Color accentColor,
@@ -121,15 +131,15 @@ class AppTheme {
 
     final isDark = brightness == Brightness.dark;
     primary = accentColor;
-    secondary = _shiftLightness(accentColor, isDark ? -0.18 : -0.12);
-    accent = _shiftLightness(accentColor, isDark ? 0.12 : 0.08);
-    background = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
-    surface = isDark ? const Color(0xFF1E293B) : const Color(0xFFEEF2F7);
-    textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
-    textSecondary = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B);
+    secondary = _shiftLightness(accentColor, isDark ? -0.20 : -0.12);
+    accent = rollinGold;
+    background = isDark ? rollinDeep : const Color(0xFFF8F7FC);
+    surface = isDark ? rollinPanel : Colors.white;
+    textPrimary = isDark ? Colors.white : const Color(0xFF1C102C);
+    textSecondary = isDark ? const Color(0xFFD8CFE8) : const Color(0xFF6D617C);
     cardBorder = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.black.withValues(alpha: 0.08);
+        ? rollinViolet.withValues(alpha: 0.22)
+        : rollinPurple.withValues(alpha: 0.12);
   }
 
   static ThemeData get theme => buildTheme(
@@ -159,7 +169,7 @@ class AppTheme {
   }) {
     final isFlat = visualStyle == VisualStyle.flat;
     final bgColor = color ?? surface;
-    final effectiveAlpha = alpha ?? (isFlat ? 0.28 : 0.45);
+    final effectiveAlpha = alpha ?? (isFlat ? 0.46 : 0.86);
 
     return BoxDecoration(
       color: bgColor.withValues(alpha: effectiveAlpha),
@@ -169,12 +179,32 @@ class AppTheme {
           ? null
           : [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
             ],
     );
   }
-}
 
+  static BoxDecoration dashboardBackground() {
+    return BoxDecoration(
+      color: background,
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: textPrimary == Colors.white
+            ? const [
+                Color(0xFF090512),
+                Color(0xFF11081E),
+                Color(0xFF06030B),
+              ]
+            : const [
+                Color(0xFFFDFBFF),
+                Color(0xFFF4EEFF),
+                Color(0xFFF8F7FC),
+              ],
+      ),
+    );
+  }
+}

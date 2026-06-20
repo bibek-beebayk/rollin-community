@@ -31,4 +31,11 @@ class AppConfig {
   static bool get isDev => env == 'dev';
   static bool get isStaging => env == 'staging';
   static bool get isProd => env == 'prod';
+
+  /// Web OAuth client ID used as the server client for native Google Sign-In.
+  ///
+  /// Pass with:
+  /// --dart-define=GOOGLE_WEB_CLIENT_ID=xxxxx.apps.googleusercontent.com
+  static const String googleWebClientId =
+      String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
 }

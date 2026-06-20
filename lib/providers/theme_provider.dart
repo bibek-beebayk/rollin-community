@@ -9,7 +9,7 @@ class ThemeProvider extends ChangeNotifier {
   static const String _visualStyleKey = 'app_visual_style';
 
   ThemeMode _themeMode = ThemeMode.dark;
-  Color _accentColor = AppTheme.accent;
+  Color _accentColor = AppTheme.rollinPurple;
   VisualStyle _visualStyle = VisualStyle.card;
 
   bool _isInitialized = false;
@@ -24,8 +24,10 @@ class ThemeProvider extends ChangeNotifier {
   VisualStyle get visualStyle => _visualStyle;
   bool get isInitialized => _isInitialized;
 
-
   static const List<Color> accentPresets = [
+    AppTheme.rollinPurple,
+    AppTheme.rollinViolet,
+    AppTheme.rollinGold,
     Color(0xFF10B981), // Emerald
     Color(0xFF059669), // Forest
     Color(0xFF22C55E), // Green
@@ -50,7 +52,6 @@ class ThemeProvider extends ChangeNotifier {
     final accentRaw = prefs.getInt(_accentColorKey);
     final styleRaw = prefs.getString(_visualStyleKey);
 
-
     if (modeRaw != null) {
       _themeMode = _parseThemeMode(modeRaw);
     }
@@ -60,7 +61,6 @@ class ThemeProvider extends ChangeNotifier {
     if (styleRaw != null) {
       _visualStyle = styleRaw == 'flat' ? VisualStyle.flat : VisualStyle.card;
     }
-
 
     _syncLegacyPalette();
     _isInitialized = true;
@@ -94,7 +94,6 @@ class ThemeProvider extends ChangeNotifier {
     await prefs.setString(_visualStyleKey, style.name);
   }
 
-
   static ThemeMode _parseThemeMode(String raw) {
     switch (raw) {
       case 'light':
@@ -114,7 +113,6 @@ class ThemeProvider extends ChangeNotifier {
       accentColor: _accentColor,
       style: _visualStyle,
     );
-
   }
 
   Brightness _effectiveBrightness() {

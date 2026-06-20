@@ -79,7 +79,8 @@ class AuthProvider with ChangeNotifier {
 
       String localVersionToCompare = packageInfo.version;
       if (backendVersion.contains('+') && packageInfo.buildNumber.isNotEmpty) {
-        localVersionToCompare = '${packageInfo.version}+${packageInfo.buildNumber}';
+        localVersionToCompare =
+            '${packageInfo.version}+${packageInfo.buildNumber}';
       }
 
       final shouldForceUpdate = backendVersion != localVersionToCompare &&
@@ -141,6 +142,33 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       debugPrint(
           'AuthProvider: Notified listeners (Loading: $_isLoading, Authenticated: $isAuthenticated)');
+    }
+  }
+
+  Future<void> googleLogin(String credential) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await _apiClient.post(
+        '/api/auth/google-login/',
+        body: {'credential': credential},
+        skipAuth: true,
+      );
+      final data = response['data'] ?? response;
+
+      if (data['user'] == null) {
+        throw Exception('Invalid response: missing user data');
+      }
+
+      await _apiClient.setTokens(data['access'], data['refresh']);
+      _user = User.fromJson(data['user']);
+    } catch (e) {
+      _user = null;
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -341,7 +369,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> requestEmailChangeOTP(String newEmail, String currentPassword) async {
+  Future<void> requestEmailChangeOTP(
+      String newEmail, String currentPassword) async {
     await _apiClient.post(
       '/api/auth/email-change/request/',
       body: {'new_email': newEmail, 'current_password': currentPassword},

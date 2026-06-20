@@ -29,6 +29,15 @@ android {
     if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(keystorePropertiesFile.inputStream())
     }
+    val storeFilePath = keystoreProperties.getProperty("storeFile")
+    val storePasswordValue = keystoreProperties.getProperty("storePassword")
+    val keyAliasValue = keystoreProperties.getProperty("keyAlias")
+    val keyPasswordValue = keystoreProperties.getProperty("keyPassword")
+    val hasReleaseSigningConfig =
+        !storeFilePath.isNullOrBlank() &&
+            !storePasswordValue.isNullOrBlank() &&
+            !keyAliasValue.isNullOrBlank() &&
+            !keyPasswordValue.isNullOrBlank()
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
@@ -58,25 +67,12 @@ android {
 
     signingConfigs {
         create("release") {
-            val storeFilePath = keystoreProperties.getProperty("storeFile")
-            val storePasswordValue = keystoreProperties.getProperty("storePassword")
-            val keyAliasValue = keystoreProperties.getProperty("keyAlias")
-            val keyPasswordValue = keystoreProperties.getProperty("keyPassword")
-
-            if (storeFilePath.isNullOrBlank() ||
-                storePasswordValue.isNullOrBlank() ||
-                keyAliasValue.isNullOrBlank() ||
-                keyPasswordValue.isNullOrBlank()
-            ) {
-                throw GradleException(
-                    "Missing release signing config. Define storeFile, storePassword, keyAlias, and keyPassword in android/key.properties."
-                )
+            if (hasReleaseSigningConfig) {
+                storeFile = file(storeFilePath!!)
+                storePassword = storePasswordValue
+                keyAlias = keyAliasValue
+                keyPassword = keyPasswordValue
             }
-
-            storeFile = file(storeFilePath)
-            storePassword = storePasswordValue
-            keyAlias = keyAliasValue
-            keyPassword = keyPasswordValue
         }
     }
 
@@ -130,6 +126,13 @@ android {
             (it.name.startsWith("bundle") && it.name.endsWith("Release")) ||
             it.name == "flutterBuildRelease"
     }.configureEach {
+        doFirst {
+            if (!hasReleaseSigningConfig) {
+                throw GradleException(
+                    "Missing release signing config. Define storeFile, storePassword, keyAlias, and keyPassword in android/key.properties."
+                )
+            }
+        }
         finalizedBy(copyRenamedReleaseArtifacts)
     }
 }
