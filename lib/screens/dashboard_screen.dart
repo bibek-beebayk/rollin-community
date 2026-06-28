@@ -8,7 +8,11 @@ import '../models/room.dart';
 import '../theme/app_theme.dart';
 import '../services/notification_service.dart';
 import '../services/navigation_service.dart';
+import 'analytics_screen.dart';
+import 'announcements_screen.dart';
+import 'app_settings_screen.dart';
 import 'chat_screen.dart';
+import 'staff_users_screen.dart';
 import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -19,6 +23,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isLoading = true;
   bool _autoOpenedStationSheet = false;
 
@@ -33,7 +38,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Future<void> _fetchData({bool initialLoad = false, bool showLoader = false}) async {
+  Future<void> _fetchData(
+      {bool initialLoad = false, bool showLoader = false}) async {
     try {
       if (!mounted) return;
       final chatProvider = context.read<ChatProvider>();
@@ -65,14 +71,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (token != null && token.isNotEmpty) {
           chatProvider.connectNotifications(token);
         } else {
-          debugPrint('DashboardScreen: access token unavailable for notification WS');
+          debugPrint(
+              'DashboardScreen: access token unavailable for notification WS');
         }
         // Initialize push notifications (idempotent and now safe to call repeatedly)
         NotificationService.initialize(authProvider.apiClient);
 
         // If staff has no active station, immediately guide them to station selection.
         if (!_autoOpenedStationSheet &&
-            !_hasConnectedStation(chatProvider.supportStations, authProvider.user)) {
+            !_hasConnectedStation(
+                chatProvider.supportStations, authProvider.user)) {
           _autoOpenedStationSheet = true;
           Future.microtask(() {
             if (!mounted) return;
@@ -218,14 +226,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   // Section 3: Occupied by Others
                   if (occupied.isNotEmpty) ...[
-                    _sectionHeader('Occupied', Icons.lock, AppTheme.textSecondary.withValues(alpha: 0.55)),
+                    _sectionHeader('Occupied', Icons.lock,
+                        AppTheme.textSecondary.withValues(alpha: 0.55)),
                     ...occupied.map((station) => _stationTile(
                           station: station,
                           subtitle:
                               'Occupied by ${station.staff?.username ?? 'unknown'}',
                           trailing: Icon(Icons.lock_outline,
                               color: AppTheme.cardBorder, size: 18),
-                          textColor: AppTheme.textSecondary.withValues(alpha: 0.55),
+                          textColor:
+                              AppTheme.textSecondary.withValues(alpha: 0.55),
                         )),
                   ],
 
@@ -235,8 +245,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Center(
                         child: Text(
                           'No support rooms available',
-                          style:
-                              TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+                          style: TextStyle(
+                              color: AppTheme.textSecondary
+                                  .withValues(alpha: 0.7)),
                         ),
                       ),
                     ),
@@ -349,6 +360,143 @@ class _DashboardScreenState extends State<DashboardScreen> {
     chatProvider.setChatTabActive(false);
   }
 
+  Future<void> _openDrawerScreen(Widget screen) async {
+    Navigator.of(context).pop();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
+  void _openStaffChatFromDrawer() {
+    Navigator.of(context).pop();
+  }
+
+  Widget _buildStaffDrawer(dynamic user) {
+    final username = user?.username ?? 'Staff';
+    final userType = _formatUserType(user?.userType);
+
+    return Drawer(
+      backgroundColor: AppTheme.background,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              margin: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.24),
+                    child: Icon(
+                      Icons.admin_panel_settings_outlined,
+                      color: AppTheme.accent,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          username,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          userType,
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  const _StaffDrawerSectionTitle('Staff'),
+                  _StaffDrawerNavTile(
+                    icon: Icons.analytics_outlined,
+                    label: 'Analytics',
+                    onTap: () => _openDrawerScreen(const AnalyticsScreen()),
+                  ),
+                  _StaffDrawerNavTile(
+                    icon: Icons.campaign_outlined,
+                    label: 'Announcements',
+                    onTap: () => _openDrawerScreen(const AnnouncementsScreen()),
+                  ),
+                  _StaffDrawerNavTile(
+                    icon: Icons.help_outline,
+                    label: 'FAQ',
+                    onTap: () => _openDrawerScreen(const FAQScreen()),
+                  ),
+                  _StaffDrawerNavTile(
+                    icon: Icons.people_alt_outlined,
+                    label: 'Users',
+                    onTap: () => _openDrawerScreen(const StaffUsersScreen()),
+                  ),
+                  _StaffDrawerNavTile(
+                    icon: Icons.chat_bubble_outline,
+                    label: 'Chat',
+                    onTap: _openStaffChatFromDrawer,
+                  ),
+                  _StaffDrawerNavTile(
+                    icon: Icons.card_giftcard_outlined,
+                    label: 'Redemptions',
+                    onTap: () =>
+                        _openDrawerScreen(const RewardRedemptionsScreen()),
+                  ),
+                  _StaffDrawerNavTile(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    onTap: () => _openDrawerScreen(const AppSettingsScreen()),
+                  ),
+                ],
+              ),
+            ),
+            Divider(
+              height: 1,
+              color: AppTheme.textSecondary.withValues(alpha: 0.55),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                _showLogoutConfirmation(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeProvider>();
@@ -363,10 +511,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final hasConnectedStation = _hasConnectedStation(stations, currentUser);
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppTheme.background,
+      endDrawer: _buildStaffDrawer(currentUser),
       appBar: AppBar(
         title: const Text('Staff Control Center'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.menu_rounded),
+            tooltip: 'Staff Menu',
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+          ),
           IconButton(
             icon: const Icon(Icons.hub),
             tooltip: 'Manage Stations',
@@ -557,7 +712,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               size: 44, color: AppTheme.textSecondary.withValues(alpha: 0.35)),
           const SizedBox(height: 12),
           Text(
-            hasConnectedStation ? 'No active chats yet' : 'No active station selected',
+            hasConnectedStation
+                ? 'No active chats yet'
+                : 'No active station selected',
             style: TextStyle(
               color: AppTheme.textPrimary.withValues(alpha: 0.9),
               fontWeight: FontWeight.w600,
@@ -577,12 +734,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (!hasConnectedStation) ...[
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () => _showStationsSheet(context, stations, currentUser),
+              onPressed: () =>
+                  _showStationsSheet(context, stations, currentUser),
               icon: const Icon(Icons.hub),
               label: const Text('Select Station'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.textPrimary,
-                side: BorderSide(color: AppTheme.textSecondary.withValues(alpha: 0.35)),
+                side: BorderSide(
+                    color: AppTheme.textSecondary.withValues(alpha: 0.35)),
               ),
             ),
           ],
@@ -612,9 +771,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               CircleAvatar(
                 backgroundColor: AppTheme.primary,
                 child: Text(
-                  title.isNotEmpty
-                      ? title[0].toUpperCase()
-                      : '?',
+                  title.isNotEmpty ? title[0].toUpperCase() : '?',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -670,7 +827,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (room.unreadCount > 0)
                 Container(
                   margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.redAccent,
                     borderRadius: BorderRadius.circular(12),
@@ -684,7 +842,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-              Icon(Icons.chevron_right, color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+              Icon(Icons.chevron_right,
+                  color: AppTheme.textSecondary.withValues(alpha: 0.75)),
             ],
           ),
         ),
@@ -784,6 +943,85 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(color: Colors.redAccent)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+String _formatUserType(dynamic value) {
+  final raw = value?.toString().trim();
+  if (raw == null || raw.isEmpty) return 'Staff';
+  return raw
+      .split(RegExp(r'[_\s-]+'))
+      .where((part) => part.isNotEmpty)
+      .map((part) =>
+          '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+      .join(' ');
+}
+
+class _StaffDrawerSectionTitle extends StatelessWidget {
+  final String text;
+
+  const _StaffDrawerSectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          color: AppTheme.textSecondary.withValues(alpha: 0.72),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _StaffDrawerNavTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _StaffDrawerNavTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Icon(icon, color: AppTheme.textSecondary, size: 20),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -16,6 +16,8 @@ import 'app_settings_screen.dart';
 import 'login_screen.dart';
 import 'my_posts_screen.dart';
 import 'announcements_screen.dart';
+import 'analytics_screen.dart';
+import 'staff_users_screen.dart';
 import '../config/app_config.dart';
 
 class MainScreen extends StatefulWidget {
@@ -275,6 +277,22 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _openChatFromDrawer() {
+    Navigator.of(context).pop();
+    final authProvider = context.read<AuthProvider>();
+    final chatProvider = context.read<ChatProvider>();
+    final hasConnectionsTab = _hasConnectionsAccess(authProvider.user);
+    final chatIndex = _chatTabIndex(hasConnectionsTab);
+
+    if (!_chatTabLoaded) {
+      _chatTabLoaded = true;
+    }
+    setState(() {
+      _currentIndex = chatIndex;
+    });
+    chatProvider.setChatTabActive(true);
+  }
+
   Future<void> _logout() async {
     showDialog(
       context: context,
@@ -407,50 +425,87 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
-                children: [
-                  _DrawerSectionTitle('Community'),
-                  
-                  _DrawerNavTile(
-                    icon: Icons.edit_note_outlined,
-                    label: 'My Posts',
-                    onTap: _openMyPosts,
-                  ),
-                  _DrawerNavTile(
-                    icon: Icons.campaign_outlined,
-                    label: 'Announcements',
-                    badge: 'New',
-                    onTap: () => _openDrawerScreen(const AnnouncementsScreen()),
-                  ),
-                  _DrawerSectionTitle('Support'),
-                  _DrawerNavTile(
-                    icon: Icons.help_outline,
-                    label: 'FAQ',
-                    onTap: () => _openDrawerScreen(const FAQScreen()),
-                  ),
-                  _DrawerNavTile(
-                    icon: Icons.shield_outlined,
-                    label: 'Guidelines',
-                    onTap: () => _openDrawerScreen(const GuidelinesScreen()),
-                  ),
-                  _DrawerSectionTitle('Settings'),
-                  _DrawerNavTile(
-                    icon: Icons.palette_outlined,
-                    label: 'Appearance',
-                    onTap: _openSettings,
-                  ),
-                  _DrawerNavTile(
-                    icon: Icons.person_outline,
-                    label: 'Profile',
-                    onTap: _openProfile,
-                  ),
-                  if (user?.isStaff ?? false)
-                    _DrawerNavTile(
-                      icon: Icons.card_giftcard_outlined,
-                      label: 'Redemptions',
-                      onTap: () =>
-                          _openDrawerScreen(const RewardRedemptionsScreen()),
-                    ),
-                ],
+                children: (user?.isStaff ?? false)
+                    ? [
+                        _DrawerSectionTitle('Staff'),
+                        _DrawerNavTile(
+                          icon: Icons.analytics_outlined,
+                          label: 'Analytics',
+                          onTap: () =>
+                              _openDrawerScreen(const AnalyticsScreen()),
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.campaign_outlined,
+                          label: 'Announcements',
+                          onTap: () =>
+                              _openDrawerScreen(const AnnouncementsScreen()),
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.help_outline,
+                          label: 'FAQ',
+                          onTap: () => _openDrawerScreen(const FAQScreen()),
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.people_alt_outlined,
+                          label: 'Users',
+                          onTap: () =>
+                              _openDrawerScreen(const StaffUsersScreen()),
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.chat_bubble_outline,
+                          label: 'Chat',
+                          onTap: _openChatFromDrawer,
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.card_giftcard_outlined,
+                          label: 'Redemptions',
+                          onTap: () => _openDrawerScreen(
+                              const RewardRedemptionsScreen()),
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.settings_outlined,
+                          label: 'Settings',
+                          onTap: _openSettings,
+                        ),
+                      ]
+                    : [
+                        _DrawerSectionTitle('Community'),
+                        _DrawerNavTile(
+                          icon: Icons.edit_note_outlined,
+                          label: 'My Posts',
+                          onTap: _openMyPosts,
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.campaign_outlined,
+                          label: 'Announcements',
+                          badge: 'New',
+                          onTap: () =>
+                              _openDrawerScreen(const AnnouncementsScreen()),
+                        ),
+                        _DrawerSectionTitle('Support'),
+                        _DrawerNavTile(
+                          icon: Icons.help_outline,
+                          label: 'FAQ',
+                          onTap: () => _openDrawerScreen(const FAQScreen()),
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.shield_outlined,
+                          label: 'Guidelines',
+                          onTap: () =>
+                              _openDrawerScreen(const GuidelinesScreen()),
+                        ),
+                        _DrawerSectionTitle('Settings'),
+                        _DrawerNavTile(
+                          icon: Icons.palette_outlined,
+                          label: 'Appearance',
+                          onTap: _openSettings,
+                        ),
+                        _DrawerNavTile(
+                          icon: Icons.person_outline,
+                          label: 'Profile',
+                          onTap: _openProfile,
+                        ),
+                      ],
               ),
             ),
             Divider(
@@ -473,6 +528,33 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildTopMenuButton(dynamic user) {
+    if (user?.isStaff ?? false) {
+      return Material(
+        color: AppTheme.primary.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+          child: Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppTheme.primary.withValues(alpha: 0.32),
+              ),
+            ),
+            child: Icon(
+              Icons.menu_rounded,
+              color: AppTheme.textPrimary,
+              size: 24,
+            ),
+          ),
+        ),
+      );
+    }
+
     final username = user?.username ?? 'User';
     final initial = username.isNotEmpty ? username[0].toUpperCase() : 'U';
     final profileImageUrl = _resolveProfileImageUrl(user);

@@ -15,6 +15,8 @@ import 'forgot_password_screen.dart';
 import 'dashboard_screen.dart';
 import 'post_registration_router_screen.dart';
 
+const bool _showGoogleSignIn = false;
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -457,10 +459,12 @@ class _LoginScreenState extends State<LoginScreen>
             onPressed: _handleLogin,
             isLoading: isLoading,
           ),
-          const SizedBox(height: 18),
-          _buildDivider(),
-          const SizedBox(height: 18),
-          _buildGoogleButton(isLoading),
+          if (_showGoogleSignIn) ...[
+            const SizedBox(height: 18),
+            _buildDivider(),
+            const SizedBox(height: 18),
+            _buildGoogleButton(isLoading),
+          ],
           const SizedBox(height: 18),
           _buildRegisterPrompt(),
         ],
