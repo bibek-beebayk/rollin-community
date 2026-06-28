@@ -13,9 +13,8 @@ import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
 import 'services/navigation_service.dart';
 
-// Placeholder for Dashboard (we'll create this next)
-import 'screens/dashboard_screen.dart';
 import 'screens/post_registration_router_screen.dart';
+import 'screens/staff_home_screen.dart';
 import 'screens/update_screen.dart';
 
 class AppDistribution {
@@ -117,7 +116,8 @@ class AuthWrapper extends StatelessWidget {
       future: _shouldUseCustomUpdateFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
 
         final useCustomUpdate = snapshot.data ?? true;
@@ -127,7 +127,7 @@ class AuthWrapper extends StatelessWidget {
 
         if (authProvider.isAuthenticated) {
           if (authProvider.isStaff) {
-            return const DashboardScreen();
+            return const StaffHomeScreen();
           } else {
             return const PostRegistrationRouterScreen();
           }

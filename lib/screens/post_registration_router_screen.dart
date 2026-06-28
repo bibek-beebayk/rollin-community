@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/social_provider.dart';
 import 'agent_suggestion_screen.dart';
-import 'dashboard_screen.dart';
 import 'main_screen.dart';
+import 'staff_home_screen.dart';
 import 'update_screen.dart';
 
 class PostRegistrationRouterScreen extends StatefulWidget {
@@ -42,7 +42,7 @@ class _PostRegistrationRouterScreenState
     }
 
     if (user.isStaff) {
-      if (mounted) setState(() => _destination = const DashboardScreen());
+      if (mounted) setState(() => _destination = const StaffHomeScreen());
       return;
     }
 
@@ -53,7 +53,8 @@ class _PostRegistrationRouterScreenState
 
     // Players: show onboarding only if not completed yet.
     try {
-      final state = await socialProvider.fetchOnboardingState(authProvider.apiClient);
+      final state =
+          await socialProvider.fetchOnboardingState(authProvider.apiClient);
       final completed = state['has_completed_social_onboarding'] == true;
       if (completed) {
         if (mounted) setState(() => _destination = const MainScreen());

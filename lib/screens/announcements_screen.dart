@@ -1284,6 +1284,9 @@ class _FAQScreenState extends State<FAQScreen> {
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _items = const [];
+  String _categoryFilter = 'all';
+  String _audienceFilter = 'all';
+  final Set<int> _expandedFaqIds = {};
 
   @override
   void initState() {
@@ -1308,6 +1311,8 @@ class _FAQScreenState extends State<FAQScreen> {
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
             .toList();
+        final itemIds = _items.map(_faqId).whereType<int>().toSet();
+        _expandedFaqIds.removeWhere((id) => !itemIds.contains(id));
         _isLoading = false;
       });
     } catch (e) {
@@ -1322,36 +1327,81 @@ class _FAQScreenState extends State<FAQScreen> {
   @override
   Widget build(BuildContext context) {
     final isStaff = context.watch<AuthProvider>().isStaff;
+    final filteredItems = _items.where(_matchesFaqFilters).toList();
 
     if (isStaff) {
-      return _buildStaffFaqs();
+      return _buildStaffFaqs(filteredItems);
     }
 
-    return _RollinListShell(
-      title: 'FAQ',
-      subtitle: 'Answers for account, rewards, events, and community questions',
-      icon: Icons.help_outline,
-      onRefresh: _load,
-      isLoading: _isLoading,
-      error: _error,
-      emptyText: 'No FAQs published yet.',
-      children: _items.map((item) {
-        return _InfoCard(
-          icon: item['is_featured'] == true
-              ? Icons.star_outline
-              : Icons.help_outline,
-          title: (item['question'] ?? 'Question').toString(),
-          eyebrow: (item['category_label'] ?? item['category'] ?? 'Account')
-              .toString(),
-          body: _plainText((item['answer'] ?? '').toString()),
-          accent:
-              item['is_featured'] == true ? AppTheme.accent : AppTheme.primary,
-        );
-      }).toList(),
+    return _buildMemberFaqs(filteredItems);
+  }
+
+  Widget _buildMemberFaqs(List<Map<String, dynamic>> filteredItems) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('FAQ'),
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _isLoading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: AppTheme.dashboardBackground(),
+        child: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
+              children: [
+                _HeaderCard(
+                  title: 'FAQ',
+                  subtitle:
+                      'Answers for account, rewards, events, and community questions',
+                  icon: Icons.help_outline,
+                ),
+                const SizedBox(height: 12),
+                _FaqFilters(
+                  categoryFilter: _categoryFilter,
+                  audienceFilter: _audienceFilter,
+                  onCategoryChanged: (value) {
+                    setState(() => _categoryFilter = value);
+                  },
+                  onAudienceChanged: (value) {
+                    setState(() => _audienceFilter = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                if (_isLoading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                else if (_error != null)
+                  _StateCard(icon: Icons.error_outline, text: _error!)
+                else if (filteredItems.isEmpty)
+                  const _StateCard(
+                    icon: Icons.inbox_outlined,
+                    text: 'No FAQs found for these filters.',
+                  )
+                else
+                  ...filteredItems.map(_buildFaqCard),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildStaffFaqs() {
+  Widget _buildStaffFaqs(List<Map<String, dynamic>> filteredItems) {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -1379,24 +1429,35 @@ class _FAQScreenState extends State<FAQScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 28),
               children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: () => _openFaqForm(),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add FAQ'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _FaqFilters(
+                        categoryFilter: _categoryFilter,
+                        audienceFilter: _audienceFilter,
+                        onCategoryChanged: (value) {
+                          setState(() => _categoryFilter = value);
+                        },
+                        onAudienceChanged: (value) {
+                          setState(() => _audienceFilter = value);
+                        },
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () => _openFaqForm(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(44, 44),
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Icon(Icons.add_rounded, size: 20),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 if (_isLoading)
@@ -1408,25 +1469,53 @@ class _FAQScreenState extends State<FAQScreen> {
                   )
                 else if (_error != null)
                   _StateCard(icon: Icons.error_outline, text: _error!)
-                else if (_items.isEmpty)
+                else if (filteredItems.isEmpty)
                   const _StateCard(
                     icon: Icons.inbox_outlined,
-                    text: 'No FAQs yet.',
+                    text: 'No FAQs found for these filters.',
                   )
                 else
-                  ..._items.map(
-                    (item) => _StaffFaqCard(
-                      faq: item,
-                      onEdit: () => _openFaqForm(item: item),
-                      onDelete: () => _confirmDeleteFaq(item),
-                    ),
-                  ),
+                  ...filteredItems.map(_buildFaqCard),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildFaqCard(Map<String, dynamic> item) {
+    final id = _faqId(item);
+    final isExpanded = id != null && _expandedFaqIds.contains(id);
+    final isStaff = context.read<AuthProvider>().isStaff;
+
+    return _FaqAccordionCard(
+      faq: item,
+      isExpanded: isExpanded,
+      onToggle: id == null
+          ? null
+          : () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedFaqIds.remove(id);
+                } else {
+                  _expandedFaqIds.add(id);
+                }
+              });
+            },
+      onEdit: isStaff ? () => _openFaqForm(item: item) : null,
+      onDelete: isStaff ? () => _confirmDeleteFaq(item) : null,
+    );
+  }
+
+  bool _matchesFaqFilters(Map<String, dynamic> item) {
+    final category = (item['category'] ?? '').toString();
+    final audience = (item['audience'] ?? '').toString();
+    final matchesCategory =
+        _categoryFilter == 'all' || category == _categoryFilter;
+    final matchesAudience =
+        _audienceFilter == 'all' || audience == _audienceFilter;
+    return matchesCategory && matchesAudience;
   }
 
   Future<void> _openFaqForm({Map<String, dynamic>? item}) async {
@@ -1497,27 +1586,170 @@ class _FAQScreenState extends State<FAQScreen> {
   }
 }
 
-class _StaffFaqCard extends StatelessWidget {
-  final Map<String, dynamic> faq;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+class _FaqFilters extends StatelessWidget {
+  final String categoryFilter;
+  final String audienceFilter;
+  final ValueChanged<String> onCategoryChanged;
+  final ValueChanged<String> onAudienceChanged;
 
-  const _StaffFaqCard({
+  const _FaqFilters({
+    required this.categoryFilter,
+    required this.audienceFilter,
+    required this.onCategoryChanged,
+    required this.onAudienceChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppTheme.surface.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _FaqFilterRow(
+            label: 'Category',
+            value: categoryFilter,
+            options: _faqCategoryOptions,
+            onChanged: onCategoryChanged,
+          ),
+          const SizedBox(height: 8),
+          _FaqFilterRow(
+            label: 'Member',
+            value: audienceFilter,
+            options: _faqAudienceOptions,
+            onChanged: onAudienceChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FaqFilterRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final List<_FaqFilterOption> options;
+  final ValueChanged<String> onChanged;
+
+  const _FaqFilterRow({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 68,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: options.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 7),
+              itemBuilder: (context, index) {
+                final option = options[index];
+                final selected = option.value == value;
+                return ChoiceChip(
+                  label: Text(option.label),
+                  selected: selected,
+                  onSelected: (_) => onChanged(option.value),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  showCheckmark: false,
+                  labelStyle: TextStyle(
+                    color: selected ? Colors.white : AppTheme.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  backgroundColor: AppTheme.surface.withValues(alpha: 0.82),
+                  selectedColor: AppTheme.primary,
+                  side: BorderSide(
+                    color: selected
+                        ? AppTheme.primary
+                        : AppTheme.cardBorder.withValues(alpha: 0.85),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FaqFilterOption {
+  final String label;
+  final String value;
+
+  const _FaqFilterOption(this.label, this.value);
+}
+
+const _faqCategoryOptions = [
+  _FaqFilterOption('All', 'all'),
+  _FaqFilterOption('General', 'general'),
+  _FaqFilterOption('Account', 'account'),
+  _FaqFilterOption('Community', 'community'),
+  _FaqFilterOption('Rewards', 'rewards'),
+  _FaqFilterOption('Events', 'events'),
+  _FaqFilterOption('Security', 'security'),
+  _FaqFilterOption('Technical', 'technical'),
+];
+
+const _faqAudienceOptions = [
+  _FaqFilterOption('All', 'all'),
+  _FaqFilterOption('Players', 'players'),
+  _FaqFilterOption('Agents', 'agents'),
+  _FaqFilterOption('Staff', 'staff'),
+];
+
+class _FaqAccordionCard extends StatelessWidget {
+  final Map<String, dynamic> faq;
+  final bool isExpanded;
+  final VoidCallback? onToggle;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const _FaqAccordionCard({
     required this.faq,
-    required this.onEdit,
-    required this.onDelete,
+    required this.isExpanded,
+    this.onToggle,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final question = (faq['question'] ?? 'Question').toString();
-    final answer = _plainText((faq['answer'] ?? '').toString());
+    final answer = (faq['answer'] ?? '').toString();
     final category =
         (faq['category_label'] ?? faq['category'] ?? 'Account').toString();
     final audience =
         (faq['audience_label'] ?? faq['audience'] ?? 'All').toString();
     final isFeatured = faq['is_featured'] == true;
-    final isPublished = faq['is_published'] == true;
+    final canManage = onEdit != null || onDelete != null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1530,23 +1762,27 @@ class _StaffFaqCard extends StatelessWidget {
               : AppTheme.cardBorder,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: (isFeatured ? AppTheme.accent : AppTheme.primary)
-                    .withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                isFeatured ? Icons.star_outline : Icons.help_outline,
-                color: isFeatured ? AppTheme.accent : AppTheme.primary,
-                size: 20,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: (isFeatured ? AppTheme.accent : AppTheme.primary)
+                      .withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isFeatured ? Icons.star_outline : Icons.help_outline,
+                  color: isFeatured ? AppTheme.accent : AppTheme.primary,
+                  size: 20,
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -1554,83 +1790,262 @@ class _StaffFaqCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    question,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _MiniStatusPill(label: category, color: AppTheme.primary),
-                      _MiniStatusPill(label: audience, color: AppTheme.accent),
-                      _MiniStatusPill(
-                        label: isPublished ? 'Published' : 'Draft',
-                        color: isPublished
-                            ? const Color(0xFF22C55E)
-                            : Colors.amber,
-                      ),
-                      if (isFeatured)
-                        _MiniStatusPill(
-                          label: 'Featured',
-                          color: AppTheme.accent,
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(0, 12, canManage ? 0 : 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          question,
+                          maxLines: isExpanded ? null : 2,
+                          overflow: isExpanded
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                    ],
-                  ),
-                  if (answer.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      answer,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12.5,
-                        height: 1.35,
-                      ),
+                        const SizedBox(height: 7),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _MiniStatusPill(
+                              label: category,
+                              color: AppTheme.primary,
+                            ),
+                            _MiniStatusPill(
+                              label: audience,
+                              color: AppTheme.accent,
+                            ),
+                            if (isFeatured)
+                              _MiniStatusPill(
+                                label: 'Featured',
+                                color: AppTheme.accent,
+                              ),
+                          ],
+                        ),
+                        AnimatedCrossFade(
+                          firstChild: const SizedBox.shrink(),
+                          secondChild: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: _FormattedHtmlAnswer(html: answer),
+                          ),
+                          crossFadeState: isExpanded
+                              ? CrossFadeState.showSecond
+                              : CrossFadeState.showFirst,
+                          duration: const Duration(milliseconds: 180),
+                          firstCurve: Curves.easeOut,
+                          secondCurve: Curves.easeOut,
+                          sizeCurve: Curves.easeOut,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-            PopupMenuButton<String>(
-              tooltip: 'Actions',
-              color: AppTheme.surface,
-              icon: Icon(
-                Icons.more_vert_rounded,
-                color: AppTheme.textSecondary,
-              ),
-              onSelected: (value) {
-                if (value == 'edit') onEdit();
-                if (value == 'delete') onDelete();
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'edit',
-                  child: _PopupRow(icon: Icons.edit_outlined, text: 'Edit'),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: _PopupRow(
-                    icon: Icons.delete_outline,
-                    text: 'Delete',
-                    color: Colors.redAccent,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 4, 4, 0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: AppTheme.textSecondary,
                   ),
-                ),
-              ],
+                  if (canManage)
+                    PopupMenuButton<String>(
+                      tooltip: 'Actions',
+                      color: AppTheme.surface,
+                      icon: Icon(
+                        Icons.more_vert_rounded,
+                        color: AppTheme.textSecondary,
+                      ),
+                      onSelected: (value) {
+                        if (value == 'edit') onEdit?.call();
+                        if (value == 'delete') onDelete?.call();
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: _PopupRow(
+                            icon: Icons.edit_outlined,
+                            text: 'Edit',
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: _PopupRow(
+                            icon: Icons.delete_outline,
+                            text: 'Delete',
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+class _FormattedHtmlAnswer extends StatelessWidget {
+  final String html;
+
+  const _FormattedHtmlAnswer({required this.html});
+
+  @override
+  Widget build(BuildContext context) {
+    final blocks = _htmlBlocks(html);
+    if (blocks.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: blocks.map((block) {
+        final isHeading = block.startsWith('# ');
+        final isBullet = block.startsWith('• ');
+        final text = isHeading ? block.substring(2) : block;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: isBullet ? 6 : 9),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isBullet) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+              ],
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: _inlineHtmlSpans(
+                      isBullet ? text.substring(2) : text,
+                    ),
+                  ),
+                  style: TextStyle(
+                    color: isHeading
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                    fontSize: isHeading ? 15 : 13,
+                    height: 1.45,
+                    fontWeight: isHeading ? FontWeight.w900 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+int? _faqId(Map<String, dynamic> item) {
+  final raw = item['id'];
+  if (raw is int) return raw;
+  return int.tryParse(raw?.toString() ?? '');
+}
+
+List<String> _htmlBlocks(String html) {
+  final normalized = html
+      .replaceAll(RegExp(r'<\s*br\s*/?\s*>', caseSensitive: false), '\n')
+      .replaceAll(
+          RegExp(r'<\s*/\s*(p|div|h[1-6])\s*>', caseSensitive: false), '\n\n')
+      .replaceAll(RegExp(r'<\s*(p|div)\b[^>]*>', caseSensitive: false), '')
+      .replaceAll(RegExp(r'<\s*h[1-6]\b[^>]*>', caseSensitive: false), '# ')
+      .replaceAll(RegExp(r'<\s*/\s*li\s*>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<\s*li\b[^>]*>', caseSensitive: false), '• ')
+      .replaceAll(
+          RegExp(r'<\s*/?\s*(ul|ol)\b[^>]*>', caseSensitive: false), '\n');
+
+  return normalized
+      .split(RegExp(r'\n{1,}'))
+      .map((block) => block.trim())
+      .where((block) => _plainText(block).isNotEmpty)
+      .toList();
+}
+
+List<TextSpan> _inlineHtmlSpans(String value) {
+  final spans = <TextSpan>[];
+  var bold = false;
+  var italic = false;
+  var index = 0;
+  final tagRegex = RegExp(
+    r'<\s*(/?)\s*(strong|b|em|i)\b[^>]*>',
+    caseSensitive: false,
+  );
+
+  for (final match in tagRegex.allMatches(value)) {
+    if (match.start > index) {
+      spans.add(
+          _htmlTextSpan(value.substring(index, match.start), bold, italic));
+    }
+
+    final closing = match.group(1) == '/';
+    final tag = match.group(2)?.toLowerCase();
+    if (tag == 'strong' || tag == 'b') {
+      bold = !closing;
+    } else if (tag == 'em' || tag == 'i') {
+      italic = !closing;
+    }
+    index = match.end;
+  }
+
+  if (index < value.length) {
+    spans.add(_htmlTextSpan(value.substring(index), bold, italic));
+  }
+
+  if (spans.isEmpty) {
+    spans.add(_htmlTextSpan(value, false, false));
+  }
+
+  return spans;
+}
+
+TextSpan _htmlTextSpan(String value, bool bold, bool italic) {
+  final text = _decodeHtmlEntities(value.replaceAll(RegExp(r'<[^>]*>'), ''))
+      .replaceAll(RegExp(r'[ \t]+'), ' ');
+  return TextSpan(
+    text: text,
+    style: TextStyle(
+      fontWeight: bold ? FontWeight.w900 : null,
+      fontStyle: italic ? FontStyle.italic : null,
+    ),
+  );
+}
+
+String _decodeHtmlEntities(String value) {
+  return value
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
+    final codePoint = int.tryParse(match.group(1) ?? '');
+    if (codePoint == null) return match.group(0) ?? '';
+    return String.fromCharCode(codePoint);
+  });
 }
 
 class FAQFormScreen extends StatefulWidget {
@@ -1667,7 +2082,7 @@ class _FAQFormScreenState extends State<FAQFormScreen> {
     _sortOrderController = TextEditingController(
       text: (item['sort_order'] ?? 0).toString(),
     );
-    _category = (item['category'] ?? 'account').toString();
+    _category = (item['category'] ?? 'general').toString();
     _audience = (item['audience'] ?? 'all').toString();
     _isFeatured = item['is_featured'] == true;
     _isPublished = item['is_published'] != false;
@@ -1784,12 +2199,13 @@ class _FAQFormScreenState extends State<FAQFormScreen> {
                       label: 'Category',
                       value: _category,
                       items: const {
+                        'general': 'General',
                         'account': 'Account',
                         'rewards': 'Rewards',
                         'events': 'Events',
                         'community': 'Community',
+                        'security': 'Security',
                         'technical': 'Technical',
-                        'general': 'General',
                       },
                       onChanged: (value) => setState(() => _category = value),
                     ),
@@ -1799,8 +2215,8 @@ class _FAQFormScreenState extends State<FAQFormScreen> {
                       value: _audience,
                       items: const {
                         'all': 'All',
-                        'player': 'Players',
-                        'agent': 'Agents',
+                        'players': 'Players',
+                        'agents': 'Agents',
                         'staff': 'Staff',
                       },
                       onChanged: (value) => setState(() => _audience = value),

@@ -518,9 +518,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: const Text('Staff Control Center'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.menu_rounded),
-            tooltip: 'Staff Menu',
-            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: () => _fetchData(showLoader: true),
           ),
           IconButton(
             icon: const Icon(Icons.hub),
@@ -528,12 +528,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: () => _showStationsSheet(context, stations, currentUser),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _fetchData(showLoader: true),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _showLogoutConfirmation(context),
+            icon: const Icon(Icons.menu_rounded),
+            tooltip: 'Staff Menu',
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
         ],
       ),

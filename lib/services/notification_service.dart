@@ -10,8 +10,8 @@ import '../models/room.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../screens/chat_screen.dart';
-import '../screens/dashboard_screen.dart';
 import '../screens/main_screen.dart';
+import '../screens/staff_home_screen.dart';
 import 'navigation_service.dart';
 
 /// Top-level handler for background messages (must be top-level function).
@@ -50,7 +50,8 @@ class NotificationService {
         return;
       }
 
-      debugPrint('DEBUG: Push permission status: ${settings.authorizationStatus}');
+      debugPrint(
+          'DEBUG: Push permission status: ${settings.authorizationStatus}');
 
       // 2. Get FCM token
       final token = await _messaging.getToken();
@@ -81,7 +82,8 @@ class NotificationService {
       });
 
       // 5. Handle notification tap (when app was in background)
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      FirebaseMessaging.onMessageOpenedApp
+          .listen((RemoteMessage message) async {
         debugPrint('DEBUG: Notification tapped: ${message.data}');
         await _handleNotificationTap(message, apiClient);
       });
@@ -89,7 +91,8 @@ class NotificationService {
       // 6. Check if app was opened from a notification (when app was terminated)
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
-        debugPrint('DEBUG: App opened from notification: ${initialMessage.data}');
+        debugPrint(
+            'DEBUG: App opened from notification: ${initialMessage.data}');
         await _handleNotificationTap(initialMessage, apiClient);
       }
     } catch (e) {
@@ -176,7 +179,8 @@ class NotificationService {
       }
 
       navState.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(
+            builder: (_) => const StaffHomeScreen(initialIndex: 1)),
         (route) => false,
       );
 

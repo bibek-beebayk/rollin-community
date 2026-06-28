@@ -78,7 +78,12 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig =
+                if (hasReleaseSigningConfig) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
         }
     }
 
@@ -123,13 +128,18 @@ android {
 
     tasks.matching {
         (it.name.startsWith("assemble") && it.name.endsWith("Release")) ||
-            (it.name.startsWith("bundle") && it.name.endsWith("Release")) ||
-            it.name == "flutterBuildRelease"
+            (it.name.startsWith("bundle") && it.name.endsWith("Release"))
     }.configureEach {
         doFirst {
-            if (!hasReleaseSigningConfig) {
+            val isDirectApkRunBuild = name == "assembleDirectRelease"
+            if (!hasReleaseSigningConfig && !isDirectApkRunBuild) {
                 throw GradleException(
                     "Missing release signing config. Define storeFile, storePassword, keyAlias, and keyPassword in android/key.properties."
+                )
+            }
+            if (!hasReleaseSigningConfig && isDirectApkRunBuild) {
+                logger.warn(
+                    "Release signing config is missing. assembleDirectRelease will use the debug keystore for local device testing only."
                 )
             }
         }

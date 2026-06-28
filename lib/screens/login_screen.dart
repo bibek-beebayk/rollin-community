@@ -12,8 +12,8 @@ import '../theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
-import 'dashboard_screen.dart';
 import 'post_registration_router_screen.dart';
+import 'staff_home_screen.dart';
 
 const bool _showGoogleSignIn = false;
 
@@ -110,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => authProvider.isStaff
-              ? const DashboardScreen()
+              ? const StaffHomeScreen()
               : const PostRegistrationRouterScreen(),
         ),
         (route) => false,
@@ -152,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => authProvider.isStaff
-              ? const DashboardScreen()
+              ? const StaffHomeScreen()
               : const PostRegistrationRouterScreen(),
         ),
         (route) => false,
