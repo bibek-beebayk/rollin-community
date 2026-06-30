@@ -83,12 +83,17 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     context.watch<ThemeProvider>();
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Community Feed'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: _buildBody(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildFeedHeader(),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: _buildBody(),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -102,6 +107,21 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
         },
         backgroundColor: AppTheme.accent,
         child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildFeedHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Text(
+        'Community Feed',
+        style: Theme.of(context).appBarTheme.titleTextStyle ??
+            TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -127,7 +147,8 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'No posts available',
-                  style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.8)),
+                  style: TextStyle(
+                      color: AppTheme.textSecondary.withValues(alpha: 0.8)),
                 ),
               ],
             ),
@@ -185,7 +206,8 @@ class _PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cleanContent = post.content.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
+    final cleanContent =
+        post.content.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -220,9 +242,11 @@ class _PostCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _capitalizeUsername(post.author?.username ?? 'Unknown'),
+                                _capitalizeUsername(
+                                    post.author?.username ?? 'Unknown'),
                                 style: TextStyle(
-                                  color: AppTheme.textPrimary.withValues(alpha: 0.82),
+                                  color: AppTheme.textPrimary
+                                      .withValues(alpha: 0.82),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -234,7 +258,8 @@ class _PostCard extends StatelessWidget {
                                   Text(
                                     _getFriendlyTime(post.createdAt.toLocal()),
                                     style: TextStyle(
-                                      color: AppTheme.textPrimary.withValues(alpha: 0.52),
+                                      color: AppTheme.textPrimary
+                                          .withValues(alpha: 0.52),
                                       fontSize: 11,
                                     ),
                                   ),
@@ -376,7 +401,8 @@ class _PostCard extends StatelessWidget {
       default:
         icon = Icons.public;
     }
-    return Icon(icon, size: 10, color: AppTheme.textPrimary.withValues(alpha: 0.4));
+    return Icon(icon,
+        size: 10, color: AppTheme.textPrimary.withValues(alpha: 0.4));
   }
 
   String _capitalizeUsername(String input) {
@@ -523,10 +549,9 @@ class _AuthorAvatar extends StatelessWidget {
   }
 
   String? _resolveProfileImageUrl(dynamic user) {
-    final raw =
-        (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
-            ?.toString()
-            .trim();
+    final raw = (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
+        ?.toString()
+        .trim();
     if (raw == null || raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
 

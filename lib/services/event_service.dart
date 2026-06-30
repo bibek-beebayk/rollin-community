@@ -29,4 +29,26 @@ class EventService {
       return [];
     }
   }
+
+  Future<List<Event>> getUpcomingEvents({int limit = 5}) async {
+    try {
+      final response =
+          await _apiClient.get('/api/events/upcoming/?limit=$limit');
+
+      List<dynamic> data = [];
+      if (response is Map && response.containsKey('data')) {
+        data = response['data'];
+      } else if (response is List) {
+        data = response;
+      }
+      if (response is Map && response.containsKey('results')) {
+        data = response['results'];
+      }
+
+      return data.map((json) => Event.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('EventService: Error fetching upcoming events: $e');
+      return [];
+    }
+  }
 }

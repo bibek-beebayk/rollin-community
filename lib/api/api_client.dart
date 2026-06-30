@@ -16,6 +16,24 @@ class ApiClient {
 
   Future<void> loadTokens() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedEnv = prefs.getString('api_env');
+    if (savedEnv != null && savedEnv != AppConfig.env) {
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      await prefs.setString('api_env', AppConfig.env);
+      _accessToken = null;
+      _refreshToken = null;
+      debugPrint(
+        'ApiClient: cleared saved auth tokens after environment change '
+        '($savedEnv -> ${AppConfig.env}).',
+      );
+      return;
+    }
+
+    if (savedEnv == null) {
+      await prefs.setString('api_env', AppConfig.env);
+    }
+
     _accessToken = prefs.getString('access_token');
     _refreshToken = prefs.getString('refresh_token');
   }
@@ -24,6 +42,7 @@ class ApiClient {
     _accessToken = access;
     _refreshToken = refresh;
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('api_env', AppConfig.env);
     await prefs.setString('access_token', access);
     await prefs.setString('refresh_token', refresh);
   }
@@ -34,6 +53,7 @@ class ApiClient {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
+    await prefs.setString('api_env', AppConfig.env);
   }
 
   String? get accessToken => _accessToken;

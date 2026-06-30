@@ -17,6 +17,7 @@ import '../services/notification_service.dart';
 import '../api/api_client.dart';
 import 'package:video_player/video_player.dart';
 import 'post_details_screen.dart';
+import 'post_feed_screen.dart';
 import 'agent_search_screen.dart';
 import '../widgets/share_post_to_chat_dialog.dart';
 
@@ -32,8 +33,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<Event> _events = [];
   bool _isLoadingEvents = true;
+  List<Event> _recentEvents = [];
+  bool _isLoadingRecentEvents = true;
+  List<Map<String, dynamic>> _recentActivity = [];
+  bool _isLoadingRecentActivity = true;
 
-  List<Post> _posts = [];
+  List<Post> _communityPosts = [];
   bool _isLoadingPosts = true;
   Map<String, dynamic>? _homeInfo;
   bool _isLoadingHomeInfo = true;
@@ -47,6 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchEvents();
+      _fetchRecentEvents();
+      _fetchRecentActivity();
       _fetchPosts();
       _fetchHomeInfo();
       _loadStreak(recordVisit: true);
@@ -78,15 +85,75 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _fetchRecentEvents() async {
+    final authProvider = context.read<AuthProvider>();
+    final eventService = EventService(authProvider.apiClient);
+
+    try {
+      final events = await eventService.getUpcomingEvents(limit: 5);
+      if (mounted) {
+        setState(() {
+          _recentEvents = events.take(5).toList();
+          _isLoadingRecentEvents = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading recent events: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRecentEvents = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchRecentActivity() async {
+    final authProvider = context.read<AuthProvider>();
+
+    try {
+      final response = await authProvider.apiClient
+          .get('/api/analytics/recent-activity/?limit=5');
+      final data = _extractList(response);
+      if (mounted) {
+        setState(() {
+          _recentActivity = data
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .take(5)
+              .toList();
+          _isLoadingRecentActivity = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading recent activity: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRecentActivity = false;
+        });
+      }
+    }
+  }
+
   Future<void> _fetchPosts() async {
     final authProvider = context.read<AuthProvider>();
     final postService = PostService(authProvider.apiClient);
 
     try {
-      final posts = await postService.getLatestPosts();
+      final results = await Future.wait([
+        postService.getLatestPosts(),
+        postService.getFeedPosts(),
+      ]);
+      final pinnedPosts = results[0];
+      final feedPosts = results[1];
+      final pinnedIds = pinnedPosts.map((post) => post.id).toSet();
+      final recentPosts = feedPosts
+          .where((post) => !pinnedIds.contains(post.id))
+          .take(5)
+          .toList();
+
       if (mounted) {
         setState(() {
-          _posts = posts;
+          _communityPosts = [...pinnedPosts, ...recentPosts];
           _isLoadingPosts = false;
         });
       }
@@ -105,6 +172,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // but RefreshIndicator already has a spinner.
     await Future.wait([
       _fetchEvents(),
+      _fetchRecentEvents(),
+      _fetchRecentActivity(),
       _fetchPosts(),
       _fetchHomeInfo(),
       _loadStreak(recordVisit: false),
@@ -113,6 +182,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _isPlayer(dynamic user) {
     return (user?.userType ?? '').toString().toLowerCase() == 'player';
+  }
+
+  bool _isAgent(dynamic user) {
+    return (user?.userType ?? '').toString().toLowerCase() == 'agent';
   }
 
   Future<void> _loadStreak({required bool recordVisit}) async {
@@ -210,108 +283,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return points;
   }
 
-  String? _resolveProfileImageUrl(dynamic user) {
-    final raw = (user?.profileThumbnail ?? user?.avatar ?? user?.profilePicture)
-        ?.toString()
-        .trim();
-    if (raw == null || raw.isEmpty) return null;
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    final base = ApiClient.baseUrl.endsWith('/')
-        ? ApiClient.baseUrl.substring(0, ApiClient.baseUrl.length - 1)
-        : ApiClient.baseUrl;
-    final path = raw.startsWith('/') ? raw : '/$raw';
-    return '$base$path';
-  }
-
-  Widget _buildProfileAvatar(String? profileImageUrl, String initial) {
-    if (profileImageUrl == null || profileImageUrl.isEmpty) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundColor: AppTheme.primary.withValues(alpha: 0.85),
-        child: Text(
-          initial,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-
-    return CircleAvatar(
-      key: ValueKey(profileImageUrl),
-      radius: 18,
-      backgroundColor: AppTheme.primary.withValues(alpha: 0.85),
-      child: ClipOval(
-        child: Image.network(
-          profileImageUrl,
-          width: 36,
-          height: 36,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            final expected = loadingProgress.expectedTotalBytes;
-            final loaded = loadingProgress.cumulativeBytesLoaded;
-            final progress =
-                expected != null && expected > 0 ? loaded / expected : null;
-            return Container(
-              width: 36,
-              height: 36,
-              color: AppTheme.primary.withValues(alpha: 0.85),
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      value: progress,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Loading',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 6,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 36,
-              height: 36,
-              color: AppTheme.primary.withValues(alpha: 0.85),
-              alignment: Alignment.center,
-              child: Text(
-                initial,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeProvider>();
     final user = context.watch<AuthProvider>().user;
 
-    final hasActiveEvents = _events.isNotEmpty;
+    final showLiveEventsSection = _isLoadingEvents || _events.isNotEmpty;
+    final showCommunityPostsSection =
+        _isLoadingPosts || _communityPosts.isNotEmpty;
+    final showRecentCards = _isPlayer(user) || _isAgent(user);
     final showRoleInfo = !_isLoadingHomeInfo && _hasRenderableHomeInfo();
 
     return Scaffold(
@@ -343,80 +323,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   // const SizedBox(height: 16),
                   if (_isPlayer(user)) ...[
                     _buildPlayerQuickCards(context),
-                    const SizedBox(height: 16),
+                    // const SizedBox(height: 16),
+                    _buildSectionSeparator(),
                   ],
                   if (showRoleInfo) ...[
                     _buildRoleInfoSection(user),
-                    const SizedBox(height: 32),
+                    _buildSectionSeparator(),
                   ],
-                  if (hasActiveEvents) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Live Events',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
+                  if (showCommunityPostsSection) ...[
+                    _buildHomeSection(
+                      title: 'Community Posts',
+                      child: _buildCommunityPostsList(),
                     ),
-                    const SizedBox(height: 16),
-                    _buildEventsList(),
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Pinned Posts',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
+                    _buildSectionSeparator(),
+                  ],
+                  if (showLiveEventsSection) ...[
+                    _buildHomeSection(
+                      title: 'Live Events',
+                      child: _buildEventsList(),
                     ),
-                    const SizedBox(height: 16),
-                    _buildLatestPostsList(),
-                  ] else ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Pinned Posts',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildLatestPostsList(),
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Live Events',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildEventsList(),
+                    _buildSectionSeparator(),
+                  ],
+                  if (showRecentCards) ...[
+                    _buildRecentEventsCard(),
+                    _buildSectionSeparator(compact: true),
+                    _buildRecentActivityCard(),
                   ],
                 ],
               ),
@@ -1170,6 +1101,316 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildHomeSection({required String title, required Widget child}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        child,
+      ],
+    );
+  }
+
+  Widget _buildSectionSeparator({bool compact = false}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: compact ? 16 : 24),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 3,
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.cardBorder.withValues(alpha: 0.85),
+                    AppTheme.cardBorder.withValues(alpha: 0.08),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentEventsCard() {
+    final recentEvents = _recentEvents.take(5).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.itemDecoration(
+        customRadius: BorderRadius.circular(AppTheme.radius + 6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: AppTheme.accent.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Icon(
+                  Icons.event_available_outlined,
+                  color: AppTheme.accent,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recent Events',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Latest community events',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Top 5',
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_isLoadingRecentEvents)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: AppTheme.accent,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            )
+          else if (recentEvents.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppTheme.background.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_busy_outlined,
+                    color: AppTheme.textSecondary.withValues(alpha: 0.65),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No recent events available right now.',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...recentEvents.asMap().entries.map((entry) {
+              final index = entry.key;
+              final event = entry.value;
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == recentEvents.length - 1 ? 0 : 10,
+                ),
+                child: _RecentEventRow(event: event),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityCard() {
+    final activity = _recentActivity.take(5).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.itemDecoration(
+        customRadius: BorderRadius.circular(AppTheme.radius + 6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: AppTheme.primary.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Icon(
+                  Icons.bolt_outlined,
+                  color: AppTheme.accent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recent Activity',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Latest community updates',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Top 5',
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_isLoadingRecentActivity)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: AppTheme.accent,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            )
+          else if (activity.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppTheme.background.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.notifications_none_rounded,
+                    color: AppTheme.textSecondary.withValues(alpha: 0.65),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No recent activity yet.',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...activity.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == activity.length - 1 ? 0 : 10,
+                ),
+                child: _RecentActivityRow(activity: item),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEventsList() {
     if (_isLoadingEvents) {
       return const Center(child: CircularProgressIndicator());
@@ -1315,12 +1556,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLatestPostsList() {
+  Widget _buildCommunityPostsList() {
     if (_isLoadingPosts) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_posts.isEmpty) {
+    if (_communityPosts.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -1336,7 +1577,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   size: 48),
               const SizedBox(height: 12),
               Text(
-                'No pinned posts available',
+                'No community posts available',
                 style: TextStyle(
                     color: AppTheme.textSecondary.withValues(alpha: 0.7)),
               ),
@@ -1346,171 +1587,243 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return ListView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      itemCount: _posts.length,
-      itemBuilder: (context, index) {
-        final post = _posts[index];
-        final cleanContent =
-            post.content.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: AppTheme.visualStyle == VisualStyle.flat
-                ? null
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.22),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-            border: Border.all(color: AppTheme.cardBorder),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ..._communityPosts.map(
+          (post) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildCommunityPostCard(post),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PostDetailsScreen(post: post),
-                  ),
-                );
-              },
-              borderRadius: BorderRadius.circular(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (post.video != null && post.video!.trim().isNotEmpty)
-                    ClipRRect(
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(20)),
-                      child: _PostVideoPreview(
-                        videoUrl: _resolvePostMediaUrl(post.video!),
-                        fallbackImageUrl: post.image != null
-                            ? _resolvePostMediaUrl(post.image!)
-                            : null,
-                      ),
-                    )
-                  else if (post.image != null && post.image!.trim().isNotEmpty)
-                    ClipRRect(
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(20)),
-                      child: Image.network(
-                        _resolvePostMediaUrl(post.image!),
-                        height: 180,
-                        fit: BoxFit.cover,
-                      ),
+        ),
+        const SizedBox(height: 2),
+        OutlinedButton.icon(
+          onPressed: _openCommunityFeed,
+          icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+          label: const Text('View more posts'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppTheme.textPrimary,
+            side: BorderSide(color: AppTheme.accent.withValues(alpha: 0.55)),
+            backgroundColor: AppTheme.accent.withValues(alpha: 0.10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommunityPostCard(Post post) {
+    final cleanContent =
+        post.content.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
+    final coverImage = post.images.isNotEmpty ? post.images.first : null;
+    final isPinned = post.isPinned;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isPinned
+            ? Color.alphaBlend(
+                AppTheme.accent.withValues(alpha: 0.08),
+                AppTheme.surface,
+              )
+            : AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.visualStyle == VisualStyle.flat
+            ? null
+            : [
+                BoxShadow(
+                  color: isPinned
+                      ? AppTheme.accent.withValues(alpha: 0.16)
+                      : Colors.black.withValues(alpha: 0.18),
+                  blurRadius: isPinned ? 18 : 14,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+        border: Border.all(
+          color: isPinned
+              ? AppTheme.accent.withValues(alpha: 0.45)
+              : AppTheme.cardBorder,
+          width: isPinned ? 1.2 : 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PostDetailsScreen(post: post),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isPinned)
+                Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.accent,
+                        AppTheme.primary.withValues(alpha: 0.9),
+                      ],
                     ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                ),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (post.video != null && post.video!.trim().isNotEmpty)
+                      SizedBox(
+                        width: 128,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(isPinned ? 0 : 16),
+                            bottomLeft: const Radius.circular(16),
+                          ),
+                          child: _PostVideoPreview(
+                            videoUrl: _resolvePostMediaUrl(post.video!),
+                            fallbackImageUrl: coverImage != null
+                                ? _resolvePostMediaUrl(coverImage)
+                                : null,
+                          ),
+                        ),
+                      )
+                    else if (coverImage != null && coverImage.trim().isNotEmpty)
+                      SizedBox(
+                        width: 128,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(isPinned ? 0 : 16),
+                            bottomLeft: const Radius.circular(16),
+                          ),
+                          child: Image.network(
+                            _resolvePostMediaUrl(coverImage),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildProfileAvatar(
-                              _resolveProfileImageUrl(post.author),
-                              post.author?.username.isNotEmpty == true
-                                  ? post.author!.username[0].toUpperCase()
-                                  : '?',
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _capitalizeUsername(
-                                  post.author?.username ?? 'Unknown'),
-                              style: TextStyle(
-                                color: AppTheme.textPrimary
-                                    .withValues(alpha: 0.85),
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              _getFriendlyTime(post.createdAt.toLocal()),
-                              style: TextStyle(
-                                color: AppTheme.textSecondary
-                                    .withValues(alpha: 0.75),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          post.title,
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                        ),
-                        if (cleanContent.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            cleanContent,
-                            style: TextStyle(
-                              color:
-                                  AppTheme.textSecondary.withValues(alpha: 0.9),
-                              fontSize: 14,
-                              height: 1.4,
-                            ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => showSharePostToChatDialog(
-                              context,
-                              post: post,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 4,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.send_outlined,
-                                    size: 17,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Share to Chat',
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _capitalizeUsername(
+                                        post.author?.username ?? 'Unknown'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      color: AppTheme.textSecondary,
-                                      fontSize: 12.5,
+                                      color: AppTheme.textPrimary
+                                          .withValues(alpha: 0.78),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                if (isPinned) ...[
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.push_pin_outlined,
+                                    size: 14,
+                                    color: AppTheme.accent,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              post.title.isNotEmpty
+                                  ? post.title
+                                  : 'Untitled post',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
+                                height: 1.18,
+                              ),
+                            ),
+                            if (cleanContent.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                cleanContent,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary
+                                      .withValues(alpha: 0.9),
+                                  fontSize: 12.5,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _getFriendlyTime(post.createdAt.toLocal()),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary
+                                          .withValues(alpha: 0.7),
+                                      fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () => showSharePostToChatDialog(
+                                    context,
+                                    post: post,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(
+                                      Icons.send_outlined,
+                                      size: 16,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  void _openCommunityFeed() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PostFeedScreen()),
     );
   }
 
@@ -1837,6 +2150,339 @@ class _PostVideoPreviewState extends State<_PostVideoPreview>
         ),
       ),
     );
+  }
+}
+
+class _RecentActivityRow extends StatelessWidget {
+  final Map<String, dynamic> activity;
+
+  const _RecentActivityRow({required this.activity});
+
+  @override
+  Widget build(BuildContext context) {
+    final actor = _asMap(activity['actor']);
+    final actorName = (actor['username'] ?? 'Community').toString();
+    final avatarUrl = (actor['avatar'] ?? '').toString().trim();
+    final title = _formatActivityTitle(activity);
+    final createdAt = (activity['created_at'] ?? '').toString();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          _RecentActivityAvatar(
+            avatarUrl: avatarUrl,
+            fallbackText: actorName,
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: actorName,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' $title',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12.5, height: 1.25),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _formatRelativeTime(createdAt),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            _activityIcon((activity['kind'] ?? '').toString()),
+            color: AppTheme.accent.withValues(alpha: 0.86),
+            size: 18,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentActivityAvatar extends StatelessWidget {
+  final String avatarUrl;
+  final String fallbackText;
+
+  const _RecentActivityAvatar({
+    required this.avatarUrl,
+    required this.fallbackText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = fallbackText.trim().isEmpty
+        ? 'C'
+        : fallbackText.trim()[0].toUpperCase();
+
+    if (avatarUrl.isEmpty) {
+      return _avatarFallback(initial);
+    }
+
+    return ClipOval(
+      child: Image.network(
+        avatarUrl,
+        width: 42,
+        height: 42,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _avatarFallback(initial),
+      ),
+    );
+  }
+
+  Widget _avatarFallback(String initial) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.20),
+        shape: BoxShape.circle,
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.20)),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentEventRow extends StatelessWidget {
+  final Event event;
+
+  const _RecentEventRow({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final date = event.startDate ?? event.endDate;
+    final month = date == null ? 'TBA' : DateFormat('MMM').format(date);
+    final day = date == null ? '--' : DateFormat('dd').format(date);
+    final range = _eventRangeLabel(event);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppTheme.accent.withValues(alpha: 0.28),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  month.toUpperCase(),
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  day,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  range,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (event.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    event.description.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (event.bannerImage != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: Image.network(
+                event.bannerImage!,
+                width: 54,
+                height: 54,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _RecentEventIconFallback(),
+              ),
+            )
+          else
+            const _RecentEventIconFallback(),
+        ],
+      ),
+    );
+  }
+
+  static String _eventRangeLabel(Event event) {
+    final start = event.startDate;
+    final end = event.endDate;
+    if (start != null && end != null) {
+      final sameDay = start.year == end.year &&
+          start.month == end.month &&
+          start.day == end.day;
+      if (sameDay) return DateFormat('MMM d, y').format(start);
+      return '${DateFormat('MMM d').format(start)} - ${DateFormat('MMM d, y').format(end)}';
+    }
+    if (start != null) return DateFormat('MMM d, y').format(start);
+    if (end != null) return 'Ends ${DateFormat('MMM d, y').format(end)}';
+    return 'Date to be announced';
+  }
+}
+
+class _RecentEventIconFallback extends StatelessWidget {
+  const _RecentEventIconFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 54,
+      height: 54,
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.20)),
+      ),
+      child: Icon(
+        Icons.emoji_events_outlined,
+        color: AppTheme.accent,
+        size: 22,
+      ),
+    );
+  }
+}
+
+List<dynamic> _extractList(dynamic response) {
+  if (response is List) return response;
+  if (response is Map) {
+    final data = response['data'];
+    if (data is List) return data;
+    final results = response['results'];
+    if (results is List) return results;
+  }
+  return const [];
+}
+
+Map<String, dynamic> _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return const {};
+}
+
+String _formatActivityTitle(Map<String, dynamic> item) {
+  final action = (item['action'] ?? '').toString().trim();
+  final target = (item['target_title'] ?? '').toString().trim();
+  if (action.isNotEmpty && target.isNotEmpty) return '$action $target';
+  if (action.isNotEmpty) return action;
+  return (item['kind'] ?? 'activity').toString();
+}
+
+String _formatRelativeTime(String value) {
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return '';
+  final now = DateTime.now();
+  final local = parsed.toLocal();
+  final diff = now.difference(local);
+
+  if (diff.inSeconds < 60) return 'Just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return DateFormat('MMM d, y').format(local);
+}
+
+IconData _activityIcon(String kind) {
+  switch (kind.toLowerCase()) {
+    case 'post':
+      return Icons.article_outlined;
+    case 'comment':
+      return Icons.chat_bubble_outline;
+    case 'event':
+      return Icons.event_available_outlined;
+    case 'reward':
+      return Icons.card_giftcard_outlined;
+    case 'account':
+      return Icons.person_add_alt_1_outlined;
+    default:
+      return Icons.bolt_outlined;
   }
 }
 

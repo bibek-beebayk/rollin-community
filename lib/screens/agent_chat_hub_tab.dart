@@ -58,13 +58,14 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
       await chatProvider.fetchMessageRequests(authProvider.apiClient);
       int pendingGroupRequests = 0;
       if (isAgentUser) {
-        final requests =
-            await chatProvider.fetchManagedGroupJoinRequests(authProvider.apiClient);
+        final requests = await chatProvider
+            .fetchManagedGroupJoinRequests(authProvider.apiClient);
         pendingGroupRequests = requests.length;
       }
       _pendingGroupRequests = pendingGroupRequests;
 
-      final hasSupport = chatProvider.activeChats.any((r) => r.roomType == 'support');
+      final hasSupport =
+          chatProvider.activeChats.any((r) => r.roomType == 'support');
       if (!hasSupport) {
         await chatProvider.joinSupportRoom(authProvider.apiClient);
         await chatProvider.fetchActiveChats(authProvider.apiClient);
@@ -101,7 +102,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
 
   String? _resolveProfileImageUrl(User? user) {
     if (user == null) return null;
-    final raw = (user.profileThumbnail ?? user.avatar ?? user.profilePicture)?.trim();
+    final raw =
+        (user.profileThumbnail ?? user.avatar ?? user.profilePicture)?.trim();
     if (raw == null || raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
     final normalizedPath = raw.startsWith('/') ? raw : '/$raw';
@@ -111,9 +113,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
   Widget _buildChatAvatar(Room room, {bool isCurrent = false}) {
     final title = _titleForRoom(room);
     final imageUrl = _resolveProfileImageUrl(room.counterpart);
-    final fallbackColor = isCurrent
-        ? AppTheme.accent
-        : AppTheme.primary.withValues(alpha: 0.9);
+    final fallbackColor =
+        isCurrent ? AppTheme.accent : AppTheme.primary.withValues(alpha: 0.9);
     final fallbackTextColor = isCurrent ? Colors.black : AppTheme.textPrimary;
     return CircleAvatar(
       backgroundColor: fallbackColor,
@@ -183,7 +184,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: Text('Create Group', style: TextStyle(color: AppTheme.textPrimary)),
+        title:
+            Text('Create Group', style: TextStyle(color: AppTheme.textPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -192,7 +194,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               style: TextStyle(color: AppTheme.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Group name',
-                hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+                hintStyle: TextStyle(
+                    color: AppTheme.textSecondary.withValues(alpha: 0.75)),
               ),
             ),
             const SizedBox(height: 10),
@@ -202,13 +205,15 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Description (optional)',
-                hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+                hintStyle: TextStyle(
+                    color: AppTheme.textSecondary.withValues(alpha: 0.75)),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, {
               'name': nameController.text.trim(),
@@ -245,7 +250,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     bool loading = true;
 
     Future<void> load({String query = ''}) async {
-      groups = await chatProvider.discoverGroups(authProvider.apiClient, query: query);
+      groups = await chatProvider.discoverGroups(authProvider.apiClient,
+          query: query);
     }
 
     await showDialog(
@@ -260,7 +266,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
           }
           return AlertDialog(
             backgroundColor: AppTheme.surface,
-            title: Text('Discover Groups', style: TextStyle(color: AppTheme.textPrimary)),
+            title: Text('Discover Groups',
+                style: TextStyle(color: AppTheme.textPrimary)),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -271,7 +278,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                     style: TextStyle(color: AppTheme.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Search groups',
-                      hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.75)),
+                      hintStyle: TextStyle(
+                          color:
+                              AppTheme.textSecondary.withValues(alpha: 0.75)),
                     ),
                     onSubmitted: (v) async {
                       await load(query: v.trim());
@@ -294,7 +303,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                         itemCount: groups.length,
                         itemBuilder: (context, index) {
                           final group = groups[index];
-                          final relation = (group['relation'] ?? 'none').toString();
+                          final relation =
+                              (group['relation'] ?? 'none').toString();
                           final id = (group['id'] as num?)?.toInt();
                           return ListTile(
                             title: Text(
@@ -303,24 +313,45 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             ),
                             subtitle: Text(
                               '${group['member_count'] ?? 0} members',
-                              style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
+                              style: TextStyle(
+                                  color: AppTheme.textPrimary
+                                      .withValues(alpha: 0.65)),
                             ),
-                            trailing: relation == 'member' || relation == 'admin'
-                                ? const Text('Joined', style: TextStyle(color: Colors.greenAccent))
+                            trailing: relation == 'member' ||
+                                    relation == 'admin'
+                                ? const Text('Joined',
+                                    style: TextStyle(color: Colors.greenAccent))
                                 : relation == 'pending'
-                                    ? const Text('Pending', style: TextStyle(color: Colors.orangeAccent))
+                                    ? const Text('Pending',
+                                        style: TextStyle(
+                                            color: Colors.orangeAccent))
                                     : TextButton(
                                         onPressed: id == null
                                             ? null
                                             : () async {
                                                 try {
-                                                  await chatProvider.requestJoinGroup(authProvider.apiClient, id);
-                                                  await load(query: queryController.text.trim());
-                                                  if (context.mounted) setStateDialog(() {});
+                                                  await chatProvider
+                                                      .requestJoinGroup(
+                                                          authProvider
+                                                              .apiClient,
+                                                          id);
+                                                  await load(
+                                                      query: queryController
+                                                          .text
+                                                          .trim());
+                                                  if (context.mounted) {
+                                                    setStateDialog(() {});
+                                                  }
                                                 } catch (e) {
                                                   if (!context.mounted) return;
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                        content: Text(e
+                                                            .toString()
+                                                            .replaceAll(
+                                                                'Exception: ',
+                                                                ''))),
                                                   );
                                                 }
                                               },
@@ -334,7 +365,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close')),
             ],
           );
         },
@@ -351,7 +384,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     bool loading = true;
 
     Future<void> load() async {
-      requests = await chatProvider.fetchManagedGroupJoinRequests(authProvider.apiClient);
+      requests = await chatProvider
+          .fetchManagedGroupJoinRequests(authProvider.apiClient);
     }
 
     await showDialog(
@@ -365,12 +399,15 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
             });
           }
           final screenSize = MediaQuery.of(context).size;
-          final dialogWidth = screenSize.width < 520 ? screenSize.width - 24 : 460.0;
+          final dialogWidth =
+              screenSize.width < 520 ? screenSize.width - 24 : 460.0;
           final dialogMaxHeight = screenSize.height * 0.68;
           return AlertDialog(
-            insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
             backgroundColor: AppTheme.surface,
-            title: Text('Group Join Requests', style: TextStyle(color: AppTheme.textPrimary)),
+            title: Text('Group Join Requests',
+                style: TextStyle(color: AppTheme.textPrimary)),
             content: SizedBox(
               width: dialogWidth,
               child: ConstrainedBox(
@@ -392,14 +429,17 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                           final request = requests[index];
                           final requestId = (request['id'] as num?)?.toInt();
                           final player =
-                              (request['player'] as Map?)?['username']?.toString() ??
+                              (request['player'] as Map?)?['username']
+                                      ?.toString() ??
                                   'Player';
-                          final roomName = ((request['room'] as Map?)?['name'] ?? '')
-                              .toString();
+                          final roomName =
+                              ((request['room'] as Map?)?['name'] ?? '')
+                                  .toString();
                           return Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.textPrimary.withValues(alpha: 0.04),
+                              color:
+                                  AppTheme.textPrimary.withValues(alpha: 0.04),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: AppTheme.cardBorder,
@@ -419,7 +459,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                                 Text(
                                   'Wants to join $roomName',
                                   style: TextStyle(
-                                    color: AppTheme.textPrimary.withValues(alpha: 0.72),
+                                    color: AppTheme.textPrimary
+                                        .withValues(alpha: 0.72),
                                   ),
                                 ),
                                 const SizedBox(height: 10),
@@ -430,7 +471,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                                         onPressed: requestId == null
                                             ? null
                                             : () async {
-                                                await chatProvider.reviewGroupJoinRequest(
+                                                await chatProvider
+                                                    .reviewGroupJoinRequest(
                                                   authProvider.apiClient,
                                                   requestId: requestId,
                                                   action: 'approve',
@@ -449,7 +491,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                                         onPressed: requestId == null
                                             ? null
                                             : () async {
-                                                await chatProvider.reviewGroupJoinRequest(
+                                                await chatProvider
+                                                    .reviewGroupJoinRequest(
                                                   authProvider.apiClient,
                                                   requestId: requestId,
                                                   action: 'reject',
@@ -472,7 +515,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close')),
             ],
           );
         },
@@ -594,6 +639,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
+        top: false,
         child: RefreshIndicator(
           onRefresh: _loadChats,
           child: Consumer<ChatProvider>(
@@ -614,7 +660,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
               final directRoomsRaw =
                   rooms.where((r) => r.roomType == 'direct_agent').toList();
               final messageRequestRooms = chatProvider.messageRequests;
-              final groupRoomsRaw = rooms.where((r) => r.roomType == 'group').toList();
+              final groupRoomsRaw =
+                  rooms.where((r) => r.roomType == 'group').toList();
               final otherRooms = _buildPrioritizedRooms(
                 directRoomsRaw,
                 userType: userType,
@@ -638,7 +685,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                   padding: const EdgeInsets.all(20),
                   children: [
                     const SizedBox(height: 120),
-                    const Icon(Icons.error_outline, color: Colors.redAccent, size: 44),
+                    const Icon(Icons.error_outline,
+                        color: Colors.redAccent, size: 44),
                     const SizedBox(height: 12),
                     Text(
                       _errorMessage!,
@@ -658,7 +706,7 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
 
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 20),
                 children: [
                   Text(
                     'Chats',
@@ -730,7 +778,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       ),
                       child: Text(
                         'No message requests.',
-                        style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
+                        style: TextStyle(
+                            color:
+                                AppTheme.textPrimary.withValues(alpha: 0.65)),
                       ),
                     )
                   else
@@ -757,7 +807,8 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                                     ? 'Incoming message request'
                                     : 'Pending request (outgoing)',
                                 style: TextStyle(
-                                  color: AppTheme.textPrimary.withValues(alpha: 0.65),
+                                  color: AppTheme.textPrimary
+                                      .withValues(alpha: 0.65),
                                 ),
                               ),
                               trailing: _unreadBadge(room.unreadCount),
@@ -765,19 +816,24 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             ),
                             if (room.messageRequestDirection == 'incoming')
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 0, 12, 12),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       child: OutlinedButton(
-                                        onPressed: () => _respondToMessageRequest(room, 'reject'),
+                                        onPressed: () =>
+                                            _respondToMessageRequest(
+                                                room, 'reject'),
                                         child: const Text('Reject'),
                                       ),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: ElevatedButton(
-                                        onPressed: () => _respondToMessageRequest(room, 'accept'),
+                                        onPressed: () =>
+                                            _respondToMessageRequest(
+                                                room, 'accept'),
                                         child: const Text('Accept'),
                                       ),
                                     ),
@@ -844,12 +900,14 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       ),
                       if (isAgentUser)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: Colors.orangeAccent.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Colors.orangeAccent.withValues(alpha: 0.55),
+                              color:
+                                  Colors.orangeAccent.withValues(alpha: 0.55),
                             ),
                           ),
                           child: const Text(
@@ -877,19 +935,24 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             fontWeight: FontWeight.w600,
                             fontSize: 11,
                           ),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
-                          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity:
+                              const VisualDensity(horizontal: -2, vertical: -3),
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 4),
                           shape: const StadiumBorder(),
                           side: BorderSide(
                             color: _selectedFilter == 'all'
                                 ? AppTheme.accent.withValues(alpha: 0.9)
                                 : AppTheme.textSecondary.withValues(alpha: 0.3),
                           ),
-                          backgroundColor: AppTheme.surface.withValues(alpha: 0.35),
+                          backgroundColor:
+                              AppTheme.surface.withValues(alpha: 0.35),
                           selectedColor: AppTheme.accent,
                           selected: _selectedFilter == 'all',
-                          onSelected: (_) => setState(() => _selectedFilter = 'all'),
+                          onSelected: (_) =>
+                              setState(() => _selectedFilter = 'all'),
                         ),
                         ChoiceChip(
                           label: const Text('Needs Reply'),
@@ -900,16 +963,20 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             fontWeight: FontWeight.w600,
                             fontSize: 11,
                           ),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
-                          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity:
+                              const VisualDensity(horizontal: -2, vertical: -3),
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 4),
                           shape: const StadiumBorder(),
                           side: BorderSide(
                             color: _selectedFilter == 'needs_reply'
                                 ? AppTheme.accent.withValues(alpha: 0.9)
                                 : AppTheme.textSecondary.withValues(alpha: 0.3),
                           ),
-                          backgroundColor: AppTheme.surface.withValues(alpha: 0.35),
+                          backgroundColor:
+                              AppTheme.surface.withValues(alpha: 0.35),
                           selectedColor: AppTheme.accent,
                           selected: _selectedFilter == 'needs_reply',
                           onSelected: (_) =>
@@ -924,19 +991,24 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             fontWeight: FontWeight.w600,
                             fontSize: 11,
                           ),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
-                          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity:
+                              const VisualDensity(horizontal: -2, vertical: -3),
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 4),
                           shape: const StadiumBorder(),
                           side: BorderSide(
                             color: _selectedFilter == 'unread'
                                 ? AppTheme.accent.withValues(alpha: 0.9)
                                 : AppTheme.textSecondary.withValues(alpha: 0.3),
                           ),
-                          backgroundColor: AppTheme.surface.withValues(alpha: 0.35),
+                          backgroundColor:
+                              AppTheme.surface.withValues(alpha: 0.35),
                           selectedColor: AppTheme.accent,
                           selected: _selectedFilter == 'unread',
-                          onSelected: (_) => setState(() => _selectedFilter = 'unread'),
+                          onSelected: (_) =>
+                              setState(() => _selectedFilter = 'unread'),
                         ),
                       ],
                     ),
@@ -952,7 +1024,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       ),
                       child: Text(
                         'No other chats available.',
-                        style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
+                        style: TextStyle(
+                            color:
+                                AppTheme.textPrimary.withValues(alpha: 0.65)),
                       ),
                     )
                   else
@@ -974,7 +1048,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             _needsReply(room, currentUserId)
                                 ? '${_subtitleForRoom(room, userType)} • Needs reply'
                                 : _subtitleForRoom(room, userType),
-                            style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
+                            style: TextStyle(
+                                color: AppTheme.textPrimary
+                                    .withValues(alpha: 0.65)),
                           ),
                           trailing: _unreadBadge(room.unreadCount),
                           onTap: () => _openChat(room),
@@ -1001,7 +1077,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                       ),
                       child: Text(
                         'No groups available.',
-                        style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
+                        style: TextStyle(
+                            color:
+                                AppTheme.textPrimary.withValues(alpha: 0.65)),
                       ),
                     )
                   else
@@ -1026,7 +1104,9 @@ class _AgentChatHubTabState extends State<AgentChatHubTab> {
                             room.userIsGroupAdmin
                                 ? '${room.groupMemberCount} members • You are admin'
                                 : '${room.groupMemberCount} members',
-                            style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: 0.65)),
+                            style: TextStyle(
+                                color: AppTheme.textPrimary
+                                    .withValues(alpha: 0.65)),
                           ),
                           trailing: _unreadBadge(room.unreadCount),
                           onTap: () => _openChat(room),

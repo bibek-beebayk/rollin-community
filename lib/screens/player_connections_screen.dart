@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 
-
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
@@ -27,7 +26,8 @@ class PlayerConnectionsScreen extends StatefulWidget {
   });
 
   @override
-  State<PlayerConnectionsScreen> createState() => _PlayerConnectionsScreenState();
+  State<PlayerConnectionsScreen> createState() =>
+      _PlayerConnectionsScreenState();
 }
 
 class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
@@ -162,7 +162,8 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
     if (!mounted) return;
     setState(() {
       if (connected) {
-        _agentConnected = reset ? page.users : [..._agentConnected, ...page.users];
+        _agentConnected =
+            reset ? page.users : [..._agentConnected, ...page.users];
         _agentConnectedOffset = offset + page.users.length;
         _agentConnectedHasMore = page.hasMore;
       } else {
@@ -209,10 +210,10 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
   Future<void> _openPendingConnections() async {
     await Navigator.of(context)
         .push(
-      MaterialPageRoute(
-        builder: (_) => const PendingConnectionsScreen(),
-      ),
-    )
+          MaterialPageRoute(
+            builder: (_) => const PendingConnectionsScreen(),
+          ),
+        )
         .then((_) => _loadConnections());
   }
 
@@ -378,7 +379,9 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
               profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
           child: profileImageUrl == null
               ? Text(
-                  user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
+                  user.username.isNotEmpty
+                      ? user.username[0].toUpperCase()
+                      : 'U',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -388,7 +391,8 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
         ),
         title: Text(
           _capitalizeUsername(user.username),
-          style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w700),
+          style: TextStyle(
+              color: AppTheme.textPrimary, fontWeight: FontWeight.w700),
         ),
         trailing: PopupMenuButton<String>(
           icon: Icon(
@@ -511,7 +515,8 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
               fillColor: AppTheme.surface.withValues(alpha: 0.72),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              prefixIcon: Icon(Icons.search, color: AppTheme.textSecondary, size: 18),
+              prefixIcon:
+                  Icon(Icons.search, color: AppTheme.textSecondary, size: 18),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radius),
                 borderSide: BorderSide(color: AppTheme.cardBorder),
@@ -533,32 +538,33 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
             onRefresh: onRefresh,
             child: !hasAny
                 ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surface.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(AppTheme.radius),
-                        border: Border.all(
-                          color: AppTheme.cardBorder,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(AppTheme.radius),
+                          border: Border.all(
+                            color: AppTheme.cardBorder,
+                          ),
+                        ),
+                        child: Text(
+                          searchText.isEmpty
+                              ? emptyMessage
+                              : 'No users match "$searchText".',
+                          style: TextStyle(
+                            color:
+                                AppTheme.textSecondary.withValues(alpha: 0.9),
+                          ),
                         ),
                       ),
-                      child: Text(
-                        searchText.isEmpty
-                            ? emptyMessage
-                            : 'No users match "$searchText".',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary.withValues(alpha: 0.9),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
+                    ],
+                  )
                 : ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
@@ -591,347 +597,288 @@ class _PlayerConnectionsScreenState extends State<PlayerConnectionsScreen> {
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeProvider>();
-    final authUser = context.watch<AuthProvider>().user;
-    final menuAvatarUrl =
-        authUser != null ? _resolveProfileImageUrl(authUser) : null;
-    final menuInitial = (authUser?.username.isNotEmpty ?? false)
-        ? authUser!.username[0].toUpperCase()
-        : 'U';
-    final accentColor = Theme.of(context).colorScheme.primary;
     final isAgentUser = _isAgentUser;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Connections'),
-        actions: [
+      backgroundColor: AppTheme.background,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildConnectionsHeader(),
+          Expanded(
+            child: _buildConnectionsBody(isAgentUser),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionsHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'My Connections',
+              style: Theme.of(context).appBarTheme.titleTextStyle ??
+                  TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
           Consumer<ChatProvider>(
             builder: (context, chatProvider, _) {
               final count = chatProvider.pendingConnectionRequests;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      tooltip: 'Pending Connections',
-                      onPressed: _openPendingConnections,
-                      icon: const Icon(Icons.schedule_outlined),
-                    ),
-                    if (count > 0)
-                      Positioned(
-                        right: 6,
-                        top: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            count > 99 ? '99+' : '$count',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    tooltip: 'Pending Connections',
+                    onPressed: _openPendingConnections,
+                    icon: const Icon(Icons.schedule_outlined),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               );
             },
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: 'Menu',
-            onPressed: widget.onOpenMenu,
-            icon: CircleAvatar(
-              radius: 14,
-              backgroundColor: accentColor.withValues(alpha: 0.95),
-              child: CircleAvatar(
-                radius: 12.6,
-                backgroundColor: AppTheme.surface.withValues(alpha: 0.92),
-                backgroundImage:
-                    menuAvatarUrl != null ? NetworkImage(menuAvatarUrl) : null,
-                child: menuAvatarUrl == null
-                    ? Text(
-                        menuInitial,
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      )
-                    : null,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionsBody(bool isAgentUser) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(AppTheme.radius),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.45)),
+          ),
+          child: Text(
+            _error!,
+            style: TextStyle(color: AppTheme.textPrimary),
+          ),
+        ),
+      );
+    }
+
+    if (isAgentUser) {
+      return _buildTabContent(
+        emptyMessage: 'No player connections yet.',
+        searchText: _playerSearch,
+        searchHint: 'Search players',
+        connectedUsers: _playerConnected,
+        notConnectedUsers: _playerNotConnected,
+        connectedHasMore: _playerConnectedHasMore,
+        notConnectedHasMore: _playerNotConnectedHasMore,
+        isLoadingMoreConnected: _isLoadingMorePlayerConnected,
+        isLoadingMoreNotConnected: _isLoadingMorePlayerNotConnected,
+        onShowMoreConnected: () async {
+          if (_isLoadingMorePlayerConnected) return;
+          setState(() => _isLoadingMorePlayerConnected = true);
+          try {
+            await _loadPlayerSection(connected: true, reset: false);
+          } finally {
+            if (mounted) {
+              setState(() => _isLoadingMorePlayerConnected = false);
+            }
+          }
+        },
+        onShowMoreNotConnected: () async {
+          if (_isLoadingMorePlayerNotConnected) return;
+          setState(() => _isLoadingMorePlayerNotConnected = true);
+          try {
+            await _loadPlayerSection(connected: false, reset: false);
+          } finally {
+            if (mounted) {
+              setState(() => _isLoadingMorePlayerNotConnected = false);
+            }
+          }
+        },
+        onRefresh: _loadConnections,
+        onSearchChanged: (value) {
+          setState(() => _playerSearch = value);
+          _playerSearchDebounce?.cancel();
+          _playerSearchDebounce =
+              Timer(const Duration(milliseconds: 280), () async {
+            try {
+              await _loadPlayerSections(reset: true);
+            } catch (_) {
+              // Ignore transient search errors and preserve current list.
+            }
+          });
+        },
+      );
+    }
+
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.surface.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(AppTheme.radius),
+                border: Border.all(
+                  color: AppTheme.cardBorder,
+                ),
+              ),
+              child: TabBar(
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                labelColor: AppTheme.textPrimary,
+                unselectedLabelColor: AppTheme.textSecondary,
+                tabs: [
+                  Tab(
+                    text:
+                        'Agents (${_agentConnected.length + _agentNotConnected.length})',
+                  ),
+                  Tab(
+                    text:
+                        'Players (${_playerConnected.length + _playerNotConnected.length})',
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildTabContent(
+                  emptyMessage: 'No agent connections yet.',
+                  searchText: _agentSearch,
+                  searchHint: 'Search agents',
+                  connectedUsers: _agentConnected,
+                  notConnectedUsers: _agentNotConnected,
+                  connectedHasMore: _agentConnectedHasMore,
+                  notConnectedHasMore: _agentNotConnectedHasMore,
+                  isLoadingMoreConnected: _isLoadingMoreAgentConnected,
+                  isLoadingMoreNotConnected: _isLoadingMoreAgentNotConnected,
+                  onShowMoreConnected: () async {
+                    if (_isLoadingMoreAgentConnected) return;
+                    setState(() => _isLoadingMoreAgentConnected = true);
+                    try {
+                      await _loadAgentSection(connected: true, reset: false);
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoadingMoreAgentConnected = false);
+                      }
+                    }
+                  },
+                  onShowMoreNotConnected: () async {
+                    if (_isLoadingMoreAgentNotConnected) return;
+                    setState(() => _isLoadingMoreAgentNotConnected = true);
+                    try {
+                      await _loadAgentSection(connected: false, reset: false);
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoadingMoreAgentNotConnected = false);
+                      }
+                    }
+                  },
+                  onRefresh: _loadConnections,
+                  onSearchChanged: (value) {
+                    setState(() => _agentSearch = value);
+                    _agentSearchDebounce?.cancel();
+                    _agentSearchDebounce =
+                        Timer(const Duration(milliseconds: 280), () async {
+                      try {
+                        await _loadAgentSections(reset: true);
+                      } catch (_) {
+                        // Ignore transient search errors and preserve current list.
+                      }
+                    });
+                  },
+                ),
+                _buildTabContent(
+                  emptyMessage: 'No player connections yet.',
+                  searchText: _playerSearch,
+                  searchHint: 'Search players',
+                  connectedUsers: _playerConnected,
+                  notConnectedUsers: _playerNotConnected,
+                  connectedHasMore: _playerConnectedHasMore,
+                  notConnectedHasMore: _playerNotConnectedHasMore,
+                  isLoadingMoreConnected: _isLoadingMorePlayerConnected,
+                  isLoadingMoreNotConnected: _isLoadingMorePlayerNotConnected,
+                  onShowMoreConnected: () async {
+                    if (_isLoadingMorePlayerConnected) return;
+                    setState(() => _isLoadingMorePlayerConnected = true);
+                    try {
+                      await _loadPlayerSection(connected: true, reset: false);
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoadingMorePlayerConnected = false);
+                      }
+                    }
+                  },
+                  onShowMoreNotConnected: () async {
+                    if (_isLoadingMorePlayerNotConnected) return;
+                    setState(() => _isLoadingMorePlayerNotConnected = true);
+                    try {
+                      await _loadPlayerSection(connected: false, reset: false);
+                    } finally {
+                      if (mounted) {
+                        setState(
+                            () => _isLoadingMorePlayerNotConnected = false);
+                      }
+                    }
+                  },
+                  onRefresh: _loadConnections,
+                  onSearchChanged: (value) {
+                    setState(() => _playerSearch = value);
+                    _playerSearchDebounce?.cancel();
+                    _playerSearchDebounce =
+                        Timer(const Duration(milliseconds: 280), () async {
+                      try {
+                        await _loadPlayerSections(reset: true);
+                      } catch (_) {
+                        // Ignore transient search errors and preserve current list.
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-      backgroundColor: AppTheme.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(AppTheme.radius),
-                      border:
-                          Border.all(color: Colors.red.withValues(alpha: 0.45)),
-                    ),
-                    child: Text(
-                      _error!,
-                      style: TextStyle(color: AppTheme.textPrimary),
-                    ),
-                  ),
-                )
-              : isAgentUser
-                  ? Column(
-                      children: [
-                        Expanded(
-                          child: _buildTabContent(
-                            emptyMessage: 'No player connections yet.',
-                            searchText: _playerSearch,
-                            searchHint: 'Search players',
-                            connectedUsers: _playerConnected,
-                            notConnectedUsers: _playerNotConnected,
-                            connectedHasMore: _playerConnectedHasMore,
-                            notConnectedHasMore: _playerNotConnectedHasMore,
-                            isLoadingMoreConnected:
-                                _isLoadingMorePlayerConnected,
-                            isLoadingMoreNotConnected:
-                                _isLoadingMorePlayerNotConnected,
-                            onShowMoreConnected: () async {
-                              if (_isLoadingMorePlayerConnected) return;
-                              setState(
-                                () => _isLoadingMorePlayerConnected = true,
-                              );
-                              try {
-                                await _loadPlayerSection(
-                                  connected: true,
-                                  reset: false,
-                                );
-                              } finally {
-                                if (mounted) {
-                                  setState(
-                                    () => _isLoadingMorePlayerConnected = false,
-                                  );
-                                }
-                              }
-                            },
-                            onShowMoreNotConnected: () async {
-                              if (_isLoadingMorePlayerNotConnected) return;
-                              setState(
-                                () => _isLoadingMorePlayerNotConnected = true,
-                              );
-                              try {
-                                await _loadPlayerSection(
-                                  connected: false,
-                                  reset: false,
-                                );
-                              } finally {
-                                if (mounted) {
-                                  setState(
-                                    () =>
-                                        _isLoadingMorePlayerNotConnected = false,
-                                  );
-                                }
-                              }
-                            },
-                            onRefresh: _loadConnections,
-                            onSearchChanged: (value) {
-                              setState(() => _playerSearch = value);
-                              _playerSearchDebounce?.cancel();
-                              _playerSearchDebounce =
-                                  Timer(const Duration(milliseconds: 280), () async {
-                                try {
-                                  await _loadPlayerSections(reset: true);
-                                } catch (_) {
-                                  // Ignore transient search errors and preserve current list.
-                                }
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    )
-                  : DefaultTabController(
-                      length: 2,
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: AppTheme.surface.withValues(alpha: 0.65),
-                                borderRadius: BorderRadius.circular(AppTheme.radius),
-                                border: Border.all(
-                                  color: AppTheme.cardBorder,
-                                ),
-                              ),
-                              child: TabBar(
-                                indicatorSize: TabBarIndicatorSize.tab,
-                                indicator: BoxDecoration(
-                                  color: AppTheme.accent.withValues(alpha: 0.22),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                labelColor: AppTheme.textPrimary,
-                                unselectedLabelColor:
-                                    AppTheme.textSecondary,
-                                tabs: [
-                                  Tab(
-                                    text:
-                                        'Agents (${_agentConnected.length + _agentNotConnected.length})',
-                                  ),
-                                  Tab(
-                                    text:
-                                        'Players (${_playerConnected.length + _playerNotConnected.length})',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: TabBarView(
-                              children: [
-                                _buildTabContent(
-                                  emptyMessage: 'No agent connections yet.',
-                                  searchText: _agentSearch,
-                                  searchHint: 'Search agents',
-                                  connectedUsers: _agentConnected,
-                                  notConnectedUsers: _agentNotConnected,
-                                  connectedHasMore: _agentConnectedHasMore,
-                                  notConnectedHasMore: _agentNotConnectedHasMore,
-                                  isLoadingMoreConnected:
-                                      _isLoadingMoreAgentConnected,
-                                  isLoadingMoreNotConnected:
-                                      _isLoadingMoreAgentNotConnected,
-                                  onShowMoreConnected: () async {
-                                    if (_isLoadingMoreAgentConnected) return;
-                                    setState(
-                                      () => _isLoadingMoreAgentConnected = true,
-                                    );
-                                    try {
-                                      await _loadAgentSection(
-                                        connected: true,
-                                        reset: false,
-                                      );
-                                    } finally {
-                                      if (mounted) {
-                                        setState(
-                                          () =>
-                                              _isLoadingMoreAgentConnected = false,
-                                        );
-                                      }
-                                    }
-                                  },
-                                  onShowMoreNotConnected: () async {
-                                    if (_isLoadingMoreAgentNotConnected) return;
-                                    setState(
-                                      () => _isLoadingMoreAgentNotConnected = true,
-                                    );
-                                    try {
-                                      await _loadAgentSection(
-                                        connected: false,
-                                        reset: false,
-                                      );
-                                    } finally {
-                                      if (mounted) {
-                                        setState(
-                                          () => _isLoadingMoreAgentNotConnected = false,
-                                        );
-                                      }
-                                    }
-                                  },
-                                  onRefresh: _loadConnections,
-                                  onSearchChanged: (value) {
-                                    setState(() => _agentSearch = value);
-                                    _agentSearchDebounce?.cancel();
-                                    _agentSearchDebounce =
-                                        Timer(const Duration(milliseconds: 280), () async {
-                                      try {
-                                        await _loadAgentSections(reset: true);
-                                      } catch (_) {
-                                        // Ignore transient search errors and preserve current list.
-                                      }
-                                    });
-                                  },
-                                ),
-                                _buildTabContent(
-                                  emptyMessage: 'No player connections yet.',
-                                  searchText: _playerSearch,
-                                  searchHint: 'Search players',
-                                  connectedUsers: _playerConnected,
-                                  notConnectedUsers: _playerNotConnected,
-                                  connectedHasMore: _playerConnectedHasMore,
-                                  notConnectedHasMore: _playerNotConnectedHasMore,
-                                  isLoadingMoreConnected:
-                                      _isLoadingMorePlayerConnected,
-                                  isLoadingMoreNotConnected:
-                                      _isLoadingMorePlayerNotConnected,
-                                  onShowMoreConnected: () async {
-                                    if (_isLoadingMorePlayerConnected) return;
-                                    setState(
-                                      () => _isLoadingMorePlayerConnected = true,
-                                    );
-                                    try {
-                                      await _loadPlayerSection(
-                                        connected: true,
-                                        reset: false,
-                                      );
-                                    } finally {
-                                      if (mounted) {
-                                        setState(
-                                          () =>
-                                              _isLoadingMorePlayerConnected = false,
-                                        );
-                                      }
-                                    }
-                                  },
-                                  onShowMoreNotConnected: () async {
-                                    if (_isLoadingMorePlayerNotConnected) return;
-                                    setState(
-                                      () => _isLoadingMorePlayerNotConnected = true,
-                                    );
-                                    try {
-                                      await _loadPlayerSection(
-                                        connected: false,
-                                        reset: false,
-                                      );
-                                    } finally {
-                                      if (mounted) {
-                                        setState(
-                                          () =>
-                                              _isLoadingMorePlayerNotConnected = false,
-                                        );
-                                      }
-                                    }
-                                  },
-                                  onRefresh: _loadConnections,
-                                  onSearchChanged: (value) {
-                                    setState(() => _playerSearch = value);
-                                    _playerSearchDebounce?.cancel();
-                                    _playerSearchDebounce =
-                                        Timer(const Duration(milliseconds: 280), () async {
-                                      try {
-                                        await _loadPlayerSections(reset: true);
-                                      } catch (_) {
-                                        // Ignore transient search errors and preserve current list.
-                                      }
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
     );
   }
 }

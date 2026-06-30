@@ -40,6 +40,7 @@ class Post {
   final int likeCount;
   final int commentCount;
   final bool isLiked;
+  final bool isPinned;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -57,6 +58,7 @@ class Post {
     this.likeCount = 0,
     this.commentCount = 0,
     this.isLiked = false,
+    this.isPinned = false,
     required this.createdAt,
     this.updatedAt,
   });
@@ -78,7 +80,9 @@ class Post {
     }
 
     // Fallback: if no images array but legacy single image exists, use it
-    if (imageUrls.isEmpty && json['image'] != null && json['image'].toString().trim().isNotEmpty) {
+    if (imageUrls.isEmpty &&
+        json['image'] != null &&
+        json['image'].toString().trim().isNotEmpty) {
       imageUrls = [json['image'].toString()];
     }
 
@@ -96,6 +100,7 @@ class Post {
       likeCount: _parseInt(json['like_count'], fallback: 0),
       commentCount: _parseInt(json['comment_count'], fallback: 0),
       isLiked: json['is_liked'] == true,
+      isPinned: json['is_pinned'] == true,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -115,6 +120,7 @@ class Post {
     int? likeCount,
     int? commentCount,
     bool? isLiked,
+    bool? isPinned,
   }) {
     return Post(
       id: id,
@@ -130,6 +136,7 @@ class Post {
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
       isLiked: isLiked ?? this.isLiked,
+      isPinned: isPinned ?? this.isPinned,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

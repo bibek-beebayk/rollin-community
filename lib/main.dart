@@ -8,6 +8,7 @@ import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/social_provider.dart';
 import 'providers/theme_provider.dart';
+import 'config/app_config.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
@@ -38,6 +39,10 @@ class AppDistribution {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('AppConfig: ${AppConfig.diagnostics}');
+  // Keep this as a plain print too so release-mode terminal logs show it.
+  // ignore: avoid_print
+  print('AppConfig: ${AppConfig.diagnostics}');
 
   // Register background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

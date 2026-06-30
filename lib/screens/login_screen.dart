@@ -15,7 +15,7 @@ import 'forgot_password_screen.dart';
 import 'post_registration_router_screen.dart';
 import 'staff_home_screen.dart';
 
-const bool _showGoogleSignIn = false;
+const bool _showGoogleSignIn = true;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -131,12 +131,17 @@ class _LoginScreenState extends State<LoginScreen>
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     setState(() => _isGoogleLoading = true);
     try {
-      final googleUser = await GoogleSignIn(
+      final googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
         serverClientId: AppConfig.googleWebClientId.isNotEmpty
             ? AppConfig.googleWebClientId
             : null,
-      ).signIn();
+      );
+
+      // Temporary testing aid: force account selection while Google login setup
+      // is being verified. Remove this once the production flow is confirmed.
+      await googleSignIn.signOut();
+      final googleUser = await googleSignIn.signIn();
       if (googleUser == null) return;
 
       final googleAuth = await googleUser.authentication;

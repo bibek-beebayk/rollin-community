@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "195206028710",
-    "project_id": "rollin-community",
-    "storage_bucket": "rollin-community.firebasestorage.app"
+    "project_number": "178215873544",
+    "project_id": "community-499908",
+    "storage_bucket": "community-499908.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:195206028710:android:d10e07298d21cd0b284367",
+        "mobilesdk_app_id": "1:178215873544:android:3c5120f724ef7c1051f5bd",
         "android_client_info": {
           "package_name": "com.hirollin.community"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "178215873544-bvbb8jnh5o2s7fe719d4a4l93e8r6tje.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hirollin.community",
+            "certificate_hash": "e7ad767167b2df29ada7b1f7bad182f238019216"
+          }
+        },
+        {
+          "client_id": "178215873544-75549ll5pdcjtlue39mt2bi1b9un7hdf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyB_ZD9uttlU7VvCLhniwBjOVhaO649CHCA"
+          "current_key": "AIzaSyBlCB9aBm9gMiqNNEdaGoHCRh1bnPr7e-U"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "178215873544-75549ll5pdcjtlue39mt2bi1b9un7hdf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
