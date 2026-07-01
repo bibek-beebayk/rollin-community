@@ -282,6 +282,9 @@ class AuthProvider with ChangeNotifier {
         verificationStatus: 'approved',
         avatar: _user!.avatar,
         profilePicture: _user!.profilePicture,
+        profileThumbnail: _user!.profileThumbnail,
+        hasUsablePassword: _user!.hasUsablePassword,
+        needsUsernameSetup: _user!.needsUsernameSetup,
         agentAvailability: _user!.agentAvailability,
         agentStatusNote: _user!.agentStatusNote,
       );
@@ -329,7 +332,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> changePassword(
       String oldPassword, String newPassword, String confirmNewPassword) async {
     try {
-      await _apiClient.post(
+      final response = await _apiClient.post(
         '/api/auth/change-password/',
         body: {
           'old_password': oldPassword,
@@ -337,6 +340,12 @@ class AuthProvider with ChangeNotifier {
           'confirm_new_password': confirmNewPassword,
         },
       );
+      final data = response['data'] ?? response;
+      final userData = data['user'];
+      if (userData is Map<String, dynamic>) {
+        _user = User.fromJson(userData);
+        notifyListeners();
+      }
     } catch (e) {
       // The API client throws a Map if the response is JSON error.
       // E.g. {"old_password":["Current password is incorrect."]}
@@ -367,6 +376,19 @@ class AuthProvider with ChangeNotifier {
     final userData = data['user'] ?? data;
     _user = User.fromJson(userData);
     notifyListeners();
+  }
+
+  Future<void> updateUsername(String username) async {
+    final response = await _apiClient.post(
+      '/api/auth/username/',
+      body: {'username': username},
+    );
+    final data = response['data'] ?? response;
+    final userData = data['user'] ?? data;
+    if (userData is Map<String, dynamic>) {
+      _user = User.fromJson(userData);
+      notifyListeners();
+    }
   }
 
   Future<void> requestEmailChangeOTP(

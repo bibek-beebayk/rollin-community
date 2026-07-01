@@ -7,6 +7,7 @@ import 'agent_suggestion_screen.dart';
 import 'main_screen.dart';
 import 'staff_home_screen.dart';
 import 'update_screen.dart';
+import 'username_setup_screen.dart';
 
 class PostRegistrationRouterScreen extends StatefulWidget {
   const PostRegistrationRouterScreen({super.key});
@@ -43,6 +44,17 @@ class _PostRegistrationRouterScreenState
 
     if (user.isStaff) {
       if (mounted) setState(() => _destination = const StaffHomeScreen());
+      return;
+    }
+
+    if (user.needsUsernameSetup) {
+      if (mounted) {
+        setState(
+          () => _destination = UsernameSetupScreen(
+            onComplete: _resolveDestination,
+          ),
+        );
+      }
       return;
     }
 

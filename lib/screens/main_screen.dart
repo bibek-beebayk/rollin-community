@@ -685,7 +685,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               child: IndexedStack(
                 index: effectiveIndex,
                 children: [
-                  const HomeScreen(showAppBar: false),
+                  HomeScreen(
+                    showAppBar: false,
+                    onOpenCommunityFeed: () =>
+                        _handleNavTap(1, context.read<ChatProvider>()),
+                  ),
                   const PostFeedScreen(),
                   _chatTabLoaded
                       ? (useChatHubForUser

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 class User {
   final int id;
   final String username;
@@ -9,6 +10,8 @@ class User {
   final String? avatar;
   final String? profilePicture;
   final String? profileThumbnail;
+  final bool hasUsablePassword;
+  final bool needsUsernameSetup;
   final String agentAvailability;
   final String agentStatusNote;
   final DateTime? joinedAt;
@@ -30,6 +33,8 @@ class User {
     this.avatar,
     this.profilePicture,
     this.profileThumbnail,
+    this.hasUsablePassword = true,
+    this.needsUsernameSetup = false,
     this.agentAvailability = 'online',
     this.agentStatusNote = '',
     this.joinedAt,
@@ -56,6 +61,8 @@ class User {
       avatar: json['avatar'] ?? json['profile_picture'],
       profilePicture: json['profile_picture'] ?? json['avatar'],
       profileThumbnail: json['profile_thumbnail'],
+      hasUsablePassword: json['has_usable_password'] ?? true,
+      needsUsernameSetup: json['needs_username_setup'] ?? false,
       agentAvailability: json['agent_availability'] ?? 'online',
       agentStatusNote: json['agent_status_note'] ?? '',
       joinedAt: json['joined_at'] != null
@@ -89,6 +96,8 @@ class User {
       'avatar': avatar,
       'profile_picture': profilePicture,
       'profile_thumbnail': profileThumbnail,
+      'has_usable_password': hasUsablePassword,
+      'needs_username_setup': needsUsernameSetup,
       'agent_availability': agentAvailability,
       'agent_status_note': agentStatusNote,
       'joined_at': joinedAt?.toIso8601String(),

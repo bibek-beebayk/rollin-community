@@ -67,10 +67,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasPassword =
+        context.watch<AuthProvider>().user?.hasUsablePassword ?? true;
+    final pageTitle = hasPassword ? 'Change Password' : 'Set Password';
+
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Change Password'),
+        title: Text(pageTitle),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -89,47 +93,50 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Your password must be at least 6 characters and should include a combination of numbers, letters and special characters.',
+                  hasPassword
+                      ? 'Your password must be at least 6 characters and should include a combination of numbers, letters and special characters.'
+                      : 'Add a password so you can also sign in with your email or username.',
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
 
                 // Old Password
-                TextFormField(
-                  controller: _oldPasswordController,
-                  obscureText: true,
-                  style: TextStyle(color: AppTheme.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Current Password',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
-                    prefixIcon:
-                        Icon(Icons.lock_outline, color: AppTheme.textSecondary),
-                    filled: true,
-                    fillColor: AppTheme.surface.withValues(alpha: 0.3),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppTheme.cardBorder),
+                if (hasPassword) ...[
+                  TextFormField(
+                    controller: _oldPasswordController,
+                    obscureText: true,
+                    style: TextStyle(color: AppTheme.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Current Password',
+                      hintStyle: TextStyle(
+                          color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+                      prefixIcon: Icon(Icons.lock_outline,
+                          color: AppTheme.textSecondary),
+                      filled: true,
+                      fillColor: AppTheme.surface.withValues(alpha: 0.3),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppTheme.cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppTheme.cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppTheme.accent),
+                      ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppTheme.cardBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppTheme.accent),
-                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your current password';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your current password';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
 
                 // New Password
                 TextFormField(
@@ -138,20 +145,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   style: TextStyle(color: AppTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'New Password',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+                    hintStyle: TextStyle(
+                        color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                     prefixIcon:
                         Icon(Icons.lock_outline, color: AppTheme.textSecondary),
                     filled: true,
                     fillColor: AppTheme.surface.withValues(alpha: 0.3),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppTheme.cardBorder),
+                      borderSide: BorderSide(color: AppTheme.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppTheme.cardBorder),
+                      borderSide: BorderSide(color: AppTheme.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -165,7 +171,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     if (value.length < 6) {
                       return 'Password must be at least 6 characters';
                     }
-                    if (value == _oldPasswordController.text) {
+                    if (hasPassword && value == _oldPasswordController.text) {
                       return 'New password cannot be the same as current';
                     }
                     return null;
@@ -180,20 +186,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   style: TextStyle(color: AppTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Confirm New Password',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.7)),
+                    hintStyle: TextStyle(
+                        color: AppTheme.textSecondary.withValues(alpha: 0.7)),
                     prefixIcon:
                         Icon(Icons.lock_outline, color: AppTheme.textSecondary),
                     filled: true,
                     fillColor: AppTheme.surface.withValues(alpha: 0.3),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppTheme.cardBorder),
+                      borderSide: BorderSide(color: AppTheme.cardBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppTheme.cardBorder),
+                      borderSide: BorderSide(color: AppTheme.cardBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -233,8 +238,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          'Update Password',
+                      : Text(
+                          hasPassword ? 'Update Password' : 'Set Password',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

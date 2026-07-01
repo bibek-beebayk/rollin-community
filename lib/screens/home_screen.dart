@@ -16,6 +16,7 @@ import '../services/reward_service.dart';
 import '../services/notification_service.dart';
 import '../api/api_client.dart';
 import 'package:video_player/video_player.dart';
+import 'change_password_screen.dart';
 import 'post_details_screen.dart';
 import 'post_feed_screen.dart';
 import 'agent_search_screen.dart';
@@ -23,8 +24,13 @@ import '../widgets/share_post_to_chat_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showAppBar;
+  final VoidCallback? onOpenCommunityFeed;
 
-  const HomeScreen({super.key, this.showAppBar = true});
+  const HomeScreen({
+    super.key,
+    this.showAppBar = true,
+    this.onOpenCommunityFeed,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -321,6 +327,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   // _buildHeroCard(user),
                   // const SizedBox(height: 16),
+                  if (user?.hasUsablePassword == false) ...[
+                    _buildPasswordSetupNotice(),
+                    const SizedBox(height: 16),
+                  ],
                   if (_isPlayer(user)) ...[
                     _buildPlayerQuickCards(context),
                     // const SizedBox(height: 16),
@@ -436,6 +446,100 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             padding: const EdgeInsets.all(8),
             child: Image.asset('assets/icon.png', fit: BoxFit.contain),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordSetupNotice() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          AppTheme.accent.withValues(alpha: 0.10),
+          AppTheme.surface,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.45)),
+        boxShadow: AppTheme.visualStyle == VisualStyle.card
+            ? [
+                BoxShadow(
+                  color: AppTheme.accent.withValues(alpha: 0.12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : null,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.lock_reset_outlined,
+              color: AppTheme.accent,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Set up your password',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'You signed in with Google. Add a password so you can also log in with your username or email.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ChangePasswordScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                    label: const Text('Set password'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.textPrimary,
+                      backgroundColor: AppTheme.accent.withValues(alpha: 0.18),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1822,6 +1926,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openCommunityFeed() {
+    if (widget.onOpenCommunityFeed != null) {
+      widget.onOpenCommunityFeed!();
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const PostFeedScreen()),
     );
